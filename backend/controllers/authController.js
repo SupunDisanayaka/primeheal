@@ -72,6 +72,112 @@ const register = async (req, res) => {
   }
 };
 
+// @route   POST /api/auth/register-receptionist
+// @desc    Register a new receptionist (admin only)
+const createReceptionist = async (req, res) => {
+  const { name, email, password, phone, deskBlock, shift } = req.body;
+
+  if (!name || !email || !password) {
+    return res.status(400).json({ success: false, message: 'Please provide name, email, and password' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [existingUsers] = await connection.query('SELECT * FROM users WHERE email = ?', [email]);
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ success: false, message: 'Email already exists' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const [userResult] = await connection.query(
+      'INSERT INTO users (name, email, password, phone, userType, isActive, profileImage) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, email, hashedPassword, phone || null, 'receptionist', 1, null]
+    );
+
+    const userId = userResult.insertId;
+    await connection.query(
+      'INSERT INTO receptionist (userID, department) VALUES (?, ?)',
+      [userId, deskBlock || shift || 'Front Desk']
+    );
+
+    await connection.commit();
+
+    res.status(201).json({
+      success: true,
+      message: 'Receptionist account created successfully',
+      user: {
+        _id: userId,
+        name,
+        email,
+        userType: 'receptionist'
+      }
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
+// @route   POST /api/auth/register-accountant
+// @desc    Register a new accountant (admin only)
+const createAccountant = async (req, res) => {
+  const { name, email, password, phone, department, shift } = req.body;
+
+  if (!name || !email || !password) {
+    return res.status(400).json({ success: false, message: 'Please provide name, email, and password' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [existingUsers] = await connection.query('SELECT * FROM users WHERE email = ?', [email]);
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ success: false, message: 'Email already exists' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const [userResult] = await connection.query(
+      'INSERT INTO users (name, email, password, phone, userType, isActive, profileImage) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, email, hashedPassword, phone || null, 'accountant', 1, null]
+    );
+
+    const userId = userResult.insertId;
+    await connection.query(
+      'INSERT INTO accountant (userID, department, accountingLicense) VALUES (?, ?, ?)',
+      [userId, department || 'Billing & Insurance', `ACC-${String(userId).padStart(5, '0')}`]
+    );
+
+    await connection.commit();
+
+    res.status(201).json({
+      success: true,
+      message: 'Accountant account created successfully',
+      user: {
+        _id: userId,
+        name,
+        email,
+        userType: 'accountant'
+      }
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
 // @route   POST /api/auth/login
 // @desc    Login user (any type)
 const login = async (req, res) => {
@@ -170,5 +276,7 @@ const login = async (req, res) => {
 
 module.exports = {
   register,
+  createReceptionist,
+  createAccountant,
   login
 };

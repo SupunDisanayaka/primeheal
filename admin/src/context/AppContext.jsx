@@ -203,19 +203,28 @@ const AppContextProvider = ({ children }) => {
     localStorage.getItem("currentAccountantId") || ""
   );
 
-  const loginReceptionist = (email, password) => {
-    const foundRec = receptionists.find(
-      (rec) => rec.email.toLowerCase() === email.toLowerCase()
-    );
-    if (foundRec && password === "receptionist") {
-      const token = `mock-receptionist-token-${foundRec._id}`;
-      setReceptionistToken(token);
-      setCurrentReceptionistId(foundRec._id);
-      localStorage.setItem("receptionistToken", token);
-      localStorage.setItem("currentReceptionistId", foundRec._id);
-      return true;
+  const loginReceptionist = async (email, password) => {
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+      if (data.success && data.user?.userType === "receptionist") {
+        setReceptionistToken(data.token);
+        setCurrentReceptionistId(data.user._id);
+        localStorage.setItem("receptionistToken", data.token);
+        localStorage.setItem("currentReceptionistId", data.user._id);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Receptionist login error:", error);
+      return false;
     }
-    return false;
   };
 
   const logoutReceptionist = () => {
@@ -225,19 +234,28 @@ const AppContextProvider = ({ children }) => {
     localStorage.removeItem("currentReceptionistId");
   };
 
-  const loginAccountant = (email, password) => {
-    const foundAcc = accountants.find(
-      (acc) => acc.email.toLowerCase() === email.toLowerCase()
-    );
-    if (foundAcc && password === "accountant") {
-      const token = `mock-accountant-token-${foundAcc._id}`;
-      setAccountantToken(token);
-      setCurrentAccountantId(foundAcc._id);
-      localStorage.setItem("accountantToken", token);
-      localStorage.setItem("currentAccountantId", foundAcc._id);
-      return true;
+  const loginAccountant = async (email, password) => {
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+      if (data.success && data.user?.userType === "accountant") {
+        setAccountantToken(data.token);
+        setCurrentAccountantId(data.user._id);
+        localStorage.setItem("accountantToken", data.token);
+        localStorage.setItem("currentAccountantId", data.user._id);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Accountant login error:", error);
+      return false;
     }
-    return false;
   };
 
   const logoutAccountant = () => {

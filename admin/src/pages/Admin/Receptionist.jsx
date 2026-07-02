@@ -1,6 +1,7 @@
 import React, { useState, useContext } from "react";
 import { AppContext } from "../../context/AppContext";
 import { assets } from "../../assets/assets";
+import { addReceptionistAPI } from "../../services/api";
 
 const Receptionist = () => {
   const { receptionists, setReceptionists } = useContext(AppContext);
@@ -11,6 +12,7 @@ const Receptionist = () => {
   const [recImg, setRecImg] = useState(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("Receptionist@123");
   const [phone, setPhone] = useState("");
   const [shift, setShift] = useState("Morning (08:00 AM - 04:00 PM)");
   const [deskBlock, setDeskBlock] = useState("Main Lobby, Desk A");
@@ -36,45 +38,63 @@ const Receptionist = () => {
     }
   };
 
-  const handleAddReceptionist = (e) => {
+  const handleAddReceptionist = async (e) => {
     e.preventDefault();
     setSuccessMsg("");
     setErrorMsg("");
 
-    if (!name || !email || !phone || !shift || !deskBlock) {
+    if (!name || !email || !password || !phone || !shift || !deskBlock) {
       setErrorMsg("Please fill in all required fields.");
       return;
     }
 
-    const newRec = {
-      _id: `rec_${Date.now()}`,
-      name,
-      email,
-      phone,
-      image: recImg
-        ? URL.createObjectURL(recImg)
-        : "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400",
-      shift,
-      deskBlock,
-      available: true,
-      createdAt: new Date(),
-    };
+    try {
+      const data = await addReceptionistAPI({
+        name,
+        email,
+        password,
+        phone,
+        shift,
+        deskBlock,
+      });
 
-    setReceptionists((prev) => [...prev, newRec]);
-    setSuccessMsg("Receptionist registered successfully!");
+      if (data.success) {
+        const newRec = {
+          _id: `rec_${Date.now()}`,
+          name,
+          email,
+          phone,
+          image: recImg
+            ? URL.createObjectURL(recImg)
+            : "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400",
+          shift,
+          deskBlock,
+          available: true,
+          createdAt: new Date(),
+        };
 
-    // Clear form
-    setRecImg(null);
-    setName("");
-    setEmail("");
-    setPhone("");
-    setShift("Morning (08:00 AM - 04:00 PM)");
-    setDeskBlock("Main Lobby, Desk A");
+        setReceptionists((prev) => [...prev, newRec]);
+        setSuccessMsg(`Receptionist registered successfully! The account can now sign in with ${email} and the chosen password.`);
 
-    setTimeout(() => {
-      setSuccessMsg("");
-      setActiveTab("list");
-    }, 1200);
+        setRecImg(null);
+        setName("");
+        setEmail("");
+        setPassword("Receptionist@123");
+        setPhone("");
+        setShift("Morning (08:00 AM - 04:00 PM)");
+        setDeskBlock("Main Lobby, Desk A");
+
+        setTimeout(() => {
+          setSuccessMsg("");
+          setActiveTab("list");
+        }, 1800);
+      } else {
+        setErrorMsg(data.message || "Unable to create receptionist account.");
+      }
+    } catch (error) {
+      console.error(error);
+      setErrorMsg(error.response?.data?.message || "Unable to create receptionist account.");
+    }
   };
 
   // Filtered List
@@ -283,6 +303,18 @@ const Receptionist = () => {
                   placeholder="e.g. alice@primeheal.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl p-3 w-full text-sm text-gray-800 transition-all bg-gray-50/20"
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Password</label>
+                <input
+                  type="password"
+                  placeholder="Choose a secure password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl p-3 w-full text-sm text-gray-800 transition-all bg-gray-50/20"
                   required
                 />

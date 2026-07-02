@@ -55,6 +55,16 @@ export const addDoctorAPI = async (doctorData) => {
   return response.data;
 };
 
+export const addReceptionistAPI = async (receptionistData) => {
+  const response = await api.post('/auth/register-receptionist', receptionistData);
+  return response.data;
+};
+
+export const addAccountantAPI = async (accountantData) => {
+  const response = await api.post('/auth/register-accountant', accountantData);
+  return response.data;
+};
+
 export const updateDoctorProfile = async (id, doctorData) => {
   const response = await api.put(`/doctors/${id}`, doctorData);
   return response.data;

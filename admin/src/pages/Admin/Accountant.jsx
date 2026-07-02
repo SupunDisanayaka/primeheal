@@ -1,6 +1,7 @@
 import React, { useState, useContext } from "react";
 import { AppContext } from "../../context/AppContext";
 import { assets } from "../../assets/assets";
+import { addAccountantAPI } from "../../services/api";
 
 const Accountant = () => {
   const { accountants, setAccountants } = useContext(AppContext);
@@ -11,6 +12,7 @@ const Accountant = () => {
   const [accImg, setAccImg] = useState(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("Accountant@123");
   const [phone, setPhone] = useState("");
   const [department, setDepartment] = useState("Billing & Insurance");
   const [shift, setShift] = useState("Full-Time (09:00 AM - 05:00 PM)");
@@ -36,45 +38,63 @@ const Accountant = () => {
     }
   };
 
-  const handleAddAccountant = (e) => {
+  const handleAddAccountant = async (e) => {
     e.preventDefault();
     setSuccessMsg("");
     setErrorMsg("");
 
-    if (!name || !email || !phone || !department || !shift) {
+    if (!name || !email || !password || !phone || !department || !shift) {
       setErrorMsg("Please fill in all required fields.");
       return;
     }
 
-    const newAcc = {
-      _id: `acc_${Date.now()}`,
-      name,
-      email,
-      phone,
-      image: accImg
-        ? URL.createObjectURL(accImg)
-        : "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400",
-      department,
-      shift,
-      available: true,
-      createdAt: new Date(),
-    };
+    try {
+      const data = await addAccountantAPI({
+        name,
+        email,
+        password,
+        phone,
+        department,
+        shift,
+      });
 
-    setAccountants((prev) => [...prev, newAcc]);
-    setSuccessMsg("Accountant registered successfully!");
+      if (data.success) {
+        const newAcc = {
+          _id: `acc_${Date.now()}`,
+          name,
+          email,
+          phone,
+          image: accImg
+            ? URL.createObjectURL(accImg)
+            : "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400",
+          department,
+          shift,
+          available: true,
+          createdAt: new Date(),
+        };
 
-    // Clear form
-    setAccImg(null);
-    setName("");
-    setEmail("");
-    setPhone("");
-    setDepartment("Billing & Insurance");
-    setShift("Full-Time (09:00 AM - 05:00 PM)");
+        setAccountants((prev) => [...prev, newAcc]);
+        setSuccessMsg(`Accountant registered successfully! The account can now sign in with ${email} and the chosen password.`);
 
-    setTimeout(() => {
-      setSuccessMsg("");
-      setActiveTab("list");
-    }, 1200);
+        setAccImg(null);
+        setName("");
+        setEmail("");
+        setPassword("Accountant@123");
+        setPhone("");
+        setDepartment("Billing & Insurance");
+        setShift("Full-Time (09:00 AM - 05:00 PM)");
+
+        setTimeout(() => {
+          setSuccessMsg("");
+          setActiveTab("list");
+        }, 1800);
+      } else {
+        setErrorMsg(data.message || "Unable to create accountant account.");
+      }
+    } catch (error) {
+      console.error(error);
+      setErrorMsg(error.response?.data?.message || "Unable to create accountant account.");
+    }
   };
 
   // Filtered List
@@ -283,6 +303,18 @@ const Accountant = () => {
                   placeholder="e.g. sarah@primeheal.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl p-3 w-full text-sm text-gray-800 transition-all bg-gray-50/20"
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Password</label>
+                <input
+                  type="password"
+                  placeholder="Choose a secure password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl p-3 w-full text-sm text-gray-800 transition-all bg-gray-50/20"
                   required
                 />

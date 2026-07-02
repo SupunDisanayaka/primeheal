@@ -40,14 +40,14 @@ const Login = () => {
         setError("Invalid Doctor email or password. (Hint: chelakanishshanka@gmail.com / manuja123)");
       }
     } else if (state === "Receptionist") {
-      const success = loginReceptionist(email, password);
+      const success = await loginReceptionist(email, password);
       if (success) {
         navigate("/receptionist-dashboard");
       } else {
         setError("Invalid Receptionist email or password. (Hint: alice@primeheal.com / receptionist)");
       }
     } else if (state === "Accountant") {
-      const success = loginAccountant(email, password);
+      const success = await loginAccountant(email, password);
       if (success) {
         navigate("/accountant-dashboard");
       } else {
