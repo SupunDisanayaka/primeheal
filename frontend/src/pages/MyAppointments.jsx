@@ -9,7 +9,7 @@ const MyAppointments = () => {
   // Payment Modal States
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [selectedApt, setSelectedApt] = useState(null)
-  
+
   // Payment Form States
   const [selectedCard, setSelectedCard] = useState('visa')
   const [cardNumber, setCardNumber] = useState('•••• •••• •••• 9842')
@@ -17,7 +17,7 @@ const MyAppointments = () => {
   const [cardholderName, setCardholderName] = useState('Jeremiah Miroslavia')
   const [cvv, setCvv] = useState('•••')
   const [termsAccepted, setTermsAccepted] = useState(false)
-  
+
   // Payment Processing States
   const [paymentStatus, setPaymentStatus] = useState('idle') // 'idle', 'processing', 'success'
 
@@ -46,7 +46,7 @@ const MyAppointments = () => {
   }, [doctors])
 
   const cancelAppointment = (aptId) => {
-    const updated = appointments.map(apt => 
+    const updated = appointments.map(apt =>
       apt._id === aptId ? { ...apt, status: 'Cancelled' } : apt
     )
     setAppointments(updated)
@@ -72,12 +72,12 @@ const MyAppointments = () => {
       alert("Please accept the terms & conditions to proceed.")
       return
     }
-    
+
     setPaymentStatus('processing')
-    
+
     setTimeout(() => {
       // Success transition: Update appointment status to Paid
-      const updated = appointments.map(apt => 
+      const updated = appointments.map(apt =>
         apt._id === selectedApt._id ? { ...apt, status: 'Paid' } : apt
       )
       setAppointments(updated)
@@ -88,72 +88,72 @@ const MyAppointments = () => {
 
   return (
     <div>
-        <p className='pb-3 mt-12 font-medium text-zinc-700 border-b'>My Appointments</p>
+      <p className='pb-3 mt-12 font-medium text-zinc-700 border-b'>My Appointments</p>
 
-        <div>
+      <div>
         {appointments.map((item, index) => (
           <div className='grid grid-cols-[1fr_2fr] gap-4 sm:flex sm:gap-6 py-4 border-b border-gray-100' key={item._id || index}>
-            
+
             <div>
               <img className='w-32 bg-indigo-50 rounded-lg object-cover' src={item.docImage || item.image} alt={item.docName || item.name} />
             </div>
 
-              <div className='flex-1 text-sm text-zinc-600'>
-                <p className='text-neutral-800 font-semibold text-base'>{item.docName || item.name}</p>
-                <p className='text-xs text-gray-500'>{item.docSpeciality || item.speciality}</p>
-                <p className='text-zinc-700 font-medium mt-2'>Address:</p>
-                <p className='text-xs'>{(item.docAddress || item.address)?.line1}</p>
-                <p className='text-xs'>{(item.docAddress || item.address)?.line2}</p>
-                <p className='text-xs mt-2'>
-                  <span className='text-xs text-neutral-700 font-semibold'>Date & Time:</span> {item.slotDate} | {item.slotTime}
-                </p>
-                
-                {/* Dynamic Patient Details */}
-                {!item.isDefault && (
-                  <div className="mt-2 p-2 bg-gray-50 rounded-lg text-xs text-gray-500 space-y-0.5 border border-gray-100">
-                    <p><span className="font-semibold text-gray-700">Patient:</span> {item.patientName} ({item.patientNo})</p>
-                    <p><span className="font-semibold text-gray-700">NIC:</span> {item.patientNic} | <span className="font-semibold text-gray-700">Phone:</span> {item.patientPhone}</p>
-                    <p><span className="font-semibold text-gray-700">Email:</span> {item.patientEmail} | <span className="font-semibold text-gray-700">Address:</span> {item.patientAddress}</p>
-                    <p><span className="font-semibold text-gray-700">No Show Refund:</span> {item.noShowRefund ? <span className="text-teal-600 font-semibold">Yes (Surcharge: 275 LKR)</span> : 'No'}</p>
-                    <p><span className="font-semibold text-gray-700">Total Charged:</span> <span className="font-bold text-gray-800">LKR {item.fees}{item.noShowRefund && " + 275 LKR"}</span></p>
-                  </div>
-                )}
-              </div>
-              <div></div>
-              <div className='flex flex-col gap-2 justify-end'>
-                {item.status === 'Cancelled' && (
-                  <button disabled className='text-sm text-red-500 text-center sm:min-w-48 py-2 border border-red-200 bg-red-50 rounded font-medium select-none'>
-                    Cancelled
-                  </button>
-                )}
-                {item.status === 'Paid' && (
-                  <button disabled className='text-sm text-teal-600 text-center sm:min-w-48 py-2 border border-teal-200 bg-teal-50 rounded font-medium select-none'>
-                    Paid
-                  </button>
-                )}
-                {item.status !== 'Cancelled' && item.status !== 'Paid' && (
-                  <>
-                    <button onClick={() => openPaymentModal(item)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-primary hover:text-white transition-all duration-300 rounded'>
-                      Pay Online
-                    </button>
-                    <button onClick={() => cancelAppointment(item._id)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-[#FF9F68] hover:text-white transition-all duration-300 rounded'>
-                      Cancel appointment
-                    </button>
-                  </>
-                )}
-              </div>
+            <div className='flex-1 text-sm text-zinc-600'>
+              <p className='text-neutral-800 font-semibold text-base'>{item.docName || item.name}</p>
+              <p className='text-xs text-gray-500'>{item.docSpeciality || item.speciality}</p>
+              <p className='text-zinc-700 font-medium mt-2'>Address:</p>
+              <p className='text-xs'>{(item.docAddress || item.address)?.line1}</p>
+              <p className='text-xs'>{(item.docAddress || item.address)?.line2}</p>
+              <p className='text-xs mt-2'>
+                <span className='text-xs text-neutral-700 font-semibold'>Date & Time:</span> {item.slotDate} | {item.slotTime}
+              </p>
+
+              {/* Dynamic Patient Details */}
+              {!item.isDefault && (
+                <div className="mt-2 p-2 bg-gray-50 rounded-lg text-xs text-gray-500 space-y-0.5 border border-gray-100">
+                  <p><span className="font-semibold text-gray-700">Patient:</span> {item.patientName} ({item.patientNo})</p>
+                  <p><span className="font-semibold text-gray-700">NIC:</span> {item.patientNic} | <span className="font-semibold text-gray-700">Phone:</span> {item.patientPhone}</p>
+                  <p><span className="font-semibold text-gray-700">Email:</span> {item.patientEmail} | <span className="font-semibold text-gray-700">Address:</span> {item.patientAddress}</p>
+                  <p><span className="font-semibold text-gray-700">No Show Refund:</span> {item.noShowRefund ? <span className="text-teal-600 font-semibold">Yes (Surcharge: 275 LKR)</span> : 'No'}</p>
+                  <p><span className="font-semibold text-gray-700">Total Charged:</span> <span className="font-bold text-gray-800">LKR {item.fees}{item.noShowRefund && " + 275 LKR"}</span></p>
+                </div>
+              )}
             </div>
-          ))}
-        </div>
+            <div></div>
+            <div className='flex flex-col gap-2 justify-end'>
+              {item.status === 'Cancelled' && (
+                <button disabled className='text-sm text-red-500 text-center sm:min-w-48 py-2 border border-red-200 bg-red-50 rounded font-medium select-none'>
+                  Cancelled
+                </button>
+              )}
+              {item.status === 'Paid' && (
+                <button disabled className='text-sm text-teal-600 text-center sm:min-w-48 py-2 border border-teal-200 bg-teal-50 rounded font-medium select-none'>
+                  Paid
+                </button>
+              )}
+              {item.status !== 'Cancelled' && item.status !== 'Paid' && (
+                <>
+                  <button onClick={() => openPaymentModal(item)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-primary hover:text-white transition-all duration-300 rounded'>
+                    Pay Online
+                  </button>
+                  <button onClick={() => cancelAppointment(item._id)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-red-500 hover:text-white transition-all duration-300 rounded'>
+                    Cancel appointment
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* ---------- Payment Modal ---------- */}
       {showPaymentModal && selectedApt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          
+
           <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-[900px] overflow-hidden flex flex-col md:flex-row border border-gray-100/80 relative transition-all duration-300">
-            
+
             {/* Close Button */}
-            <button 
+            <button
               onClick={() => setShowPaymentModal(false)}
               className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors z-30"
             >
@@ -199,7 +199,7 @@ const MyAppointments = () => {
                 <div className="w-full md:w-[60%] p-8 md:p-10 flex flex-col gap-6 bg-white justify-center">
                   <div>
                     <h2 className="text-2xl font-bold text-gray-800">Payment Options</h2>
-                    
+
                     {/* Sub-tabs */}
                     <div className="flex gap-6 text-[10px] font-extrabold tracking-widest border-b border-gray-100 pb-3 mt-4 text-gray-400 uppercase">
                       <span className="text-[#00B4B4] border-b-2 border-[#00B4B4] pb-3 cursor-pointer">Credit Card</span>
@@ -213,9 +213,8 @@ const MyAppointments = () => {
                     <button
                       type="button"
                       onClick={() => setSelectedCard('visa')}
-                      className={`flex-1 py-4 border rounded-xl flex items-center justify-center transition-all ${
-                        selectedCard === 'visa' ? 'border-[#00B4B4] bg-[#00B4B4]/5 ring-2 ring-[#00B4B4]/10 shadow-sm' : 'border-gray-200 hover:bg-gray-50'
-                      }`}
+                      className={`flex-1 py-4 border rounded-xl flex items-center justify-center transition-all ${selectedCard === 'visa' ? 'border-[#00B4B4] bg-[#00B4B4]/5 ring-2 ring-[#00B4B4]/10 shadow-sm' : 'border-gray-200 hover:bg-gray-50'
+                        }`}
                     >
                       <span className="text-[#1A1F71] font-black text-xl italic tracking-tight">VISA</span>
                     </button>
@@ -223,9 +222,8 @@ const MyAppointments = () => {
                     <button
                       type="button"
                       onClick={() => setSelectedCard('mastercard')}
-                      className={`flex-1 py-4 border rounded-xl flex items-center justify-center transition-all ${
-                        selectedCard === 'mastercard' ? 'border-[#00B4B4] bg-[#00B4B4]/5 ring-2 ring-[#00B4B4]/10 shadow-sm' : 'border-gray-200 hover:bg-gray-50'
-                      }`}
+                      className={`flex-1 py-4 border rounded-xl flex items-center justify-center transition-all ${selectedCard === 'mastercard' ? 'border-[#00B4B4] bg-[#00B4B4]/5 ring-2 ring-[#00B4B4]/10 shadow-sm' : 'border-gray-200 hover:bg-gray-50'
+                        }`}
                     >
                       <div className="flex items-center gap-1.5 justify-center">
                         <span className="w-4 h-4 rounded-full bg-[#EB001B] opacity-90 block"></span>
@@ -236,9 +234,8 @@ const MyAppointments = () => {
                     <button
                       type="button"
                       onClick={() => setSelectedCard('amex')}
-                      className={`flex-1 py-4 border rounded-xl flex items-center justify-center transition-all ${
-                        selectedCard === 'amex' ? 'border-[#00B4B4] bg-[#00B4B4]/5 ring-2 ring-[#00B4B4]/10 shadow-sm' : 'border-gray-200 hover:bg-gray-50'
-                      }`}
+                      className={`flex-1 py-4 border rounded-xl flex items-center justify-center transition-all ${selectedCard === 'amex' ? 'border-[#00B4B4] bg-[#00B4B4]/5 ring-2 ring-[#00B4B4]/10 shadow-sm' : 'border-gray-200 hover:bg-gray-50'
+                        }`}
                     >
                       <span className="text-[#0070CD] font-extrabold text-lg italic tracking-wider">AMEX</span>
                     </button>
@@ -263,8 +260,8 @@ const MyAppointments = () => {
                           placeholder="•••• •••• •••• 9842"
                         />
                         <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <rect width="18" height="12" x="3" y="6" rx="2" strokeWidth="2"/>
-                          <path strokeWidth="2" d="M3 11h18"/>
+                          <rect width="18" height="12" x="3" y="6" rx="2" strokeWidth="2" />
+                          <path strokeWidth="2" d="M3 11h18" />
                         </svg>
                       </div>
                     </div>
@@ -315,8 +312,8 @@ const MyAppointments = () => {
 
                   {/* Terms */}
                   <label className="flex items-center gap-2.5 cursor-pointer text-xs text-gray-500 select-none">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       className="rounded border-gray-300 text-[#00B4B4] focus:ring-[#00B4B4]"
                       checked={termsAccepted}
                       onChange={(e) => setTermsAccepted(e.target.checked)}
@@ -340,9 +337,9 @@ const MyAppointments = () => {
                         <span>Taxes & Fees</span>
                         <span className="font-semibold text-gray-700">LKR 20.00</span>
                       </div>
-                      
+
                       <hr className="border-gray-200" />
-                      
+
                       <div className="flex justify-between font-bold text-gray-700">
                         <span>Subtotal</span>
                         <span>LKR {selectedApt.fees + 20}.00</span>
@@ -366,18 +363,17 @@ const MyAppointments = () => {
                       <button
                         type="button"
                         onClick={handleMakePayment}
-                        className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all duration-150 shadow-md ${
-                          termsAccepted
+                        className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all duration-150 shadow-md ${termsAccepted
                             ? 'bg-[#00B4B4] hover:bg-[#009E9E] shadow-[#00B4B4]/10 active:scale-[0.98]'
                             : 'bg-gray-300 cursor-not-allowed shadow-none'
-                        }`}
+                          }`}
                       >
                         <span>Make payment</span>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                         </svg>
                       </button>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => alert(`Doctor: ${selectedApt.docName || selectedApt.name}\nSpeciality: ${selectedApt.docSpeciality || selectedApt.speciality}\nSlot Date: ${selectedApt.slotDate}\nSlot Time: ${selectedApt.slotTime}`)}
                         className="w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors font-semibold flex items-center justify-center gap-1.5 py-1"

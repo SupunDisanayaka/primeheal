@@ -24,7 +24,7 @@ const Header = () => {
 
   return (
     <div className="relative w-full overflow-hidden bg-slate-900 min-h-[420px] md:min-h-[460px] flex transition-all duration-300">
-      
+
       {/* Background Slideshow */}
       <div className="absolute inset-0 w-full h-full z-0">
         {images.map((img, idx) => (
@@ -32,9 +32,8 @@ const Header = () => {
             key={idx}
             src={img}
             alt={`Header Background ${idx + 1}`}
-            className={`absolute inset-0 w-full h-full object-cover object-right transition-opacity duration-1000 ease-in-out ${
-              idx === currentIndex ? 'opacity-100' : 'opacity-0'
-            }`}
+            className={`absolute inset-0 w-full h-full object-cover object-right transition-opacity duration-1000 ease-in-out ${idx === currentIndex ? 'opacity-100' : 'opacity-0'
+              }`}
           />
         ))}
       </div>
@@ -55,8 +54,8 @@ const Header = () => {
               Simply browse through our extensive list of trusted doctors,<br className="hidden sm:block" /> schedule your appointment hassle-free.
             </p>
           </div>
-          <a 
-            href="#speciality" 
+          <a
+            href="#speciality"
             className="flex items-center gap-2 bg-white px-8 py-3 rounded-full text-gray-600 text-sm m-auto md:m-0 hover:scale-105 transition-all duration-300"
           >
             Book appointment <img className="w-3" src={assets.arrow_icon} alt="Arrow" />

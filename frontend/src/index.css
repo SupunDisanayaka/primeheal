@@ -3,7 +3,7 @@
 @tailwind components;
 @tailwind utilities;
 
-*{
+* {
     font-family: Outfit;
 }
 
@@ -11,12 +11,12 @@
     @apply block
 }
 
-::-webkit-scrollbar{
+::-webkit-scrollbar {
     @apply hidden
 }
 
 @media (max-width:740px) {
-    .active p{
+    .active p {
         @apply text-white bg-primary
     }
 }
@@ -33,15 +33,19 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #4b5563; /* Slate grey text */
+    color: #4b5563;
+    /* Slate grey text */
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 100%);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.55);
-    box-shadow: 
-        inset 0 1.5px 2px rgba(255, 255, 255, 0.95), /* Top bright shine */
-        inset 0 -1.5px 2px rgba(0, 167, 167, 0.08),  /* Soft bottom cyan reflect */
-        inset -1px 0 1px rgba(255, 100, 200, 0.08),  /* Soft pink side reflect */
+    box-shadow:
+        inset 0 1.5px 2px rgba(255, 255, 255, 0.95),
+        /* Top bright shine */
+        inset 0 -1.5px 2px rgba(0, 167, 167, 0.08),
+        /* Soft bottom cyan reflect */
+        inset -1px 0 1px rgba(255, 100, 200, 0.08),
+        /* Soft pink side reflect */
         0 4px 12px rgba(0, 0, 0, 0.03),
         0 1px 2px rgba(0, 0, 0, 0.02);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -64,10 +68,11 @@
 
 /* Active State */
 .glass-button.active {
-    color: #008f8f; /* Darker primary teal */
+    color: #008f8f;
+    /* Darker primary teal */
     background: linear-gradient(180deg, rgba(230, 250, 250, 0.85) 0%, rgba(200, 245, 245, 0.4) 100%);
     border-color: rgba(0, 167, 167, 0.4);
-    box-shadow: 
+    box-shadow:
         inset 0 1.5px 2px rgba(255, 255, 255, 0.95),
         inset 0 -1.5px 3px rgba(0, 167, 167, 0.15),
         0 4px 14px rgba(0, 167, 167, 0.08);
@@ -93,9 +98,10 @@
 
 .glass-button:hover {
     transform: translateY(-1px);
-    color: #111827; /* Dark text on hover */
+    color: #111827;
+    /* Dark text on hover */
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.35) 100%);
-    box-shadow: 
+    box-shadow:
         inset 0 1.5px 3px rgba(255, 255, 255, 0.95),
         inset 0 -1.5px 2px rgba(0, 167, 167, 0.12),
         0 6px 16px rgba(0, 0, 0, 0.05),
@@ -104,7 +110,7 @@
 
 .glass-button:active {
     transform: translateY(1px);
-    box-shadow: 
+    box-shadow:
         inset 0 1px 2px rgba(0, 0, 0, 0.06),
         0 2px 4px rgba(0, 0, 0, 0.03);
 }
