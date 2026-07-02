@@ -20,6 +20,12 @@ const Login = () => {
 
   // Slideshow state
   const loginImages = [assets.login1, assets.login2, assets.login3, assets.login4]
+  const captions = [
+    "Your health is our priority. Connect with expert doctors seamlessly.",
+    "Book your appointments with trusted healthcare providers in just a few clicks.",
+    "Simplifying healthcare access for you and your family.",
+    "Your health is our priority. Connect with expert doctors seamlessly."
+  ]
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   useEffect(() => {
@@ -109,9 +115,9 @@ const Login = () => {
         </div>
 
         {/* Dynamic Caption - Bottom */}
-        <div className="absolute bottom-16 left-16 right-16 text-white">
-          <h3 className="text-3xl font-bold leading-snug drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
-            Lorem Ipsum is simply dummy text of the printing
+        <div className="absolute bottom-16 left-16 right-16 text-white min-h-[5.5rem]">
+          <h3 className="text-3xl font-bold leading-snug drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)] transition-all duration-500">
+            {captions[currentImageIndex]}
           </h3>
         </div>
       </div>
@@ -125,7 +131,9 @@ const Login = () => {
               {state === 'Login' ? 'Sign In' : 'Sign Up'}
             </h2>
             <p className="text-gray-400 mt-2 text-sm leading-relaxed font-normal">
-              Lorem Ipsum is simply dummy text of the printing
+              {state === 'Login'
+                ? 'Please sign in to access your appointments and consult expert doctors.'
+                : 'Create an account to start booking appointments with trusted healthcare providers.'}
             </p>
 
             {/* Inputs Container */}
