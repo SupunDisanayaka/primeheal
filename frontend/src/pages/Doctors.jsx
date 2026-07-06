@@ -220,6 +220,12 @@ const Doctors = () => {
 
                     {/* Right: Pill booking button */}
                     <button
+                      type='button'
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        navigate(`/appointment/${item._id}`)
+                        scrollTo(0, 0)
+                      }}
                       className='bg-white text-gray-900 px-4 py-2 rounded-full text-xs font-semibold shadow-md hover:bg-gray-100 hover:scale-105 active:scale-95 transition-all duration-300 flex-shrink-0'
                     >
                       + Book

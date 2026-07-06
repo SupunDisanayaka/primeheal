@@ -1,6 +1,13 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
+const {
+  sendWelcomeEmail,
+  sendLoginEmail,
+  sendPasswordResetRequestEmail,
+  sendPasswordResetSuccessEmail
+} = require('../utils/emailService');
 
 // @route   POST /api/auth/register
 // @desc    Register a new patient
@@ -43,6 +50,13 @@ const register = async (req, res) => {
     );
 
     await connection.commit();
+
+    // Send registration email when available
+    try {
+      await sendWelcomeEmail({ email, name, userType: 'patient' });
+    } catch (emailError) {
+      console.error('Registration email error:', emailError);
+    }
 
     // Create token
     const token = jwt.sign(
@@ -106,6 +120,12 @@ const createReceptionist = async (req, res) => {
 
     await connection.commit();
 
+    try {
+      await sendWelcomeEmail({ email, name, userType: 'receptionist' });
+    } catch (emailError) {
+      console.error('Receptionist registration email error:', emailError);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Receptionist account created successfully',
@@ -158,6 +178,12 @@ const createAccountant = async (req, res) => {
     );
 
     await connection.commit();
+
+    try {
+      await sendWelcomeEmail({ email, name, userType: 'accountant' });
+    } catch (emailError) {
+      console.error('Accountant registration email error:', emailError);
+    }
 
     res.status(201).json({
       success: true,
@@ -255,6 +281,12 @@ const login = async (req, res) => {
       { expiresIn: '30d' }
     );
 
+    try {
+      await sendLoginEmail({ to: user.email, name: user.name, userType: user.userType });
+    } catch (emailError) {
+      console.error('Login notification email error:', emailError);
+    }
+
     res.json({
       success: true,
       message: 'Login successful',
@@ -274,9 +306,100 @@ const login = async (req, res) => {
   }
 };
 
+// @route   POST /api/auth/password-reset-request
+// @desc    Send a reset link to the user's email
+const requestPasswordReset = async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required' });
+  }
+
+  try {
+    const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+    if (users.length === 0) {
+      return res.json({ success: true, message: 'If your email exists in our system, a reset link has been sent.' });
+    }
+
+    const user = users[0];
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    await pool.query(
+      'INSERT INTO password_reset_tokens (userID, token, expiresAt, used) VALUES (?, ?, ?, 0)',
+      [user.userID, token, expiresAt]
+    );
+
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
+
+    try {
+      await sendPasswordResetRequestEmail({ to: user.email, name: user.name, resetUrl });
+    } catch (emailError) {
+      console.error('Password reset request email error:', emailError);
+    }
+
+    res.json({ success: true, message: 'If your email exists in our system, a reset link has been sent.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// @route   POST /api/auth/password-reset
+// @desc    Reset the user's password using a token
+const resetPassword = async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ success: false, message: 'Token and new password are required' });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0 AND expiresAt > NOW()',
+      [token]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired reset token' });
+    }
+
+    const resetRecord = rows[0];
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.query('UPDATE users SET password = ? WHERE userID = ?', [hashedPassword, resetRecord.userID]);
+      await connection.query('UPDATE password_reset_tokens SET used = 1 WHERE tokenID = ?', [resetRecord.tokenID]);
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    const [userRows] = await pool.query('SELECT * FROM users WHERE userID = ?', [resetRecord.userID]);
+    if (userRows.length > 0) {
+      try {
+        await sendPasswordResetSuccessEmail({ to: userRows[0].email, name: userRows[0].name });
+      } catch (emailError) {
+        console.error('Password reset confirmation email error:', emailError);
+      }
+    }
+
+    res.json({ success: true, message: 'Password has been reset successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   register,
   createReceptionist,
   createAccountant,
-  login
+  login,
+  requestPasswordReset,
+  resetPassword
 };

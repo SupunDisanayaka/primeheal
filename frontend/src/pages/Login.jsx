@@ -284,9 +284,9 @@ const Login = () => {
 
             {/* Forgot Password */}
             {state === 'Login' && (
-              <a href="#" className="block text-right text-xs text-gray-400 hover:text-[#00B4B4] mt-2 transition-colors duration-150">
+              <button type="button" onClick={() => navigate('/forgot-password')} className="block text-right text-xs text-gray-400 hover:text-[#00B4B4] mt-2 transition-colors duration-150">
                 Forgot password?
-              </a>
+              </button>
             )}
           </div>
 

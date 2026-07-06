@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
 import { assets } from '../assets/assets'
 import RelatedDoctors from '../components/RelatedDoctors'
+import { createAppointment } from '../services/api'
 
 const Appointment = () => {
 
   const { docID } = useParams()
-  const { doctors, currencySymbol } = useContext(AppContext)
+  const { doctors, currencySymbol, userData } = useContext(AppContext)
   const daysOfWeek = ['SUN','MON','TUE','WED','THU','FRI','SAT']
 
   const [docInfo, setDocInfo] = useState(null)
@@ -27,13 +28,24 @@ const Appointment = () => {
   const [formData, setFormData] = useState({
     country: 'Sri Lanka',
     title: 'Mr',
-    name: '',
-    phone: '',
+    name: userData?.name || '',
+    phone: userData?.phone || '',
     nic: '',
-    email: '',
+    email: userData?.email || '',
     address: '',
     noShowRefund: false
   })
+
+  useEffect(() => {
+    if (userData) {
+      setFormData(prev => ({
+        ...prev,
+        name: userData.name || prev.name,
+        email: userData.email || prev.email,
+        phone: userData.phone || prev.phone
+      }))
+    }
+  }, [userData])
 
   // Timer Countdown Effect
   useEffect(() => {
@@ -97,48 +109,46 @@ const Appointment = () => {
     setShowBookingModal(true);
   }
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (timeLeft === 0) {
       alert('Session has expired. Please select the slot again.');
       return;
     }
-    
-    // Create new appointment object
-    const newAppointment = {
-      _id: `apt_${Date.now()}`,
-      docId: docInfo._id,
-      docName: docInfo.name,
-      docImage: docInfo.image,
-      docSpeciality: docInfo.speciality,
-      docAddress: docInfo.address,
+
+    const payload = {
+      doctorUserID: docInfo._id,
+      doctorName: docInfo.name,
+      appointmentDate: getSelectedSlotDate(),
+      appointmentTime: slotTime,
+      fee: docInfo.fees,
+      totalCharge: formData.noShowRefund ? docInfo.fees + 275 : docInfo.fees,
       patientName: `${formData.title} ${formData.name}`,
       patientPhone: formData.phone,
       patientEmail: formData.email,
       patientNic: formData.nic,
-      patientCountry: formData.country,
       patientAddress: formData.address,
-      noShowRefund: formData.noShowRefund,
-      clickTime: bookingTime,
       patientNo: patientNo,
-      slotDate: getSelectedSlotDate(),
-      slotTime: slotTime,
-      status: 'Pending',
-      fees: docInfo.fees,
-      totalCharge: formData.noShowRefund ? `${docInfo.fees} + 275 LKR` : `${docInfo.fees}`
+      docAddress: JSON.stringify(docInfo.address),
+      noShowRefund: formData.noShowRefund
     };
 
-    // Save to local storage
-    const currentApts = JSON.parse(localStorage.getItem('appointments')) || [];
-    currentApts.unshift(newAppointment);
-    localStorage.setItem('appointments', JSON.stringify(currentApts));
-    
-    setShowBookingModal(false);
-    navigate('/my-appointments');
+    try {
+      const data = await createAppointment(payload);
+      if (data.success) {
+        setShowBookingModal(false);
+        navigate('/my-appointments');
+      } else {
+        alert(data.message || 'Unable to complete appointment. Please try again.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || 'Unable to complete appointment. Please try again.');
+    }
   }
 
   const fetchDocInfo =async () => {
-    const doc = doctors.find(doc => doc._id === docID)
+    const doc = doctors.find(doc => String(doc._id) === String(docID))
     setDocInfo(doc)    
   }
 
@@ -202,7 +212,15 @@ const Appointment = () => {
   },[docSlots] )
 
 
-  return docInfo && (
+  if (!docInfo) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-gray-500">
+        Loading appointment details...
+      </div>
+    )
+  }
+
+  return (
     <div>
       {/*---------- Doctor Details ---------- */}
       <div className="flex flex-col sm:flex-row gap-6">

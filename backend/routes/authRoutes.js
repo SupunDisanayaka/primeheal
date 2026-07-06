@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { login, register, createReceptionist, createAccountant } = require('../controllers/authController');
+const { login, register, createReceptionist, createAccountant, requestPasswordReset, resetPassword } = require('../controllers/authController');
 const { verifyToken } = require('../middleware/auth');
 const { requireRole } = require('../middleware/roleGuard');
 
@@ -15,5 +15,11 @@ router.post('/register-accountant', verifyToken, requireRole(['admin']), createA
 
 // POST /api/auth/login
 router.post('/login', login);
+
+// POST /api/auth/password-reset-request
+router.post('/password-reset-request', requestPasswordReset);
+
+// POST /api/auth/password-reset
+router.post('/password-reset', resetPassword);
 
 module.exports = router;

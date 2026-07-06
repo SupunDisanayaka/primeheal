@@ -1,5 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react'
 import { AppContext } from '../context/AppContext'
+import { getMyAppointments } from '../services/api'
 
 const MyAppointments = () => {
 
@@ -22,27 +23,44 @@ const MyAppointments = () => {
   const [paymentStatus, setPaymentStatus] = useState('idle') // 'idle', 'processing', 'success'
 
   useEffect(() => {
-    const storedApts = localStorage.getItem('appointments')
-    if (storedApts) {
-      setAppointments(JSON.parse(storedApts))
-    } else {
-      // If none exist, let's load default placeholders from doctors.slice(0, 3)
-      const defaultApts = doctors.slice(0, 3).map((doc, idx) => ({
-        _id: `default_${idx}`,
-        docId: doc._id,
-        docName: doc.name,
-        docImage: doc.image,
-        docSpeciality: doc.speciality,
-        docAddress: doc.address,
-        slotDate: '25, July, 2024',
-        slotTime: '8:30 PM',
-        status: 'Pending',
-        fees: doc.fees,
-        isDefault: true
-      }))
-      localStorage.setItem('appointments', JSON.stringify(defaultApts))
-      setAppointments(defaultApts)
+    const loadAppointments = async () => {
+      try {
+        const data = await getMyAppointments();
+        if (data.success) {
+          setAppointments(data.appointments.map((item) => ({
+            ...item,
+            docAddress: item.docAddress ? JSON.parse(item.docAddress) : item.docAddress
+          })));
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to load appointments from backend, falling back to local storage.', error);
+      }
+
+      const storedApts = localStorage.getItem('appointments')
+      if (storedApts) {
+        setAppointments(JSON.parse(storedApts))
+      } else {
+        // If none exist, let's load default placeholders from doctors.slice(0, 3)
+        const defaultApts = doctors.slice(0, 3).map((doc, idx) => ({
+          _id: `default_${idx}`,
+          docId: doc._id,
+          docName: doc.name,
+          docImage: doc.image,
+          docSpeciality: doc.speciality,
+          docAddress: doc.address,
+          slotDate: '25, July, 2024',
+          slotTime: '8:30 PM',
+          status: 'Pending',
+          fees: doc.fees,
+          isDefault: true
+        }))
+        localStorage.setItem('appointments', JSON.stringify(defaultApts))
+        setAppointments(defaultApts)
+      }
     }
+
+    loadAppointments();
   }, [doctors])
 
   const cancelAppointment = (aptId) => {

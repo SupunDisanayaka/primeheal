@@ -45,6 +45,26 @@ export const updateUserProfile = async (userData) => {
   return response.data;
 };
 
+export const requestPasswordReset = async (email) => {
+  const response = await api.post('/auth/password-reset-request', { email });
+  return response.data;
+};
+
+export const resetPassword = async (token, password) => {
+  const response = await api.post('/auth/password-reset', { token, password });
+  return response.data;
+};
+
+export const createAppointment = async (payload) => {
+  const response = await api.post('/appointments/create', payload);
+  return response.data;
+};
+
+export const getMyAppointments = async () => {
+  const response = await api.get('/appointments/my');
+  return response.data;
+};
+
 // Doctor Services
 export const getDoctors = async () => {
   const response = await api.get('/doctors');

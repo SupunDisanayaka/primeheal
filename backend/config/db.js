@@ -114,6 +114,49 @@ async function initializePool() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS appointments (
+      appointmentID INT AUTO_INCREMENT PRIMARY KEY,
+      patientID INT NOT NULL,
+      doctorID INT NOT NULL,
+      doctorName VARCHAR(100) NOT NULL,
+      appointmentDate DATE NOT NULL,
+      appointmentTime VARCHAR(50) NOT NULL,
+      status ENUM('Pending','Confirmed','Cancelled','Paid') DEFAULT 'Pending',
+      fee DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      totalCharge DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      patientName VARCHAR(100) NOT NULL,
+      patientPhone VARCHAR(50) DEFAULT NULL,
+      patientEmail VARCHAR(100) NOT NULL,
+      patientNic VARCHAR(50) DEFAULT NULL,
+      patientAddress TEXT DEFAULT NULL,
+      patientNo VARCHAR(50) DEFAULT NULL,
+      docAddress TEXT DEFAULT NULL,
+      noShowRefund TINYINT(1) DEFAULT 0,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (patientID) REFERENCES patient(patientID) ON DELETE CASCADE,
+      FOREIGN KEY (doctorID) REFERENCES doctor(doctorID) ON DELETE CASCADE,
+      INDEX idx_patientID (patientID),
+      INDEX idx_doctorID (doctorID),
+      INDEX idx_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      tokenID INT AUTO_INCREMENT PRIMARY KEY,
+      userID INT NOT NULL,
+      token VARCHAR(128) NOT NULL UNIQUE,
+      expiresAt DATETIME NOT NULL,
+      used TINYINT(1) DEFAULT 0,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userID) REFERENCES users(userID) ON DELETE CASCADE,
+      INDEX idx_token (token),
+      INDEX idx_userID (userID)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   const adminEmail = process.env.DEFAULT_ADMIN_EMAIL || 'admin@primeheal.com';
   const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin';
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
