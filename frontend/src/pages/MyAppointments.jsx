@@ -133,7 +133,7 @@ const MyAppointments = () => {
                     <p><span className="font-semibold text-gray-700">NIC:</span> {item.patientNic} | <span className="font-semibold text-gray-700">Phone:</span> {item.patientPhone}</p>
                     <p><span className="font-semibold text-gray-700">Email:</span> {item.patientEmail} | <span className="font-semibold text-gray-700">Address:</span> {item.patientAddress}</p>
                     <p><span className="font-semibold text-gray-700">No Show Refund:</span> {item.noShowRefund ? <span className="text-teal-600 font-semibold">Yes (Surcharge: 275 LKR)</span> : 'No'}</p>
-                    <p><span className="font-semibold text-gray-700">Total Charged:</span> <span className="font-bold text-gray-800">${item.fees}{item.noShowRefund && " + 275 LKR"}</span></p>
+                    <p><span className="font-semibold text-gray-700">Total Charged:</span> <span className="font-bold text-gray-800">Rs. {item.fees}{item.noShowRefund && " + 275 LKR"}</span></p>
                   </div>
                 )}
               </div>
@@ -193,7 +193,7 @@ const MyAppointments = () => {
                   Your payment for the appointment with <span className="font-semibold text-gray-700">{selectedApt.docName || selectedApt.name}</span> has been processed successfully.
                 </p>
                 <div className="bg-slate-50 border border-gray-100 rounded-xl p-4 w-full max-w-xs text-left text-xs text-gray-500 mt-4 space-y-1">
-                  <p><span className="font-semibold text-gray-700">Amount Paid:</span> ${(selectedApt.fees + 24.10).toFixed(2)} USD</p>
+                  <p><span className="font-semibold text-gray-700">Amount Paid:</span> Rs. {(selectedApt.fees + 24.10).toFixed(2)}</p>
                   <p><span className="font-semibold text-gray-700">Payment Mode:</span> {selectedCard.toUpperCase()} ending in {cardNumber.slice(-4)}</p>
                 </div>
                 <button
@@ -352,22 +352,22 @@ const MyAppointments = () => {
                     <div className="space-y-4 text-sm text-gray-500">
                       <div className="flex justify-between">
                         <span>Consultation Fee</span>
-                        <span className="font-semibold text-gray-700">${selectedApt.fees}.00</span>
+                        <span className="font-semibold text-gray-700">Rs. {selectedApt.fees}.00</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Taxes & Fees</span>
-                        <span className="font-semibold text-gray-700">$20.00</span>
+                        <span className="font-semibold text-gray-700">Rs. 20.00</span>
                       </div>
                       
                       <hr className="border-gray-200" />
                       
                       <div className="flex justify-between font-bold text-gray-700">
                         <span>Subtotal</span>
-                        <span>${selectedApt.fees + 20}.00</span>
+                        <span>Rs. {selectedApt.fees + 20}.00</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Services Tax</span>
-                        <span className="font-semibold text-gray-700">$4.10</span>
+                        <span className="font-semibold text-gray-700">Rs. 4.10</span>
                       </div>
                     </div>
                   </div>
@@ -375,8 +375,8 @@ const MyAppointments = () => {
                   <div className="mt-8 pt-6 border-t border-gray-200 space-y-6">
                     {/* Grand Total */}
                     <div className="flex items-baseline justify-between">
-                      <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Total USD</span>
-                      <span className="text-3xl font-extrabold text-[#00B4B4]">${(selectedApt.fees + 24.10).toFixed(2)}</span>
+                      <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Total LKR</span>
+                      <span className="text-3xl font-extrabold text-[#00B4B4]">Rs. {(selectedApt.fees + 24.10).toFixed(2)}</span>
                     </div>
 
                     {/* Action buttons */}

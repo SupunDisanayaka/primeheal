@@ -130,7 +130,8 @@ const Appointment = () => {
       patientAddress: formData.address,
       patientNo: patientNo,
       docAddress: JSON.stringify(docInfo.address),
-      noShowRefund: formData.noShowRefund
+      noShowRefund: formData.noShowRefund,
+      currency: 'LKR'
     };
 
     try {

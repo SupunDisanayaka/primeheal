@@ -4,8 +4,12 @@ import { getDoctors } from "../services/api";
 
 export const AppContext = createContext();
 
+const USD_TO_LKR_RATE = 300;
+
+const toLkr = (value) => Number((Number(value ?? 0) * USD_TO_LKR_RATE).toFixed(2));
+
 const AppContextProvider = ({ children }) => {
-  const currencySymbol = "$";
+  const currencySymbol = "Rs. ";
 
   const [doctors, setDoctors] = useState([]);
 
@@ -14,7 +18,10 @@ const AppContextProvider = ({ children }) => {
       try {
         const data = await getDoctors();
         if (data.success) {
-          setDoctors(data.doctors);
+          setDoctors(data.doctors.map((doctor) => ({
+            ...doctor,
+            fees: toLkr(doctor.fees)
+          })));
         }
       } catch (error) {
         console.error("Failed to fetch doctors:", error);
@@ -48,7 +55,7 @@ const AppContextProvider = ({ children }) => {
       docId: "doc1",
       slotDate: getFormattedDate(0),
       slotTime: "08:30 PM",
-      amount: 50,
+      amount: toLkr(50),
       status: "Pending",
       createdAt: new Date("2026-06-11T10:30:00")
     },
@@ -62,7 +69,7 @@ const AppContextProvider = ({ children }) => {
       docId: "doc2",
       slotDate: getFormattedDate(0),
       slotTime: "10:30 AM",
-      amount: 60,
+      amount: toLkr(60),
       status: "Completed",
       createdAt: new Date("2026-06-11T11:45:00")
     },
@@ -76,7 +83,7 @@ const AppContextProvider = ({ children }) => {
       docId: "doc3",
       slotDate: getFormattedDate(-1),
       slotTime: "02:00 PM",
-      amount: 30,
+      amount: toLkr(30),
       status: "Cancelled",
       createdAt: new Date("2026-06-11T09:15:00")
     },
@@ -90,7 +97,7 @@ const AppContextProvider = ({ children }) => {
       docId: "doc1",
       slotDate: getFormattedDate(0),
       slotTime: "11:00 AM",
-      amount: 50,
+      amount: toLkr(50),
       status: "Completed",
       createdAt: new Date("2026-06-11T14:20:00")
     },
@@ -104,7 +111,7 @@ const AppContextProvider = ({ children }) => {
       docId: "doc4",
       slotDate: getFormattedDate(1),
       slotTime: "04:30 PM",
-      amount: 40,
+      amount: toLkr(40),
       status: "Pending",
       createdAt: new Date("2026-06-11T16:10:00")
     },
@@ -118,7 +125,7 @@ const AppContextProvider = ({ children }) => {
       docId: "doc6",
       slotDate: getFormattedDate(0),
       slotTime: "11:30 AM",
-      amount: 50,
+      amount: toLkr(50),
       status: "Pending",
       createdAt: new Date("2026-06-11T10:00:00")
     }
@@ -287,6 +294,7 @@ const AppContextProvider = ({ children }) => {
     loginAccountant,
     logoutAccountant,
     currencySymbol,
+    toLkr,
     doctorSchedules,
     setDoctorSchedules
   };

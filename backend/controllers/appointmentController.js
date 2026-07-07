@@ -1,8 +1,20 @@
 const pool = require('../config/db');
 const { sendAppointmentConfirmation } = require('../utils/emailService');
 
+const USD_TO_LKR_RATE = 300;
+
+const toLkr = (value) => Number((Number(value ?? 0) * USD_TO_LKR_RATE).toFixed(2));
+
+const normalizeMoney = (value, currency = 'USD') => {
+  if (String(currency).toUpperCase() === 'LKR') {
+    return Number(value ?? 0);
+  }
+
+  return toLkr(value);
+};
+
 const createAppointment = async (req, res) => {
-  const { doctorUserID, doctorName, appointmentDate, appointmentTime, fee, totalCharge, patientName, patientPhone, patientEmail, patientNic, patientAddress, noShowRefund, docAddress } = req.body;
+  const { doctorUserID, doctorName, appointmentDate, appointmentTime, fee, totalCharge, patientName, patientPhone, patientEmail, patientNic, patientAddress, noShowRefund, docAddress, currency } = req.body;
   const { userID, userType, name: loggedName, email: loggedEmail } = req.user;
 
   if (userType !== 'patient') {
@@ -42,8 +54,8 @@ const createAppointment = async (req, res) => {
         appointmentDate,
         appointmentTime,
         'Pending',
-        fee || 0.0,
-        totalCharge || fee || 0.0,
+        normalizeMoney(fee || 0.0, currency),
+        normalizeMoney(totalCharge || fee || 0.0, currency),
         patientName,
         patientPhone || null,
         patientEmail,
@@ -67,8 +79,8 @@ const createAppointment = async (req, res) => {
           doctorName,
           appointmentDate,
           appointmentTime,
-          fee: fee || 0.0,
-          totalCharge: totalCharge || fee || 0.0,
+          fee: normalizeMoney(fee || 0.0, currency),
+          totalCharge: normalizeMoney(totalCharge || fee || 0.0, currency),
           status: 'Confirmed',
           docAddress
         }

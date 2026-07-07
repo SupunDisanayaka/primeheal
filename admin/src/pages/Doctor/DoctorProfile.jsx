@@ -139,7 +139,7 @@ const DoctorProfile = () => {
                 </p>
                 {isEdit ? (
                   <div className="relative">
-                    <span className="absolute left-3.5 top-3 text-gray-400 font-semibold">$</span>
+                    <span className="absolute left-3.5 top-3 text-gray-400 font-semibold">Rs.</span>
                     <input
                       type="number"
                       value={fees}

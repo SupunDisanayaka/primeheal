@@ -3,8 +3,12 @@ import { getDoctors, getUserProfile } from "../services/api";
 
 export const AppContext = createContext();
 
+const USD_TO_LKR_RATE = 300;
+
+const toLkr = (value) => Number((Number(value ?? 0) * USD_TO_LKR_RATE).toFixed(2));
+
 const AppContextProvider = ({ children }) => {
-  const currencySymbol = '$'  
+  const currencySymbol = 'Rs. '
   const [token, setToken] = useState(localStorage.getItem('token') || false)
   const [userData, setUserData] = useState(false)
   const [doctors, setDoctors] = useState([])
@@ -14,7 +18,10 @@ const AppContextProvider = ({ children }) => {
     try {
       const data = await getDoctors();
       if (data.success) {
-        setDoctors(data.doctors);
+        setDoctors(data.doctors.map((doctor) => ({
+          ...doctor,
+          fees: toLkr(doctor.fees)
+        })));
       }
     } catch (error) {
       console.error("Error fetching doctors:", error);
@@ -54,6 +61,7 @@ const AppContextProvider = ({ children }) => {
   const value = {
     doctors,
     currencySymbol,
+    toLkr,
     token,
     setToken,
     userData,
