@@ -3,18 +3,19 @@ import { AppContext } from "../../context/AppContext";
 import { assets } from "../../assets/assets";
 
 const AllAppointments = () => {
-  const { appointments, doctors, setAppointments, currencySymbol } = useContext(AppContext);
+  const { appointments, doctors, currencySymbol, syncAppointmentStatus, adminDataLoading } = useContext(AppContext);
 
-  const handleComplete = (aptId) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt._id === aptId ? { ...apt, status: "Completed" } : apt))
-    );
+  console.log('[ADMIN APPOINTMENTS PAGE]', {
+    appointments: appointments.length,
+    loading: adminDataLoading
+  });
+
+  const handleComplete = async (aptId) => {
+    await syncAppointmentStatus(aptId, "Completed");
   };
 
-  const handleCancel = (aptId) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt._id === aptId ? { ...apt, status: "Cancelled" } : apt))
-    );
+  const handleCancel = async (aptId) => {
+    await syncAppointmentStatus(aptId, "Cancelled");
   };
 
   // Helper to compute patient age based on DOB

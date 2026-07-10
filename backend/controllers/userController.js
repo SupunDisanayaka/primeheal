@@ -1,25 +1,38 @@
 const pool = require('../config/db');
 
+const getAuthenticatedUserId = (req) => {
+  if (!req.user) {
+    return null;
+  }
+
+  return req.user.userID || req.user.userId || req.user.id || null;
+};
+
 // @route   GET /api/users/profile
 // @desc    Get current user profile (patient, doctor, admin, etc.)
 const getProfile = async (req, res) => {
-  const { userID, userType } = req.user;
+  const userID = getAuthenticatedUserId(req);
+  const userType = req.user && (req.user.userType || req.user.role);
+
+  if (!userID || !userType) {
+    return res.status(401).json({ success: false, message: 'Unauthorized: invalid token payload' });
+  }
 
   try {
     let query = '';
     
     if (userType === 'patient') {
       query = `
-        SELECT u.userID, u.name, u.email, u.phone, u.profileImage,
-               p.patientID, p.title, p.dateOfBirth, p.gender, p.address, p.emergencyContact, 
-               p.allergies, p.nic, p.country, p.patientCode
+        SELECT u.userID, u.name, u.email, u.phone, u.profileImage, u.userType,
+               p.patientID, p.dateOfBirth, p.gender, p.address, p.emergencyContact,
+               p.allergies, p.patientCode
         FROM users u
         LEFT JOIN patient p ON u.userID = p.userID
         WHERE u.userID = ?
       `;
     } else if (userType === 'doctor') {
       query = `
-        SELECT u.userID, u.name, u.email, u.phone, u.profileImage,
+        SELECT u.userID, u.name, u.email, u.phone, u.profileImage, u.userType,
                d.doctorID, d.specialization, d.licenseNumber, d.qualifications, d.bio,
                d.consultationFee, d.averageRating, d.isAvailable
         FROM users u
@@ -28,7 +41,7 @@ const getProfile = async (req, res) => {
       `;
     } else if (userType === 'receptionist') {
       query = `
-        SELECT u.userID, u.name, u.email, u.phone, u.profileImage,
+        SELECT u.userID, u.name, u.email, u.phone, u.profileImage, u.userType,
                r.receptionistID, r.shiftTime, r.department
         FROM users u
         LEFT JOIN receptionist r ON u.userID = r.userID
@@ -36,7 +49,7 @@ const getProfile = async (req, res) => {
       `;
     } else if (userType === 'accountant') {
       query = `
-        SELECT u.userID, u.name, u.email, u.phone, u.profileImage,
+        SELECT u.userID, u.name, u.email, u.phone, u.profileImage, u.userType,
                a.accountantID, a.accountingLicense, a.department
         FROM users u
         LEFT JOIN accountant a ON u.userID = a.userID
@@ -44,7 +57,7 @@ const getProfile = async (req, res) => {
       `;
     } else if (userType === 'admin') {
       query = `
-        SELECT u.userID, u.name, u.email, u.phone, u.profileImage,
+        SELECT u.userID, u.name, u.email, u.phone, u.profileImage, u.userType,
                a.adminID, a.permissions, a.accessLevel
         FROM users u
         LEFT JOIN admin a ON u.userID = a.userID
@@ -63,7 +76,15 @@ const getProfile = async (req, res) => {
     res.json({ success: true, profile: rows[0] });
 
   } catch (error) {
-    console.error(error);
+    console.error('Profile API Error:', {
+      userID,
+      userType,
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage
+    });
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
@@ -71,8 +92,13 @@ const getProfile = async (req, res) => {
 // @route   PUT /api/users/profile
 // @desc    Update current user profile
 const updateProfile = async (req, res) => {
-  const { userID, userType } = req.user;
+  const userID = getAuthenticatedUserId(req);
+  const userType = req.user && (req.user.userType || req.user.role);
   const updates = req.body; // Depends on userType
+
+  if (!userID || !userType) {
+    return res.status(401).json({ success: false, message: 'Unauthorized: invalid token payload' });
+  }
 
   const connection = await pool.getConnection();
   try {
@@ -97,7 +123,7 @@ const updateProfile = async (req, res) => {
     // 2. Update role-specific info
     if (userType === 'patient') {
       const pUpdates = {};
-      const allowedP = ['title', 'dateOfBirth', 'gender', 'address', 'emergencyContact', 'allergies', 'nic', 'country'];
+      const allowedP = ['dateOfBirth', 'gender', 'address', 'emergencyContact', 'allergies'];
       
       allowedP.forEach(key => {
         if (updates[key] !== undefined) pUpdates[key] = updates[key];

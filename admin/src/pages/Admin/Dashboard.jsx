@@ -3,30 +3,37 @@ import { AppContext } from "../../context/AppContext";
 import { assets } from "../../assets/assets";
 
 const Dashboard = () => {
-  const { appointments, doctors, setAppointments, currencySymbol } = useContext(AppContext);
+  const {
+    appointments,
+    doctors,
+    currencySymbol,
+    adminDashboardStats,
+    adminRecentAppointments,
+    adminDataLoading,
+    syncAppointmentStatus
+  } = useContext(AppContext);
 
-  // Computations
+  console.log('[ADMIN DASHBOARD RENDER]', {
+    appointments: appointments.length,
+    stats: adminDashboardStats,
+    recentAppointments: adminRecentAppointments.length,
+    loading: adminDataLoading
+  });
+
   const completedApts = appointments.filter((apt) => apt.status === "Completed");
-  const totalEarnings = completedApts.reduce((sum, apt) => sum + apt.amount, 0);
-  const totalAptsCount = appointments.length;
+  const totalEarnings = adminDashboardStats?.revenue ?? completedApts.reduce((sum, apt) => sum + apt.amount, 0);
+  const totalAptsCount = adminDashboardStats?.totalAppointments ?? appointments.length;
+  const totalPatientsCount = adminDashboardStats?.totalPatients ?? new Set(appointments.map((apt) => apt.patientEmail.toLowerCase())).size;
+  const latestBookings = adminRecentAppointments.length > 0
+    ? adminRecentAppointments
+    : [...appointments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
 
-  const uniquePatients = new Set(appointments.map((apt) => apt.patientEmail.toLowerCase()));
-  const totalPatientsCount = uniquePatients.size;
-
-  const latestBookings = [...appointments]
-    .sort((a, b) => b.createdAt - a.createdAt)
-    .slice(0, 5);
-
-  const handleComplete = (aptId) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt._id === aptId ? { ...apt, status: "Completed" } : apt))
-    );
+  const handleComplete = async (aptId) => {
+    await syncAppointmentStatus(aptId, "Completed");
   };
 
-  const handleCancel = (aptId) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt._id === aptId ? { ...apt, status: "Cancelled" } : apt))
-    );
+  const handleCancel = async (aptId) => {
+    await syncAppointmentStatus(aptId, "Cancelled");
   };
 
   return (
@@ -128,7 +135,7 @@ const Dashboard = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                          {apt.status === "Pending" ? (
+                          {apt.status === "Pending" || apt.status === "Checked In" ? (
                             <div className="flex items-center justify-center gap-3">
                               {/* Complete Action */}
                               <button

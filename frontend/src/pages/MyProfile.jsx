@@ -4,7 +4,7 @@ import { AppContext } from '../context/AppContext'
 import { updateUserProfile } from '../services/api'
 
 const MyProfile = () => {
-  const { userData, setUserData, loadUserProfile } = useContext(AppContext)
+  const { userData, loadUserProfile, profileLoading, profileError } = useContext(AppContext)
   const [isEdit, setIsEdit] = useState(false)
   
   // Local state for editing
@@ -57,8 +57,16 @@ const MyProfile = () => {
     }
   }
 
-  if (!userData) {
+  if (profileLoading) {
     return <div className="p-8 text-center">Loading profile...</div>
+  }
+
+  if (!userData) {
+    return (
+      <div className="p-8 text-center text-sm text-red-500">
+        {profileError || 'Profile data could not be loaded.'}
+      </div>
+    )
   }
 
   return (

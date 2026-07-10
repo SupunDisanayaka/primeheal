@@ -1,6 +1,7 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { assets } from "../assets/assets";
-import { getDoctors } from "../services/api";
+import { AdminContext } from "./AdminContext";
+import { getDoctors, getAdminAppointments, getAdminDashboard, getAdminRecentAppointments, updateAdminAppointmentStatus } from "../services/api";
 
 export const AppContext = createContext();
 
@@ -43,8 +44,9 @@ const AppContextProvider = ({ children }) => {
     return `${day}, ${month}, ${year}`;
   };
 
-  // Comprehensive list of mock appointments with varying statuses (Pending, Completed, Cancelled)
-  const [appointments, setAppointments] = useState([
+  const { adminToken } = useContext(AdminContext);
+
+  const getFallbackAppointments = () => ([
     {
       _id: "apt1",
       patientName: "Edward Vincent",
@@ -130,6 +132,82 @@ const AppContextProvider = ({ children }) => {
       createdAt: new Date("2026-06-11T10:00:00")
     }
   ]);
+
+  // Live admin appointments replace the mock set when an admin is signed in.
+  const [appointments, setAppointments] = useState(getFallbackAppointments);
+  const [adminDashboardStats, setAdminDashboardStats] = useState(null);
+  const [adminRecentAppointments, setAdminRecentAppointments] = useState([]);
+  const [adminDataLoading, setAdminDataLoading] = useState(false);
+  const [adminDataError, setAdminDataError] = useState(null);
+
+  const refreshAdminData = useCallback(async () => {
+    if (!adminToken) {
+      setAppointments(getFallbackAppointments());
+      setAdminDashboardStats(null);
+      setAdminRecentAppointments([]);
+      setAdminDataError(null);
+      return;
+    }
+
+    setAdminDataLoading(true);
+    setAdminDataError(null);
+
+    try {
+      const [appointmentsResponse, dashboardResponse, recentResponse] = await Promise.all([
+        getAdminAppointments(),
+        getAdminDashboard(),
+        getAdminRecentAppointments()
+      ]);
+
+      console.log('[ADMIN CONTEXT] appointments loaded', {
+        appointmentCount: appointmentsResponse.appointments?.length || 0,
+        stats: dashboardResponse.stats || null,
+        recentCount: recentResponse.appointments?.length || 0
+      });
+
+      setAppointments(appointmentsResponse.appointments || []);
+      setAdminDashboardStats(dashboardResponse.stats || null);
+      setAdminRecentAppointments(recentResponse.appointments || []);
+    } catch (error) {
+      console.error('[ADMIN CONTEXT] failed to load admin appointment data', error);
+      setAdminDataError(error.response?.data?.message || error.message || 'Unable to load admin appointments');
+    } finally {
+      setAdminDataLoading(false);
+    }
+  }, [adminToken]);
+
+  const syncAppointmentStatus = useCallback(async (appointmentId, status) => {
+    const response = await updateAdminAppointmentStatus(appointmentId, status);
+    await refreshAdminData();
+    return response;
+  }, [refreshAdminData]);
+
+  useEffect(() => {
+    refreshAdminData();
+
+    if (!adminToken) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      refreshAdminData();
+    }, 5000);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshAdminData();
+      }
+    };
+
+    window.addEventListener('focus', refreshAdminData);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshAdminData);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [adminToken, refreshAdminData]);
 
   const [doctorSchedules, setDoctorSchedules] = useState([
     {
@@ -277,6 +355,12 @@ const AppContextProvider = ({ children }) => {
     setDoctors,
     appointments,
     setAppointments,
+    adminDashboardStats,
+    adminRecentAppointments,
+    adminDataLoading,
+    adminDataError,
+    refreshAdminData,
+    syncAppointmentStatus,
     receptionists,
     setReceptionists,
     accountants,

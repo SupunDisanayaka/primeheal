@@ -1,6 +1,6 @@
-import React, { useContext, useState, useEffect } from 'react'
+import React, { useContext, useState, useEffect, useCallback } from 'react'
 import { AppContext } from '../context/AppContext'
-import { getMyAppointments } from '../services/api'
+import { cancelAppointment as cancelAppointmentRequest, getMyAppointments } from '../services/api'
 
 const MyAppointments = () => {
 
@@ -22,28 +22,37 @@ const MyAppointments = () => {
   // Payment Processing States
   const [paymentStatus, setPaymentStatus] = useState('idle') // 'idle', 'processing', 'success'
 
-  useEffect(() => {
-    const loadAppointments = async () => {
-      try {
-        const data = await getMyAppointments();
-        if (data.success) {
-          setAppointments(data.appointments.map((item) => ({
-            ...item,
-            docAddress: item.docAddress ? JSON.parse(item.docAddress) : item.docAddress
-          })));
-          return;
-        }
-      } catch (error) {
-        console.error('Failed to load appointments from backend, falling back to local storage.', error);
+  const loadAppointments = useCallback(async (allowFallback = true) => {
+    try {
+      const data = await getMyAppointments();
+      if (data.success) {
+        setAppointments(data.appointments.map((item) => ({
+          ...item,
+          appointmentId: item.appointmentId ?? item.appointmentID ?? item._id,
+          docAddress: item.docAddress ? JSON.parse(item.docAddress) : item.docAddress
+        })));
+        return;
+      }
+
+      throw new Error(data.message || 'Unable to load appointments');
+    } catch (error) {
+      console.error('Failed to load appointments from backend.', error);
+
+      if (!allowFallback) {
+        throw error;
       }
 
       const storedApts = localStorage.getItem('appointments')
       if (storedApts) {
-        setAppointments(JSON.parse(storedApts))
+        const parsedAppointments = JSON.parse(storedApts).map((item) => ({
+          ...item,
+          appointmentId: item.appointmentId ?? item.appointmentID ?? item._id
+        }));
+        setAppointments(parsedAppointments)
       } else {
         // If none exist, let's load default placeholders from doctors.slice(0, 3)
         const defaultApts = doctors.slice(0, 3).map((doc, idx) => ({
-          _id: `default_${idx}`,
+          appointmentId: `default_${idx}`,
           docId: doc._id,
           docName: doc.name,
           docImage: doc.image,
@@ -59,16 +68,32 @@ const MyAppointments = () => {
         setAppointments(defaultApts)
       }
     }
-
-    loadAppointments();
   }, [doctors])
 
-  const cancelAppointment = (aptId) => {
-    const updated = appointments.map(apt => 
-      apt._id === aptId ? { ...apt, status: 'Cancelled' } : apt
-    )
-    setAppointments(updated)
-    localStorage.setItem('appointments', JSON.stringify(updated))
+  useEffect(() => {
+    loadAppointments();
+  }, [loadAppointments])
+
+  const cancelAppointment = async (appointmentId) => {
+    try {
+      const data = await cancelAppointmentRequest(appointmentId)
+      if (!data.success) {
+        throw new Error(data.message || 'Unable to cancel appointment')
+      }
+
+      const updated = appointments.map((apt) =>
+        String(apt.appointmentId) === String(appointmentId)
+          ? { ...apt, status: 'Cancelled' }
+          : apt
+      )
+      setAppointments(updated)
+      localStorage.setItem('appointments', JSON.stringify(updated))
+
+      await loadAppointments(false)
+    } catch (error) {
+      console.error('Failed to cancel appointment:', error)
+      alert(error.response?.data?.message || error.message || 'Unable to cancel appointment')
+    }
   }
 
   const openPaymentModal = (apt) => {
@@ -96,7 +121,7 @@ const MyAppointments = () => {
     setTimeout(() => {
       // Success transition: Update appointment status to Paid
       const updated = appointments.map(apt => 
-        apt._id === selectedApt._id ? { ...apt, status: 'Paid' } : apt
+        String(apt.appointmentId) === String(selectedApt.appointmentId) ? { ...apt, status: 'Paid' } : apt
       )
       setAppointments(updated)
       localStorage.setItem('appointments', JSON.stringify(updated))
@@ -110,7 +135,7 @@ const MyAppointments = () => {
 
         <div>
         {appointments.map((item, index) => (
-          <div className='grid grid-cols-[1fr_2fr] gap-4 sm:flex sm:gap-6 py-4 border-b border-gray-100' key={item._id || index}>
+          <div className='grid grid-cols-[1fr_2fr] gap-4 sm:flex sm:gap-6 py-4 border-b border-gray-100' key={item.appointmentId || index}>
             
             <div>
               <img className='w-32 bg-indigo-50 rounded-lg object-cover' src={item.docImage || item.image} alt={item.docName || item.name} />
@@ -154,7 +179,7 @@ const MyAppointments = () => {
                     <button onClick={() => openPaymentModal(item)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-primary hover:text-white transition-all duration-300 rounded'>
                       Pay Online
                     </button>
-                    <button onClick={() => cancelAppointment(item._id)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-[#FF9F68] hover:text-white transition-all duration-300 rounded'>
+                    <button onClick={() => cancelAppointment(item.appointmentId)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-[#FF9F68] hover:text-white transition-all duration-300 rounded'>
                       Cancel appointment
                     </button>
                   </>

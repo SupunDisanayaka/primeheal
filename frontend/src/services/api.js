@@ -14,6 +14,7 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token') || localStorage.getItem('adminToken') || localStorage.getItem('doctorToken') || localStorage.getItem('receptionistToken') || localStorage.getItem('accountantToken');
     if (token) {
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -31,6 +32,11 @@ export const loginUser = async (email, password) => {
 
 export const registerUser = async (name, email, password) => {
   const response = await api.post('/auth/register', { name, email, password });
+  return response.data;
+};
+
+export const loginWithGoogle = async (accessToken) => {
+  const response = await api.post('/auth/google', { accessToken });
   return response.data;
 };
 
@@ -62,6 +68,11 @@ export const createAppointment = async (payload) => {
 
 export const getMyAppointments = async () => {
   const response = await api.get('/appointments/my');
+  return response.data;
+};
+
+export const cancelAppointment = async (appointmentId) => {
+  const response = await api.patch(`/appointments/${appointmentId}/cancel`);
   return response.data;
 };
 

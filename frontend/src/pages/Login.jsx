@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react'
 import { assets } from '../assets/assets'
 import { AppContext } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
-import { loginUser, registerUser } from '../services/api'
+import { loginUser, registerUser, loginWithGoogle } from '../services/api'
 
 const Login = () => {
   const { setToken } = useContext(AppContext)
@@ -30,6 +30,47 @@ const Login = () => {
     return () => clearInterval(interval)
   }, [loginImages.length])
 
+  const handleGoogleLogin = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+
+    if (!clientId) {
+      alert('Google sign-in is not configured. Set VITE_GOOGLE_CLIENT_ID in the frontend environment.')
+      return
+    }
+
+    if (!window.google?.accounts?.oauth2?.initTokenClient) {
+      alert('Google sign-in is still loading. Please try again in a moment.')
+      return
+    }
+
+    const tokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'openid email profile',
+      callback: async (response) => {
+        try {
+          if (!response.access_token) {
+            throw new Error('No Google access token returned')
+          }
+
+          const data = await loginWithGoogle(response.access_token)
+
+          if (data.success) {
+            localStorage.setItem('token', data.token)
+            setToken(data.token)
+            navigate('/')
+          } else {
+            alert(data.message || 'Google sign-in failed')
+          }
+        } catch (error) {
+          console.error('Google login failed:', error)
+          alert(error.response?.data?.message || 'Google sign-in failed')
+        }
+      }
+    })
+
+    tokenClient.requestAccessToken({ prompt: 'consent' })
+  }
+
 
 
   const onSubmitHandler = async (event) => {
@@ -53,48 +94,6 @@ const Login = () => {
     } catch (error) {
       console.error(error)
       alert(error.response?.data?.message || 'Authentication failed')
-    }
-  }
-
-  const handleGoogleLogin = () => {
-    // REPLACE WITH YOUR ACTUAL GOOGLE CLIENT ID FOR PRODUCTION DEPLOYMENT
-    const clientId = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
-
-    if (window.google && window.google.accounts) {
-      try {
-        const tokenClient = window.google.accounts.oauth2.initImplicitFlow({
-          client_id: clientId,
-          scope: 'openid email profile',
-          callback: (response) => {
-            if (response.access_token) {
-              // Successfully retrieved access token
-              fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                headers: { Authorization: `Bearer ${response.access_token}` }
-              })
-                .then(res => res.json())
-                .then(profile => {
-                  console.log('Google Profile Info:', profile);
-                  setToken(response.access_token);
-                  navigate('/');
-                })
-                .catch(err => {
-                  console.error('Error retrieving Google user info:', err);
-                  setToken(true);
-                  navigate('/');
-                });
-            }
-          },
-        });
-        tokenClient.requestAccessToken();
-      } catch (err) {
-        console.error('Google Sign-In execution error:', err);
-        setToken(true);
-        navigate('/');
-      }
-    } else {
-      console.warn('Google SDK not fully loaded. Falling back to simulated login.');
-      setToken(true);
-      navigate('/');
     }
   }
 

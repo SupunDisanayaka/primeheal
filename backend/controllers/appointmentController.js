@@ -115,7 +115,29 @@ const getMyAppointments = async (req, res) => {
       }
       const patientID = patientRows[0].patientID;
       const [appointments] = await pool.query(
-        'SELECT * FROM appointments WHERE patientID = ? ORDER BY createdAt DESC',
+        `SELECT
+          appointmentID AS appointmentId,
+          patientID,
+          doctorID,
+          doctorName,
+          appointmentDate,
+          appointmentTime,
+          status,
+          fee,
+          totalCharge,
+          patientName,
+          patientPhone,
+          patientEmail,
+          patientNic,
+          patientAddress,
+          patientNo,
+          docAddress,
+          noShowRefund,
+          createdAt,
+          updatedAt
+        FROM appointments
+        WHERE patientID = ?
+        ORDER BY createdAt DESC`,
         [patientID]
       );
       return res.json({ success: true, appointments });
@@ -128,7 +150,29 @@ const getMyAppointments = async (req, res) => {
       }
       const doctorID = doctorRows[0].doctorID;
       const [appointments] = await pool.query(
-        'SELECT * FROM appointments WHERE doctorID = ? ORDER BY createdAt DESC',
+        `SELECT
+          appointmentID AS appointmentId,
+          patientID,
+          doctorID,
+          doctorName,
+          appointmentDate,
+          appointmentTime,
+          status,
+          fee,
+          totalCharge,
+          patientName,
+          patientPhone,
+          patientEmail,
+          patientNic,
+          patientAddress,
+          patientNo,
+          docAddress,
+          noShowRefund,
+          createdAt,
+          updatedAt
+        FROM appointments
+        WHERE doctorID = ?
+        ORDER BY createdAt DESC`,
         [doctorID]
       );
       return res.json({ success: true, appointments });
@@ -141,7 +185,93 @@ const getMyAppointments = async (req, res) => {
   }
 };
 
+const cancelAppointment = async (req, res) => {
+  const { userID, userType } = req.user;
+  const { appointmentId } = req.params;
+
+  if (!appointmentId) {
+    return res.status(400).json({ success: false, message: 'Appointment ID is required' });
+  }
+
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    let ownerColumn = null;
+    let ownerId = null;
+
+    if (userType === 'patient') {
+      const [patientRows] = await connection.query('SELECT patientID FROM patient WHERE userID = ?', [userID]);
+      if (patientRows.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({ success: false, message: 'Patient record not found' });
+      }
+
+      ownerColumn = 'patientID';
+      ownerId = patientRows[0].patientID;
+    } else if (userType === 'doctor') {
+      const [doctorRows] = await connection.query('SELECT doctorID FROM doctor WHERE userID = ?', [userID]);
+      if (doctorRows.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({ success: false, message: 'Doctor record not found' });
+      }
+
+      ownerColumn = 'doctorID';
+      ownerId = doctorRows[0].doctorID;
+    } else {
+      await connection.rollback();
+      return res.status(403).json({ success: false, message: 'Only patients and doctors can cancel appointments' });
+    }
+
+    const [appointmentRows] = await connection.query(
+      `SELECT appointmentID, ${ownerColumn}, status
+       FROM appointments
+       WHERE appointmentID = ?
+       FOR UPDATE`,
+      [appointmentId]
+    );
+
+    if (appointmentRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+
+    const appointment = appointmentRows[0];
+
+    if (Number(appointment[ownerColumn]) !== Number(ownerId)) {
+      await connection.rollback();
+      return res.status(403).json({ success: false, message: 'You are not allowed to cancel this appointment' });
+    }
+
+    const [updateResult] = await connection.query(
+      "UPDATE appointments SET status = 'Cancelled' WHERE appointmentID = ? AND status <> 'Cancelled'",
+      [appointmentId]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      await connection.rollback();
+      return res.status(400).json({ success: false, message: 'Appointment could not be cancelled' });
+    }
+
+    await connection.commit();
+
+    return res.json({
+      success: true,
+      message: 'Appointment cancelled successfully',
+      appointmentId: Number(appointmentId)
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error(error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
 module.exports = {
   createAppointment,
-  getMyAppointments
+  getMyAppointments,
+  cancelAppointment
 };

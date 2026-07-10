@@ -9,6 +9,45 @@ const {
   sendPasswordResetSuccessEmail
 } = require('../utils/emailService');
 
+const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
+
+const createAuthToken = (user, roleId = null) => jwt.sign(
+  {
+    userID: user.userID,
+    userId: user.userID,
+    id: user.userID,
+    userType: user.userType,
+    role: user.userType,
+    name: user.name,
+    roleID: roleId
+  },
+  process.env.JWT_SECRET,
+  { expiresIn: '30d' }
+);
+
+const getRoleIdForUser = async (user) => {
+  let roleId = null;
+
+  if (user.userType === 'patient') {
+    const [rows] = await pool.query('SELECT patientID FROM patient WHERE userID = ?', [user.userID]);
+    if (rows.length > 0) roleId = rows[0].patientID;
+  } else if (user.userType === 'doctor') {
+    const [rows] = await pool.query('SELECT doctorID FROM doctor WHERE userID = ?', [user.userID]);
+    if (rows.length > 0) roleId = rows[0].doctorID;
+  } else if (user.userType === 'receptionist') {
+    const [rows] = await pool.query('SELECT receptionistID FROM receptionist WHERE userID = ?', [user.userID]);
+    if (rows.length > 0) roleId = rows[0].receptionistID;
+  } else if (user.userType === 'accountant') {
+    const [rows] = await pool.query('SELECT accountantID FROM accountant WHERE userID = ?', [user.userID]);
+    if (rows.length > 0) roleId = rows[0].accountantID;
+  } else if (user.userType === 'admin') {
+    const [rows] = await pool.query('SELECT adminID FROM admin WHERE userID = ?', [user.userID]);
+    if (rows.length > 0) roleId = rows[0].adminID;
+  }
+
+  return roleId;
+};
+
 // @route   POST /api/auth/register
 // @desc    Register a new patient
 const register = async (req, res) => {
@@ -59,11 +98,7 @@ const register = async (req, res) => {
     }
 
     // Create token
-    const token = jwt.sign(
-      { userID: userId, userType: 'patient', name },
-      process.env.JWT_SECRET,
-      { expiresIn: '30d' }
-    );
+    const token = createAuthToken({ userID: userId, userType: 'patient', name });
 
     res.status(201).json({
       success: true,
@@ -71,9 +106,12 @@ const register = async (req, res) => {
       token,
       user: {
         _id: userId,
+        userId,
+        id: userId,
         name,
         email,
-        userType: 'patient'
+        userType: 'patient',
+        role: 'patient'
       }
     });
 
@@ -293,13 +331,125 @@ const login = async (req, res) => {
       token,
       user: {
         _id: user.userID,
+        userId: user.userID,
+        id: user.userID,
         name: user.name,
         email: user.email,
         userType: user.userType,
+        role: user.userType,
         roleID: roleId
       }
     });
 
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// @route   POST /api/auth/google
+// @desc    Login or register a patient using Google access token
+const googleLogin = async (req, res) => {
+  const { accessToken } = req.body;
+
+  if (!accessToken) {
+    return res.status(400).json({ success: false, message: 'Google access token is required' });
+  }
+
+  try {
+    const response = await fetch(GOOGLE_USERINFO_URL, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    if (!response.ok) {
+      return res.status(401).json({ success: false, message: 'Unable to verify Google account' });
+    }
+
+    const profile = await response.json();
+    if (!profile.email) {
+      return res.status(400).json({ success: false, message: 'Google account does not include an email address' });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const [users] = await connection.query('SELECT * FROM users WHERE email = ?', [profile.email]);
+      let user = users[0];
+
+      if (user && user.userType !== 'patient') {
+        await connection.rollback();
+        return res.status(403).json({ success: false, message: 'Please sign in with the account type assigned to this email' });
+      }
+
+      if (!user) {
+        const fallbackName = profile.name || profile.given_name || profile.email.split('@')[0];
+        const fallbackPassword = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10);
+        const [userResult] = await connection.query(
+          'INSERT INTO users (name, email, password, userType, profileImage, isActive) VALUES (?, ?, ?, ?, ?, ?)',
+          [fallbackName, profile.email, fallbackPassword, 'patient', profile.picture || null, 1]
+        );
+
+        const userId = userResult.insertId;
+        const patientCode = `PT-${String(userId).padStart(5, '0')}`;
+
+        await connection.query(
+          'INSERT INTO patient (userID, patientCode) VALUES (?, ?)',
+          [userId, patientCode]
+        );
+
+        user = {
+          userID: userId,
+          name: fallbackName,
+          email: profile.email,
+          userType: 'patient'
+        };
+
+        await connection.commit();
+
+        try {
+          await sendWelcomeEmail({ email: profile.email, name: fallbackName, userType: 'patient' });
+        } catch (emailError) {
+          console.error('Google sign-in welcome email error:', emailError);
+        }
+      } else {
+        if (profile.picture && !user.profileImage) {
+          await connection.query('UPDATE users SET profileImage = ? WHERE userID = ?', [profile.picture, user.userID]);
+        }
+
+        await connection.commit();
+      }
+
+      const roleId = await getRoleIdForUser(user);
+      const token = createAuthToken(user, roleId);
+
+      try {
+        await sendLoginEmail({ to: profile.email, name: user.name, userType: 'patient' });
+      } catch (emailError) {
+        console.error('Google login notification email error:', emailError);
+      }
+
+      return res.json({
+        success: true,
+        message: 'Google login successful',
+        token,
+        user: {
+          _id: user.userID,
+          userId: user.userID,
+          id: user.userID,
+          name: user.name,
+          email: profile.email,
+          userType: 'patient',
+          role: 'patient',
+          roleID: roleId
+        }
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -400,6 +550,7 @@ module.exports = {
   createReceptionist,
   createAccountant,
   login,
+  googleLogin,
   requestPasswordReset,
   resetPassword
 };
