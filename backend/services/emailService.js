@@ -3,6 +3,7 @@ const nodemailer = require('nodemailer');
 const welcomeEmailTemplate = require('../templates/welcomeEmail');
 const appointmentConfirmationTemplate = require('../templates/appointmentConfirmation');
 const appointmentReminderTemplate = require('../templates/appointmentReminder');
+const paymentConfirmationTemplate = require('../templates/paymentConfirmation');
 const passwordResetTemplate = require('../templates/passwordReset');
 const invoiceEmailTemplate = require('../templates/invoiceEmail');
 
@@ -234,6 +235,15 @@ const sendInvoice = async (patient = {}, invoice = {}) => {
   return await sendEmail({ to: recipient, subject, html, text });
 };
 
+const sendPaymentConfirmation = async (patient = {}, payment = {}) => {
+  const recipient = patient.email || payment.patientEmail || payment.to;
+  const subject = 'PrimeHeal Payment Confirmation';
+  const html = paymentConfirmationTemplate(patient, payment);
+  const text = `Hello ${patient.name || payment.patientName || 'Patient'}, your PrimeHeal payment has been confirmed.`;
+
+  return await sendEmail({ to: recipient, subject, html, text });
+};
+
 // -----------------------------------------------------------------------------
 // Legacy compatibility helpers used by existing controllers
 // -----------------------------------------------------------------------------
@@ -359,6 +369,7 @@ module.exports = {
   sendAppointmentReminder,
   sendPasswordResetOTP,
   sendInvoice,
+  sendPaymentConfirmation,
   sendRegistrationEmail,
   sendLoginEmail,
   sendAppointmentEmail,

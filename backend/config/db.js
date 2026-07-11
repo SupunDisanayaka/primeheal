@@ -144,6 +144,38 @@ async function initializePool() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS payments (
+      paymentID INT AUTO_INCREMENT PRIMARY KEY,
+      appointmentID INT NOT NULL,
+      patientID INT NOT NULL,
+      doctorID INT NOT NULL,
+      merchantOrderId VARCHAR(120) NOT NULL UNIQUE,
+      transactionId VARCHAR(120) DEFAULT NULL UNIQUE,
+      paymentGateway VARCHAR(50) DEFAULT 'PayHere',
+      amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      currency VARCHAR(10) NOT NULL DEFAULT 'LKR',
+      paymentStatus ENUM('Pending','Completed','Failed','Cancelled') DEFAULT 'Pending',
+      payhereStatusCode VARCHAR(20) DEFAULT NULL,
+      paymentMethod VARCHAR(50) DEFAULT NULL,
+      receiptUrl VARCHAR(255) DEFAULT NULL,
+      gatewayResponse JSON DEFAULT NULL,
+      notifyPayload JSON DEFAULT NULL,
+      notifySignature VARCHAR(255) DEFAULT NULL,
+      verifiedAt TIMESTAMP NULL DEFAULT NULL,
+      notifyProcessedAt TIMESTAMP NULL DEFAULT NULL,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (appointmentID) REFERENCES appointments(appointmentID) ON DELETE CASCADE,
+      FOREIGN KEY (patientID) REFERENCES patient(patientID) ON DELETE CASCADE,
+      FOREIGN KEY (doctorID) REFERENCES doctor(doctorID) ON DELETE CASCADE,
+      INDEX idx_payments_patientID (patientID),
+      INDEX idx_payments_doctorID (doctorID),
+      INDEX idx_payments_status (paymentStatus),
+      INDEX idx_payments_createdAt (createdAt)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
       tokenID INT AUTO_INCREMENT PRIMARY KEY,
       userID INT NOT NULL,

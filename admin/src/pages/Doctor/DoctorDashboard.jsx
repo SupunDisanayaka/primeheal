@@ -144,7 +144,7 @@ const DoctorDashboard = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                           {currencySymbol}{apt.amount}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap flex flex-col gap-1 items-start">
                           <span
                             className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold select-none ${
                               apt.status === "Completed"
@@ -157,6 +157,15 @@ const DoctorDashboard = () => {
                             }`}
                           >
                             {apt.status}
+                          </span>
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold select-none ${
+                              apt.backendStatus === "Paid" || apt.paymentStatus === "Completed"
+                                ? "bg-teal-100 text-teal-800"
+                                : "bg-amber-100 text-amber-800"
+                            }`}
+                          >
+                            {apt.backendStatus === "Paid" || apt.paymentStatus === "Completed" ? "Paid" : "Pending"}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">

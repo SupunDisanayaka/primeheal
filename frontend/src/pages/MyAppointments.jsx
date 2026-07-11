@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect, useCallback } from 'react'
 import { AppContext } from '../context/AppContext'
-import { cancelAppointment as cancelAppointmentRequest, getMyAppointments } from '../services/api'
+import { cancelAppointment as cancelAppointmentRequest, getMyAppointments, createPaymentSession } from '../services/api'
 
 const MyAppointments = () => {
 
@@ -96,38 +96,42 @@ const MyAppointments = () => {
     }
   }
 
-  const openPaymentModal = (apt) => {
-    setSelectedApt(apt)
-    // Preset mock data from user's screen mockup
-    setSelectedCard('visa')
-    setCardNumber('•••• •••• •••• 9842')
-    setExpiry('08 / 19')
-    setCardholderName('Jeremiah Miroslavia')
-    setCvv('•••')
-    setTermsAccepted(false)
-    setPaymentStatus('idle')
-    setShowPaymentModal(true)
-  }
+  const handlePayNow = async (apt) => {
+    try {
+      const data = await createPaymentSession(apt.appointmentId);
+      if (!data.success) {
+        alert(data.message || 'Failed to initiate payment.');
+        return;
+      }
 
-  const handleMakePayment = (e) => {
-    e.preventDefault()
-    if (!termsAccepted) {
-      alert("Please accept the terms & conditions to proceed.")
-      return
+      // Configure PayHere JS SDK Callbacks
+      window.payhere.onCompleted = function onCompleted(orderId) {
+        console.log("Payment completed. OrderID:" + orderId);
+        alert("Payment completed successfully!");
+        loadAppointments(false);
+      };
+
+      window.payhere.onDismissed = function onDismissed() {
+        console.log("Payment dismissed");
+      };
+
+      window.payhere.onError = function onError(error) {
+        console.error("Payment error:", error);
+        alert("Payment failed: " + error);
+      };
+
+      // Launch the PayHere Payment Gateway Sandbox
+      const paymentObj = {
+        sandbox: true,
+        ...data.checkout
+      };
+
+      window.payhere.startPayment(paymentObj);
+    } catch (error) {
+      console.error("Payment initiation error:", error);
+      alert(error.response?.data?.message || error.message || 'Failed to start payment.');
     }
-    
-    setPaymentStatus('processing')
-    
-    setTimeout(() => {
-      // Success transition: Update appointment status to Paid
-      const updated = appointments.map(apt => 
-        String(apt.appointmentId) === String(selectedApt.appointmentId) ? { ...apt, status: 'Paid' } : apt
-      )
-      setAppointments(updated)
-      localStorage.setItem('appointments', JSON.stringify(updated))
-      setPaymentStatus('success')
-    }, 1500)
-  }
+  };
 
   return (
     <div>
@@ -161,6 +165,22 @@ const MyAppointments = () => {
                     <p><span className="font-semibold text-gray-700">Total Charged:</span> <span className="font-bold text-gray-800">Rs. {item.fees}{item.noShowRefund && " + 275 LKR"}</span></p>
                   </div>
                 )}
+
+                {item.status === 'Paid' && (
+                  <div className="mt-2 p-2 bg-emerald-50/50 rounded-lg text-xs text-gray-500 space-y-0.5 border border-emerald-100">
+                    <p><span className="font-semibold text-emerald-800">Payment Status:</span> Paid</p>
+                    <p><span className="font-semibold text-emerald-800">Transaction ID:</span> {item.transactionId || item.merchantOrderId || 'N/A'}</p>
+                    <p><span className="font-semibold text-emerald-800">Amount:</span> Rs. {item.paymentAmount || item.totalCharge || item.fees}</p>
+                    {item.receiptUrl && (
+                      <p>
+                        <span className="font-semibold text-emerald-800">Receipt:</span>{' '}
+                        <a href={item.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          View Receipt
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <div></div>
               <div className='flex flex-col gap-2 justify-end'>
@@ -176,8 +196,8 @@ const MyAppointments = () => {
                 )}
                 {item.status !== 'Cancelled' && item.status !== 'Paid' && (
                   <>
-                    <button onClick={() => openPaymentModal(item)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-primary hover:text-white transition-all duration-300 rounded'>
-                      Pay Online
+                    <button onClick={() => handlePayNow(item)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-primary hover:text-white transition-all duration-300 rounded'>
+                      Pay Now
                     </button>
                     <button onClick={() => cancelAppointment(item.appointmentId)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-[#FF9F68] hover:text-white transition-all duration-300 rounded'>
                       Cancel appointment

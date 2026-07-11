@@ -39,6 +39,7 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/doctors', require('./routes/doctorRoutes'));
 app.use('/api/appointments', require('./routes/appointmentRoutes'));
+app.use('/api/payment', require('./routes/paymentRoutes'));
 app.use('/api/email', require('./routes/emailRoutes'));
 
 // Error handling middleware

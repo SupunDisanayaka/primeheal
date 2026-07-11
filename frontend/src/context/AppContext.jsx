@@ -21,7 +21,7 @@ const AppContextProvider = ({ children }) => {
       if (data.success) {
         setDoctors(data.doctors.map((doctor) => ({
           ...doctor,
-          fees: toLkr(doctor.fees)
+          fees: 2500
         })));
       }
     } catch (error) {

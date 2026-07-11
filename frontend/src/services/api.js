@@ -76,6 +76,11 @@ export const cancelAppointment = async (appointmentId) => {
   return response.data;
 };
 
+export const createPaymentSession = async (appointmentId) => {
+  const response = await api.post('/payment/create', { appointmentId });
+  return response.data;
+};
+
 // Doctor Services
 export const getDoctors = async () => {
   const response = await api.get('/doctors');

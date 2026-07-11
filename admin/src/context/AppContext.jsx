@@ -137,6 +137,7 @@ const AppContextProvider = ({ children }) => {
   const [appointments, setAppointments] = useState(getFallbackAppointments);
   const [adminDashboardStats, setAdminDashboardStats] = useState(null);
   const [adminRecentAppointments, setAdminRecentAppointments] = useState([]);
+  const [adminRecentTransactions, setAdminRecentTransactions] = useState([]);
   const [adminDataLoading, setAdminDataLoading] = useState(false);
   const [adminDataError, setAdminDataError] = useState(null);
 
@@ -145,6 +146,7 @@ const AppContextProvider = ({ children }) => {
       setAppointments(getFallbackAppointments());
       setAdminDashboardStats(null);
       setAdminRecentAppointments([]);
+      setAdminRecentTransactions([]);
       setAdminDataError(null);
       return;
     }
@@ -162,12 +164,14 @@ const AppContextProvider = ({ children }) => {
       console.log('[ADMIN CONTEXT] appointments loaded', {
         appointmentCount: appointmentsResponse.appointments?.length || 0,
         stats: dashboardResponse.stats || null,
-        recentCount: recentResponse.appointments?.length || 0
+        recentCount: recentResponse.appointments?.length || 0,
+        recentTransactionsCount: dashboardResponse.recentTransactions?.length || 0
       });
 
       setAppointments(appointmentsResponse.appointments || []);
       setAdminDashboardStats(dashboardResponse.stats || null);
       setAdminRecentAppointments(recentResponse.appointments || []);
+      setAdminRecentTransactions(dashboardResponse.recentTransactions || []);
     } catch (error) {
       console.error('[ADMIN CONTEXT] failed to load admin appointment data', error);
       setAdminDataError(error.response?.data?.message || error.message || 'Unable to load admin appointments');
@@ -357,6 +361,7 @@ const AppContextProvider = ({ children }) => {
     setAppointments,
     adminDashboardStats,
     adminRecentAppointments,
+    adminRecentTransactions,
     adminDataLoading,
     adminDataError,
     refreshAdminData,

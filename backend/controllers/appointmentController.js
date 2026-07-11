@@ -13,6 +13,54 @@ const normalizeMoney = (value, currency = 'USD') => {
   return toLkr(value);
 };
 
+const getLatestPaymentFields = () => `
+  (SELECT p.paymentID
+   FROM payments p
+   WHERE p.appointmentID = a.appointmentID
+   ORDER BY p.paymentID DESC
+   LIMIT 1) AS paymentID,
+  (SELECT p.merchantOrderId
+   FROM payments p
+   WHERE p.appointmentID = a.appointmentID
+   ORDER BY p.paymentID DESC
+   LIMIT 1) AS merchantOrderId,
+  (SELECT p.transactionId
+   FROM payments p
+   WHERE p.appointmentID = a.appointmentID
+   ORDER BY p.paymentID DESC
+   LIMIT 1) AS transactionId,
+  (SELECT p.paymentStatus
+   FROM payments p
+   WHERE p.appointmentID = a.appointmentID
+   ORDER BY p.paymentID DESC
+   LIMIT 1) AS paymentStatus,
+  (SELECT p.amount
+   FROM payments p
+   WHERE p.appointmentID = a.appointmentID
+   ORDER BY p.paymentID DESC
+   LIMIT 1) AS paymentAmount,
+  (SELECT p.currency
+   FROM payments p
+   WHERE p.appointmentID = a.appointmentID
+   ORDER BY p.paymentID DESC
+   LIMIT 1) AS paymentCurrency,
+  (SELECT p.paymentMethod
+   FROM payments p
+   WHERE p.appointmentID = a.appointmentID
+   ORDER BY p.paymentID DESC
+   LIMIT 1) AS paymentMethod,
+  (SELECT p.receiptUrl
+   FROM payments p
+   WHERE p.appointmentID = a.appointmentID
+   ORDER BY p.paymentID DESC
+   LIMIT 1) AS receiptUrl,
+  (SELECT p.verifiedAt
+   FROM payments p
+   WHERE p.appointmentID = a.appointmentID
+   ORDER BY p.paymentID DESC
+   LIMIT 1) AS paymentDate
+`;
+
 const createAppointment = async (req, res) => {
   const { doctorUserID, doctorName, appointmentDate, appointmentTime, fee, totalCharge, patientName, patientPhone, patientEmail, patientNic, patientAddress, noShowRefund, docAddress, currency } = req.body;
   const { userID, userType, name: loggedName, email: loggedEmail } = req.user;
@@ -133,9 +181,10 @@ const getMyAppointments = async (req, res) => {
           patientNo,
           docAddress,
           noShowRefund,
+          ${getLatestPaymentFields()},
           createdAt,
           updatedAt
-        FROM appointments
+        FROM appointments a
         WHERE patientID = ?
         ORDER BY createdAt DESC`,
         [patientID]
@@ -168,9 +217,10 @@ const getMyAppointments = async (req, res) => {
           patientNo,
           docAddress,
           noShowRefund,
+          ${getLatestPaymentFields()},
           createdAt,
           updatedAt
-        FROM appointments
+        FROM appointments a
         WHERE doctorID = ?
         ORDER BY createdAt DESC`,
         [doctorID]
