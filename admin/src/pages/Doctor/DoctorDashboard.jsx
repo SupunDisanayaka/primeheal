@@ -5,7 +5,7 @@ import { assets } from "../../assets/assets";
 
 const DoctorDashboard = () => {
   const { currentDoctorId } = useContext(DoctorContext);
-  const { appointments, doctors, setAppointments, currencySymbol } = useContext(AppContext);
+  const { appointments, doctors, setAppointments, syncAppointmentStatus, currencySymbol } = useContext(AppContext);
 
   // Filter appointments specifically assigned to this logged-in doctor
   const docApts = appointments.filter((apt) => apt.docId === currentDoctorId);
@@ -36,16 +36,22 @@ const DoctorDashboard = () => {
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 5);
 
-  const handleComplete = (aptId) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt._id === aptId ? { ...apt, status: "Completed" } : apt))
-    );
+  const handleComplete = async (aptId) => {
+    try {
+      await syncAppointmentStatus(aptId, "Completed");
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || error.message || "Failed to update status");
+    }
   };
 
-  const handleCancel = (aptId) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt._id === aptId ? { ...apt, status: "Cancelled" } : apt))
-    );
+  const handleCancel = async (aptId) => {
+    try {
+      await syncAppointmentStatus(aptId, "Cancelled");
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || error.message || "Failed to update status");
+    }
   };
 
   return (
@@ -151,8 +157,10 @@ const DoctorDashboard = () => {
                                 ? "bg-emerald-50 text-emerald-600"
                                 : apt.status === "Cancelled"
                                 ? "bg-rose-50 text-rose-600"
-                                : apt.status === "Checked In"
+                                : apt.status === "Checked In" || apt.status === "Confirmed"
                                 ? "bg-teal-50 text-teal-600"
+                                : apt.status === "Paid"
+                                ? "bg-indigo-50 text-indigo-600"
                                 : "bg-blue-50 text-blue-600"
                             }`}
                           >
@@ -160,12 +168,12 @@ const DoctorDashboard = () => {
                           </span>
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold select-none ${
-                              apt.backendStatus === "Paid" || apt.paymentStatus === "Completed"
+                              apt.paymentStatus === "Completed"
                                 ? "bg-teal-100 text-teal-800"
                                 : "bg-amber-100 text-amber-800"
                             }`}
                           >
-                            {apt.backendStatus === "Paid" || apt.paymentStatus === "Completed" ? "Paid" : "Pending"}
+                            {apt.paymentStatus === "Completed" ? "Paid" : "Pending"}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">

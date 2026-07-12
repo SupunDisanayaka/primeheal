@@ -122,7 +122,7 @@ async function initializePool() {
       doctorName VARCHAR(100) NOT NULL,
       appointmentDate DATE NOT NULL,
       appointmentTime VARCHAR(50) NOT NULL,
-      status ENUM('Pending','Confirmed','Cancelled','Paid') DEFAULT 'Pending',
+      status ENUM('Pending', 'Paid', 'Confirmed', 'Completed', 'Cancelled', 'Expired', 'No Show') DEFAULT 'Pending',
       fee DECIMAL(10,2) NOT NULL DEFAULT 0.00,
       totalCharge DECIMAL(10,2) NOT NULL DEFAULT 0.00,
       patientName VARCHAR(100) NOT NULL,

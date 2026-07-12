@@ -5,15 +5,18 @@ import { assets } from "../../assets/assets";
 
 const DoctorAppointments = () => {
   const { currentDoctorId } = useContext(DoctorContext);
-  const { appointments, setAppointments, currencySymbol } = useContext(AppContext);
+  const { appointments, setAppointments, syncAppointmentStatus, currencySymbol } = useContext(AppContext);
 
   // Filter appointments specifically assigned to this logged-in doctor
   const docApts = appointments.filter((apt) => apt.docId === currentDoctorId);
 
-  const handleStatusChange = (aptId, newStatus) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt._id === aptId ? { ...apt, status: newStatus } : apt))
-    );
+  const handleStatusChange = async (aptId, newStatus) => {
+    try {
+      await syncAppointmentStatus(aptId, newStatus);
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || error.message || "Failed to update status");
+    }
   };
 
   // Helper to compute patient age based on DOB
@@ -84,8 +87,10 @@ const DoctorAppointments = () => {
                                 ? "bg-emerald-50 text-emerald-600"
                                 : apt.status === "Cancelled"
                                 ? "bg-rose-50 text-rose-600"
-                                : apt.status === "Checked In"
+                                : apt.status === "Checked In" || apt.status === "Confirmed"
                                 ? "bg-teal-50 text-teal-600"
+                                : apt.status === "Paid"
+                                ? "bg-indigo-50 text-indigo-600"
                                 : "bg-amber-50 text-amber-600"
                             }`}
                           >
@@ -93,18 +98,24 @@ const DoctorAppointments = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <select
-                            value={apt.status === "Completed" ? "Completed" : "Pending"}
-                            onChange={(e) => handleStatusChange(apt._id, e.target.value)}
-                            className={`border outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold bg-white cursor-pointer transition-all ${
-                              apt.status === "Completed"
-                                ? "border-emerald-200 text-emerald-600 focus:border-emerald-400"
-                                : "border-amber-200 text-amber-600 focus:border-amber-400"
-                            }`}
-                          >
-                            <option value="Pending" className="text-amber-600 font-semibold">Not Yet</option>
-                            <option value="Completed" className="text-emerald-600 font-semibold">Completed</option>
-                          </select>
+                          {apt.status === "Completed" || apt.status === "Cancelled" ? (
+                            <span className="text-xs text-gray-400 font-semibold select-none">No Action</span>
+                          ) : apt.status === "Pending" ? (
+                            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1 text-center font-semibold select-none">Awaiting Payment</span>
+                          ) : (
+                            <select
+                              value={apt.status === "Completed" ? "Completed" : apt.status}
+                              onChange={(e) => handleStatusChange(apt._id, e.target.value)}
+                              className={`border outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold bg-white cursor-pointer transition-all ${
+                                apt.status === "Completed"
+                                  ? "border-emerald-200 text-emerald-600 focus:border-emerald-400"
+                                  : "border-indigo-200 text-indigo-600 focus:border-indigo-400"
+                              }`}
+                            >
+                              <option value={apt.status} disabled className="font-semibold">{apt.status}</option>
+                              <option value="Completed" className="text-emerald-600 font-semibold">Completed</option>
+                            </select>
+                          )}
                         </td>
                       </tr>
                     ))}

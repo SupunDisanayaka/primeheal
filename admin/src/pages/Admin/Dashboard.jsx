@@ -172,6 +172,10 @@ const Dashboard = () => {
                                 ? "bg-emerald-50 text-emerald-600"
                                 : apt.status === "Cancelled"
                                 ? "bg-rose-50 text-rose-600"
+                                : apt.status === "Checked In" || apt.status === "Confirmed"
+                                ? "bg-teal-50 text-teal-600"
+                                : apt.status === "Paid"
+                                ? "bg-indigo-50 text-indigo-600"
                                 : "bg-blue-50 text-blue-600"
                             }`}
                           >
@@ -179,24 +183,28 @@ const Dashboard = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                          {apt.status === "Pending" || apt.status === "Checked In" ? (
+                          {apt.status !== "Completed" && apt.status !== "Cancelled" ? (
                             <div className="flex items-center justify-center gap-3">
-                              {/* Complete Action */}
-                              <button
-                                onClick={() => handleComplete(apt._id)}
-                                className="p-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-full transition-colors group"
-                                title="Complete Appointment"
-                              >
-                                <img className="w-5 h-5 object-contain" src={assets.tick_icon} alt="Tick" />
-                              </button>
-                              {/* Cancel Action */}
-                              <button
-                                onClick={() => handleCancel(apt._id)}
-                                className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors group"
-                                title="Cancel Appointment"
-                              >
-                                <img className="w-5 h-5 object-contain" src={assets.cancel_icon} alt="Cancel" />
-                              </button>
+                              {/* Complete Action - only if paid/confirmed */}
+                              {(apt.status === "Paid" || apt.status === "Checked In" || apt.status === "Confirmed") && (
+                                <button
+                                  onClick={() => handleComplete(apt._id)}
+                                  className="p-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-full transition-colors group"
+                                  title="Complete Appointment"
+                                >
+                                  <img className="w-5 h-5 object-contain" src={assets.tick_icon} alt="Tick" />
+                                </button>
+                              )}
+                              {/* Cancel Action - only if pending */}
+                              {apt.status === "Pending" && (
+                                <button
+                                  onClick={() => handleCancel(apt._id)}
+                                  className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors group"
+                                  title="Cancel Appointment"
+                                >
+                                  <img className="w-5 h-5 object-contain" src={assets.cancel_icon} alt="Cancel" />
+                                </button>
+                              )}
                             </div>
                           ) : (
                             <span className="text-xs text-gray-400 font-medium">No actions</span>

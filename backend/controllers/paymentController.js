@@ -49,7 +49,22 @@ const paymentNotifyController = async (req, res) => {
 
 const paymentSuccessController = async (req, res) => {
   try {
-    const orderId = req.query.order_id || req.body?.order_id || '';
+    const payload = req.query || {};
+    const orderId = payload.order_id || payload.orderId || '';
+
+    console.log('[PAYMENT SUCCESS REDIRECT] Received redirect callback. OrderID:', orderId, 'Payload:', payload);
+
+    if (orderId) {
+      const verifyResult = await verifyPayment({
+        payload,
+        userID: null
+      });
+      console.log('[PAYMENT SUCCESS REDIRECT] Verification result:', verifyResult);
+      if (!verifyResult.success) {
+        return res.redirect(`${FRONTEND_URL}/my-appointments?status=error&order_id=${orderId}&message=${encodeURIComponent(verifyResult.message || 'Verification failed')}`);
+      }
+    }
+
     return res.redirect(`${FRONTEND_URL}/my-appointments?status=success&order_id=${orderId}`);
   } catch (error) {
     console.error('Payment success redirect error:', error);

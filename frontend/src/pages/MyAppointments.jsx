@@ -21,6 +21,7 @@ const MyAppointments = () => {
   
   // Payment Processing States
   const [paymentStatus, setPaymentStatus] = useState('idle') // 'idle', 'processing', 'success'
+  const [payingAptId, setPayingAptId] = useState(null)
 
   const loadAppointments = useCallback(async (allowFallback = true) => {
     try {
@@ -98,26 +99,69 @@ const MyAppointments = () => {
 
   const handlePayNow = async (apt) => {
     try {
+      setPayingAptId(apt.appointmentId);
       const data = await createPaymentSession(apt.appointmentId);
       if (!data.success) {
         alert(data.message || 'Failed to initiate payment.');
+        setPayingAptId(null);
         return;
       }
 
       // Configure PayHere JS SDK Callbacks
       window.payhere.onCompleted = function onCompleted(orderId) {
         console.log("Payment completed. OrderID:" + orderId);
-        alert("Payment completed successfully!");
-        loadAppointments(false);
+        
+        // Optimistically update frontend state to show Paid and disable buttons immediately
+        setAppointments((prev) =>
+          prev.map((item) =>
+            String(item.appointmentId) === String(apt.appointmentId)
+              ? { ...item, status: 'Paid', paymentStatus: 'Completed' }
+              : item
+          )
+        );
+        setPayingAptId(null);
+        
+        let attempts = 0;
+        const maxAttempts = 15;
+        const interval = setInterval(async () => {
+          attempts++;
+          try {
+            const res = await getMyAppointments();
+            if (res.success) {
+              const updatedApt = res.appointments.find(
+                (a) => String(a.appointmentId) === String(apt.appointmentId)
+              );
+              if (updatedApt && updatedApt.paymentStatus === 'Completed') {
+                clearInterval(interval);
+                setAppointments(res.appointments.map((item) => ({
+                  ...item,
+                  appointmentId: item.appointmentId ?? item.appointmentID ?? item._id,
+                  docAddress: item.docAddress ? JSON.parse(item.docAddress) : item.docAddress
+                })));
+                alert("Payment completed and verified successfully!");
+                return;
+              }
+            }
+          } catch (e) {
+            console.error('Polling error', e);
+          }
+          if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            alert("Payment completed! It may take a moment to update your dashboard.");
+            loadAppointments(false);
+          }
+        }, 1500);
       };
 
       window.payhere.onDismissed = function onDismissed() {
         console.log("Payment dismissed");
+        setPayingAptId(null);
       };
 
       window.payhere.onError = function onError(error) {
         console.error("Payment error:", error);
         alert("Payment failed: " + error);
+        setPayingAptId(null);
       };
 
       // Launch the PayHere Payment Gateway Sandbox
@@ -130,6 +174,7 @@ const MyAppointments = () => {
     } catch (error) {
       console.error("Payment initiation error:", error);
       alert(error.response?.data?.message || error.message || 'Failed to start payment.');
+      setPayingAptId(null);
     }
   };
 
@@ -166,10 +211,10 @@ const MyAppointments = () => {
                   </div>
                 )}
 
-                {item.status === 'Paid' && (
+                {item.paymentStatus === 'Completed' && (
                   <div className="mt-2 p-2 bg-emerald-50/50 rounded-lg text-xs text-gray-500 space-y-0.5 border border-emerald-100">
                     <p><span className="font-semibold text-emerald-800">Payment Status:</span> Paid</p>
-                    <p><span className="font-semibold text-emerald-800">Transaction ID:</span> {item.transactionId || item.merchantOrderId || 'N/A'}</p>
+                    <p><span className="font-semibold text-emerald-800">Transaction ID:</span> {item.transactionId || 'N/A'}</p>
                     <p><span className="font-semibold text-emerald-800">Amount:</span> Rs. {item.paymentAmount || item.totalCharge || item.fees}</p>
                     {item.receiptUrl && (
                       <p>
@@ -189,17 +234,43 @@ const MyAppointments = () => {
                     Cancelled
                   </button>
                 )}
-                {item.status === 'Paid' && (
-                  <button disabled className='text-sm text-teal-600 text-center sm:min-w-48 py-2 border border-teal-200 bg-teal-50 rounded font-medium select-none'>
-                    Paid
+                {item.status === 'Completed' && (
+                  <button disabled className='text-sm text-emerald-600 text-center sm:min-w-48 py-2 border border-emerald-200 bg-emerald-50 rounded font-medium select-none'>
+                    Completed
                   </button>
                 )}
-                {item.status !== 'Cancelled' && item.status !== 'Paid' && (
+                {item.status === 'Confirmed' && (
+                  <button disabled className='text-sm text-blue-600 text-center sm:min-w-48 py-2 border border-blue-200 bg-blue-50 rounded font-medium select-none'>
+                    Confirmed
+                  </button>
+                )}
+                {(item.paymentStatus === 'Completed' || item.status === 'Paid') && item.status !== 'Completed' && item.status !== 'Confirmed' && (
+                  <button disabled className='text-sm text-teal-600 text-center sm:min-w-48 py-2 border border-teal-200 bg-teal-50 rounded font-medium select-none'>
+                    Paid / Payment Successful
+                  </button>
+                )}
+                {item.status !== 'Cancelled' && item.status !== 'Completed' && item.status !== 'Confirmed' && item.status !== 'Paid' && item.paymentStatus !== 'Completed' && (
                   <>
-                    <button onClick={() => handlePayNow(item)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-primary hover:text-white transition-all duration-300 rounded'>
-                      Pay Now
+                    <button 
+                      onClick={() => handlePayNow(item)} 
+                      disabled={payingAptId === item.appointmentId}
+                      className={`text-sm text-center sm:min-w-48 py-2 border rounded transition-all duration-300 ${
+                        payingAptId === item.appointmentId 
+                          ? 'text-stone-400 bg-stone-100 cursor-not-allowed border-stone-200' 
+                          : 'text-stone-500 hover:bg-primary hover:text-white'
+                      }`}
+                    >
+                      {payingAptId === item.appointmentId ? 'Processing...' : 'Pay Now'}
                     </button>
-                    <button onClick={() => cancelAppointment(item.appointmentId)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-[#FF9F68] hover:text-white transition-all duration-300 rounded'>
+                    <button 
+                      onClick={() => cancelAppointment(item.appointmentId)} 
+                      disabled={payingAptId === item.appointmentId}
+                      className={`text-sm text-center sm:min-w-48 py-2 border rounded transition-all duration-300 ${
+                        payingAptId === item.appointmentId 
+                          ? 'text-stone-400 bg-stone-100 cursor-not-allowed border-stone-200' 
+                          : 'text-stone-500 hover:bg-[#FF9F68] hover:text-white'
+                      }`}
+                    >
                       Cancel appointment
                     </button>
                   </>

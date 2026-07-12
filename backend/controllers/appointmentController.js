@@ -164,29 +164,32 @@ const getMyAppointments = async (req, res) => {
       const patientID = patientRows[0].patientID;
       const [appointments] = await pool.query(
         `SELECT
-          appointmentID AS appointmentId,
-          patientID,
-          doctorID,
-          doctorName,
-          appointmentDate,
-          appointmentTime,
-          status,
-          fee,
-          totalCharge,
-          patientName,
-          patientPhone,
-          patientEmail,
-          patientNic,
-          patientAddress,
-          patientNo,
-          docAddress,
-          noShowRefund,
+          a.appointmentID AS appointmentId,
+          a.patientID,
+          a.doctorID,
+          d.userID AS doctorUserId,
+          u.name AS doctorName,
+          a.appointmentDate,
+          a.appointmentTime,
+          a.status,
+          a.fee,
+          a.totalCharge,
+          a.patientName,
+          a.patientPhone,
+          a.patientEmail,
+          a.patientNic,
+          a.patientAddress,
+          a.patientNo,
+          a.docAddress,
+          a.noShowRefund,
           ${getLatestPaymentFields()},
-          createdAt,
-          updatedAt
+          a.createdAt,
+          a.updatedAt
         FROM appointments a
-        WHERE patientID = ?
-        ORDER BY createdAt DESC`,
+        LEFT JOIN doctor d ON a.doctorID = d.doctorID
+        LEFT JOIN users u ON d.userID = u.userID
+        WHERE a.patientID = ?
+        ORDER BY a.createdAt DESC`,
         [patientID]
       );
       return res.json({ success: true, appointments });
@@ -200,29 +203,32 @@ const getMyAppointments = async (req, res) => {
       const doctorID = doctorRows[0].doctorID;
       const [appointments] = await pool.query(
         `SELECT
-          appointmentID AS appointmentId,
-          patientID,
-          doctorID,
-          doctorName,
-          appointmentDate,
-          appointmentTime,
-          status,
-          fee,
-          totalCharge,
-          patientName,
-          patientPhone,
-          patientEmail,
-          patientNic,
-          patientAddress,
-          patientNo,
-          docAddress,
-          noShowRefund,
+          a.appointmentID AS appointmentId,
+          a.patientID,
+          a.doctorID,
+          d.userID AS doctorUserId,
+          u.name AS doctorName,
+          a.appointmentDate,
+          a.appointmentTime,
+          a.status,
+          a.fee,
+          a.totalCharge,
+          a.patientName,
+          a.patientPhone,
+          a.patientEmail,
+          a.patientNic,
+          a.patientAddress,
+          a.patientNo,
+          a.docAddress,
+          a.noShowRefund,
           ${getLatestPaymentFields()},
-          createdAt,
-          updatedAt
+          a.createdAt,
+          a.updatedAt
         FROM appointments a
-        WHERE doctorID = ?
-        ORDER BY createdAt DESC`,
+        LEFT JOIN doctor d ON a.doctorID = d.doctorID
+        LEFT JOIN users u ON d.userID = u.userID
+        WHERE a.doctorID = ?
+        ORDER BY a.createdAt DESC`,
         [doctorID]
       );
       return res.json({ success: true, appointments });
@@ -294,6 +300,16 @@ const cancelAppointment = async (req, res) => {
       return res.status(403).json({ success: false, message: 'You are not allowed to cancel this appointment' });
     }
 
+    if (appointment.status === 'Paid' || appointment.status === 'Completed' || appointment.status === 'Confirmed') {
+      await connection.rollback();
+      return res.status(409).json({ success: false, message: 'Paid or Confirmed appointments cannot be cancelled' });
+    }
+
+    if (appointment.status !== 'Pending') {
+      await connection.rollback();
+      return res.status(409).json({ success: false, message: `Appointments with status '${appointment.status}' cannot be cancelled` });
+    }
+
     const [updateResult] = await connection.query(
       "UPDATE appointments SET status = 'Cancelled' WHERE appointmentID = ? AND status <> 'Cancelled'",
       [appointmentId]
@@ -320,8 +336,114 @@ const cancelAppointment = async (req, res) => {
   }
 };
 
+const updateAppointmentStatus = async (req, res) => {
+  const { userID, userType } = req.user;
+  const { appointmentId } = req.params;
+  const { status } = req.body;
+
+  if (!appointmentId || !status) {
+    return res.status(400).json({ success: false, message: 'Appointment ID and status are required' });
+  }
+
+  const allowedStatuses = ['Pending', 'Paid', 'Confirmed', 'Completed', 'Cancelled', 'Expired', 'No Show'];
+  if (!allowedStatuses.includes(status)) {
+    return res.status(400).json({ success: false, message: 'Invalid target appointment status' });
+  }
+
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [appointmentRows] = await connection.query(
+      'SELECT a.*, p.paymentStatus FROM appointments a LEFT JOIN payments p ON p.appointmentID = a.appointmentID WHERE a.appointmentID = ? FOR UPDATE',
+      [appointmentId]
+    );
+
+    if (appointmentRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+
+    const appointment = appointmentRows[0];
+    const currentStatus = appointment.status;
+
+    if (userType === 'patient') {
+      const [patientRows] = await connection.query('SELECT patientID FROM patient WHERE userID = ?', [userID]);
+      if (patientRows.length === 0 || patientRows[0].patientID !== appointment.patientID) {
+        await connection.rollback();
+        return res.status(403).json({ success: false, message: 'Unauthorized' });
+      }
+
+      if (status !== 'Cancelled') {
+        await connection.rollback();
+        return res.status(409).json({ success: false, message: 'Patients can only cancel appointments' });
+      }
+
+      if (appointment.paymentStatus === 'Completed' || currentStatus === 'Paid') {
+        await connection.rollback();
+        return res.status(409).json({ success: false, message: 'Paid appointments cannot be cancelled' });
+      }
+
+      if (currentStatus !== 'Pending') {
+        await connection.rollback();
+        return res.status(409).json({ success: false, message: `Cannot cancel appointment in state '${currentStatus}'` });
+      }
+    } else if (userType === 'doctor') {
+      const [doctorRows] = await connection.query('SELECT doctorID FROM doctor WHERE userID = ?', [userID]);
+      if (doctorRows.length === 0 || doctorRows[0].doctorID !== appointment.doctorID) {
+        await connection.rollback();
+        return res.status(403).json({ success: false, message: 'Unauthorized' });
+      }
+
+      if (status === 'Completed') {
+        if (currentStatus !== 'Confirmed' && currentStatus !== 'Paid') {
+          await connection.rollback();
+          return res.status(409).json({ success: false, message: 'Only paid or confirmed appointments can be completed' });
+        }
+      } else {
+        await connection.rollback();
+        return res.status(409).json({ success: false, message: `Doctors cannot change status to '${status}'` });
+      }
+    } else if (!['admin', 'receptionist', 'accountant'].includes(userType)) {
+      await connection.rollback();
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    if (currentStatus === 'Paid' && status === 'Pending') {
+      await connection.rollback();
+      return res.status(409).json({ success: false, message: 'Cannot transition Paid appointment back to Pending' });
+    }
+    if (currentStatus === 'Completed' && status === 'Cancelled') {
+      await connection.rollback();
+      return res.status(409).json({ success: false, message: 'Completed appointments cannot be cancelled' });
+    }
+    if (currentStatus === 'Cancelled' && status === 'Paid') {
+      await connection.rollback();
+      return res.status(409).json({ success: false, message: 'Cancelled appointments cannot be marked as Paid' });
+    }
+    if (currentStatus === 'Completed' && status === 'Paid') {
+      await connection.rollback();
+      return res.status(409).json({ success: false, message: 'Completed appointments cannot be paid again' });
+    }
+
+    await connection.query('UPDATE appointments SET status = ? WHERE appointmentID = ?', [status, appointmentId]);
+
+    await connection.commit();
+    console.log(`[APPOINTMENT STATUS CHANGE] Success: ${appointmentId} updated from ${currentStatus} to ${status} by ${userType} (${userID})`);
+    return res.json({ success: true, message: `Appointment status updated to ${status} successfully` });
+  } catch (error) {
+    await connection.rollback();
+    console.error('[APPOINTMENT STATUS CHANGE ERROR]', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
 module.exports = {
   createAppointment,
   getMyAppointments,
-  cancelAppointment
+  cancelAppointment,
+  updateAppointmentStatus
 };

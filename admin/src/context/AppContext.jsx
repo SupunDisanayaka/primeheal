@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { assets } from "../assets/assets";
 import { AdminContext } from "./AdminContext";
-import { getDoctors, getAdminAppointments, getAdminDashboard, getAdminRecentAppointments, updateAdminAppointmentStatus } from "../services/api";
+import { DoctorContext } from "./DoctorContext";
+import { getDoctors, getAdminAppointments, getAdminDashboard, getAdminRecentAppointments, updateAdminAppointmentStatus, getDoctorAppointmentsAPI } from "../services/api";
 
 export const AppContext = createContext();
 
@@ -45,6 +46,7 @@ const AppContextProvider = ({ children }) => {
   };
 
   const { adminToken } = useContext(AdminContext);
+  const { doctorToken } = useContext(DoctorContext);
 
   const getFallbackAppointments = () => ([
     {
@@ -142,7 +144,7 @@ const AppContextProvider = ({ children }) => {
   const [adminDataError, setAdminDataError] = useState(null);
 
   const refreshAdminData = useCallback(async () => {
-    if (!adminToken) {
+    if (!adminToken && !doctorToken) {
       setAppointments(getFallbackAppointments());
       setAdminDashboardStats(null);
       setAdminRecentAppointments([]);
@@ -155,30 +157,35 @@ const AppContextProvider = ({ children }) => {
     setAdminDataError(null);
 
     try {
-      const [appointmentsResponse, dashboardResponse, recentResponse] = await Promise.all([
-        getAdminAppointments(),
-        getAdminDashboard(),
-        getAdminRecentAppointments()
-      ]);
+      if (adminToken) {
+        const [appointmentsResponse, dashboardResponse, recentResponse] = await Promise.all([
+          getAdminAppointments(),
+          getAdminDashboard(),
+          getAdminRecentAppointments()
+        ]);
 
-      console.log('[ADMIN CONTEXT] appointments loaded', {
-        appointmentCount: appointmentsResponse.appointments?.length || 0,
-        stats: dashboardResponse.stats || null,
-        recentCount: recentResponse.appointments?.length || 0,
-        recentTransactionsCount: dashboardResponse.recentTransactions?.length || 0
-      });
+        console.log('[ADMIN CONTEXT] appointments loaded', {
+          appointmentCount: appointmentsResponse.appointments?.length || 0,
+          stats: dashboardResponse.stats || null,
+          recentCount: recentResponse.appointments?.length || 0,
+          recentTransactionsCount: dashboardResponse.recentTransactions?.length || 0
+        });
 
-      setAppointments(appointmentsResponse.appointments || []);
-      setAdminDashboardStats(dashboardResponse.stats || null);
-      setAdminRecentAppointments(recentResponse.appointments || []);
-      setAdminRecentTransactions(dashboardResponse.recentTransactions || []);
+        setAppointments(appointmentsResponse.appointments || []);
+        setAdminDashboardStats(dashboardResponse.stats || null);
+        setAdminRecentAppointments(recentResponse.appointments || []);
+        setAdminRecentTransactions(dashboardResponse.recentTransactions || []);
+      } else if (doctorToken) {
+        const appointmentsResponse = await getDoctorAppointmentsAPI();
+        setAppointments(appointmentsResponse.appointments || []);
+      }
     } catch (error) {
-      console.error('[ADMIN CONTEXT] failed to load admin appointment data', error);
-      setAdminDataError(error.response?.data?.message || error.message || 'Unable to load admin appointments');
+      console.error('[ADMIN CONTEXT] failed to load appointment data', error);
+      setAdminDataError(error.response?.data?.message || error.message || 'Unable to load appointments');
     } finally {
       setAdminDataLoading(false);
     }
-  }, [adminToken]);
+  }, [adminToken, doctorToken]);
 
   const syncAppointmentStatus = useCallback(async (appointmentId, status) => {
     const response = await updateAdminAppointmentStatus(appointmentId, status);
@@ -189,7 +196,7 @@ const AppContextProvider = ({ children }) => {
   useEffect(() => {
     refreshAdminData();
 
-    if (!adminToken) {
+    if (!adminToken && !doctorToken) {
       return undefined;
     }
 
@@ -211,7 +218,7 @@ const AppContextProvider = ({ children }) => {
       window.removeEventListener('focus', refreshAdminData);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [adminToken, refreshAdminData]);
+  }, [adminToken, doctorToken, refreshAdminData]);
 
   const [doctorSchedules, setDoctorSchedules] = useState([
     {

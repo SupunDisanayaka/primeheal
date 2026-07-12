@@ -6,9 +6,9 @@ const {
   getAdminAppointments,
   getAdminRecentAppointments,
   getAdminDashboard,
-  getAdminStats,
-  updateAppointmentStatus
+  getAdminStats
 } = require('../controllers/adminController');
+const { updateAppointmentStatus } = require('../controllers/appointmentController');
 
 router.get('/appointments', verifyToken, requireRole(['admin']), getAdminAppointments);
 router.get('/recent-appointments', verifyToken, requireRole(['admin']), getAdminRecentAppointments);

@@ -83,36 +83,48 @@ const AllAppointments = () => {
                           {currencySymbol}{apt.amount}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                          {apt.status === "Pending" ? (
-                            <div className="flex items-center justify-center gap-3">
-                              {/* Complete Button */}
-                              <button
-                                onClick={() => handleComplete(apt._id)}
-                                className="p-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-full transition-colors group"
-                                title="Complete Booking"
-                              >
-                                <img className="w-5 h-5 object-contain animate-pulse" src={assets.tick_icon} alt="Tick" />
-                              </button>
-                              {/* Cancel Button */}
-                              <button
-                                onClick={() => handleCancel(apt._id)}
-                                className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors group"
-                                title="Cancel Booking"
-                              >
-                                <img className="w-5 h-5 object-contain" src={assets.cancel_icon} alt="Cancel" />
-                              </button>
-                            </div>
-                          ) : (
+                          <div className="flex flex-col gap-1 items-center justify-center">
                             <span
                               className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold select-none ${
                                 apt.status === "Completed"
                                   ? "bg-emerald-50 text-emerald-600"
-                                  : "bg-rose-50 text-rose-600"
+                                  : apt.status === "Cancelled"
+                                  ? "bg-rose-50 text-rose-600"
+                                  : apt.status === "Confirmed" || apt.status === "Checked In"
+                                  ? "bg-teal-50 text-teal-600"
+                                  : apt.status === "Paid"
+                                  ? "bg-indigo-50 text-indigo-600"
+                                  : "bg-blue-50 text-blue-600"
                               }`}
                             >
                               {apt.status}
                             </span>
-                          )}
+                            
+                            {apt.status !== "Completed" && apt.status !== "Cancelled" && (
+                              <div className="flex items-center justify-center gap-3 mt-1.5">
+                                {/* Complete Button */}
+                                {(apt.status === "Paid" || apt.status === "Checked In" || apt.status === "Confirmed") && (
+                                  <button
+                                    onClick={() => handleComplete(apt._id)}
+                                    className="p-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-full transition-colors group"
+                                    title="Complete Booking"
+                                  >
+                                    <img className="w-5 h-5 object-contain" src={assets.tick_icon} alt="Tick" />
+                                  </button>
+                                )}
+                                {/* Cancel Button */}
+                                {apt.status === "Pending" && (
+                                  <button
+                                    onClick={() => handleCancel(apt._id)}
+                                    className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors group"
+                                    title="Cancel Booking"
+                                  >
+                                    <img className="w-5 h-5 object-contain" src={assets.cancel_icon} alt="Cancel" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );

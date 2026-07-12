@@ -119,7 +119,7 @@ const addDoctor = async (req, res) => {
 // @desc    Update doctor profile
 const updateDoctor = async (req, res) => {
   const { id } = req.params; // userID
-  const { fees, about, available, address } = req.body;
+  const { fees, about, available, address, name, email } = req.body;
 
   try {
     const [users] = await pool.query('SELECT * FROM users WHERE userID = ? AND userType = "doctor"', [id]);
@@ -136,6 +136,16 @@ const updateDoctor = async (req, res) => {
       const setString = Object.keys(updates).map(k => `${k} = ?`).join(', ');
       const values = Object.values(updates);
       await pool.query(`UPDATE doctor SET ${setString} WHERE userID = ?`, [...values, id]);
+    }
+
+    const userUpdates = {};
+    if (name !== undefined) userUpdates.name = name;
+    if (email !== undefined) userUpdates.email = email;
+
+    if (Object.keys(userUpdates).length > 0) {
+      const setString = Object.keys(userUpdates).map(k => `${k} = ?`).join(', ');
+      const values = Object.values(userUpdates);
+      await pool.query(`UPDATE users SET ${setString} WHERE userID = ?`, [...values, id]);
     }
 
     res.json({ success: true, message: 'Doctor updated successfully' });

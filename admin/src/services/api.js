@@ -51,7 +51,6 @@ export const getDoctors = async () => {
 };
 
 const normalizeAppointmentStatus = (status) => {
-  if (status === 'Paid') return 'Completed';
   if (status === 'Confirmed') return 'Checked In';
   return status;
 };
@@ -107,8 +106,16 @@ export const getAdminStats = async () => {
 };
 
 export const updateAdminAppointmentStatus = async (appointmentId, status) => {
-  const response = await api.patch(`/admin/appointments/${appointmentId}/status`, { status });
+  const response = await api.patch(`/appointments/${appointmentId}/status`, { status });
   return response.data;
+};
+
+export const getDoctorAppointmentsAPI = async () => {
+  const response = await api.get('/appointments/my');
+  return {
+    ...response.data,
+    appointments: (response.data.appointments || []).map(mapAppointment)
+  };
 };
 
 export const addDoctorAPI = async (doctorData) => {

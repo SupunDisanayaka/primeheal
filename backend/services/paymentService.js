@@ -269,37 +269,52 @@ const createPayment = async ({ appointmentId, userID }) => {
       return { success: false, status: 404, message: 'Appointment not found.' };
     }
 
-    if (String(appointment.status).toLowerCase() === 'cancelled') {
+    const lowerStatus = String(appointment.status).toLowerCase();
+    if (lowerStatus === 'cancelled') {
       await connection.rollback();
       return { success: false, status: 400, message: 'Cancelled appointments cannot be paid.' };
+    }
+
+    if (lowerStatus === 'paid' || lowerStatus === 'confirmed' || lowerStatus === 'completed') {
+      await connection.rollback();
+      return { success: false, status: 409, message: 'This appointment has already been paid for.' };
     }
 
     const doctor = await getDoctorIdentity(connection, appointment.doctorID);
     const latestPayment = await findLatestPaymentForAppointment(connection, appointment.appointmentID);
 
-    if (latestPayment && PAYMENT_STATUSES.includes(latestPayment.paymentStatus) && latestPayment.paymentStatus !== 'Failed') {
-      await connection.commit();
+     if (latestPayment && latestPayment.paymentStatus === 'Completed') {
+       await connection.rollback();
+       return {
+         success: false,
+         status: 409,
+         message: 'Payment has already been completed for this appointment.'
+       };
+     }
 
-      const responsePayment = {
-        ...latestPayment,
-        paymentStatus: normalizePaymentStatus(latestPayment.paymentStatus),
-        appointmentID: appointment.appointmentID,
-        appointmentDate: appointment.appointmentDate,
-        appointmentTime: appointment.appointmentTime,
-        doctorName: appointment.doctorName,
-        patientName: appointment.patientName,
-        paymentAmount: latestPayment.amount
-      };
+     if (latestPayment && latestPayment.paymentStatus === 'Pending') {
+       await connection.commit();
 
-      return {
-        success: true,
-        status: 200,
-        alreadyExists: true,
-        message: latestPayment.paymentStatus === 'Completed' ? 'Payment has already been completed for this appointment.' : 'A pending payment already exists for this appointment.',
-        payment: responsePayment,
-        checkout: latestPayment.paymentStatus === 'Pending' ? buildCheckoutPayload({ payment: latestPayment, appointment, patient, doctor }) : null
-      };
-    }
+       const responsePayment = {
+         ...latestPayment,
+         paymentStatus: normalizePaymentStatus(latestPayment.paymentStatus),
+         appointmentID: appointment.appointmentID,
+         appointmentDate: appointment.appointmentDate,
+         appointmentTime: appointment.appointmentTime,
+         doctorName: appointment.doctorName,
+         patientName: appointment.patientName,
+         paymentAmount: latestPayment.amount
+       };
+
+       return {
+         success: true,
+         status: 200,
+         alreadyExists: true,
+         message: 'A pending payment already exists for this appointment.',
+         payment: responsePayment,
+         checkout: buildCheckoutPayload({ payment: latestPayment, appointment, patient, doctor })
+       };
+     }
 
     const merchantOrderId = createMerchantOrderId(appointment.appointmentID);
     const amount = normalizeAmount(appointment.totalCharge ?? appointment.consultationFee ?? 0);
@@ -357,6 +372,13 @@ const finalizeSuccessfulPayment = async (connection, paymentRow, gatewayPayload 
   const currency = String(gatewayPayload.payhere_currency || gatewayPayload.currency || paymentRow.currency || 'LKR').toUpperCase();
   const signature = String(gatewayPayload.md5sig || gatewayPayload.signature || '').trim();
 
+  // Logging: Received Callback
+  console.log('[PAYMENT PIPELINE] Received Callback', {
+    orderId: paymentRow.merchantOrderId,
+    gatewayPayload,
+    paymentRow
+  });
+
   const signatureCandidates = generateCallbackSignature({
     merchantId: String(gatewayPayload.merchant_id || gatewayPayload.merchantId || PAYHERE_MERCHANT_ID),
     orderId: String(gatewayPayload.order_id || gatewayPayload.orderId || paymentRow.merchantOrderId),
@@ -366,44 +388,115 @@ const finalizeSuccessfulPayment = async (connection, paymentRow, gatewayPayload 
     merchantSecret: PAYHERE_MERCHANT_SECRET
   });
 
-  if (signature && !signatureCandidates.includes(signature.toUpperCase())) {
-    return { success: false, status: 400, message: 'Invalid payment signature.' };
+  if (signature) {
+    if (!signatureCandidates.includes(signature.toUpperCase())) {
+      console.error('[PAYMENT PIPELINE] Hash Verification Failed', {
+        orderId: paymentRow.merchantOrderId,
+        signature,
+        signatureCandidates
+      });
+      return { success: false, status: 400, message: 'Invalid payment signature.' };
+    }
+    console.log('[PAYMENT PIPELINE] Hash Verified Successfully', { orderId: paymentRow.merchantOrderId });
+  } else {
+    console.log('[PAYMENT PIPELINE] Hash Verification Skipped (No Signature provided - client fallback mode)', { orderId: paymentRow.merchantOrderId });
   }
 
-  if (paymentRow.paymentStatus === 'Completed' && paymentRow.notifyProcessedAt) {
+  if (paymentRow.paymentStatus === 'Completed') {
+    console.log('[PAYMENT PIPELINE] Already Processed', { orderId: paymentRow.merchantOrderId });
     return {
       success: true,
       payment: paymentRow,
       appointmentId: paymentRow.appointmentID,
       alreadyProcessed: true,
-      message: 'Payment notification was already processed.'
+      message: 'Payment was already processed.'
     };
   }
 
-  await connection.query(
+  const finalTransactionId = transactionId || `TXN-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const finalPaymentMethod = paymentMethod || 'VISA';
+
+  // 1. Update Payments
+  const [updatePaymentResult] = await connection.query(
     `UPDATE payments
-     SET transactionId = COALESCE(?, transactionId),
+     SET transactionId = ?,
          paymentStatus = 'Completed',
          payhereStatusCode = ?,
-         paymentMethod = COALESCE(?, paymentMethod),
-         receiptUrl = COALESCE(?, receiptUrl),
+         paymentMethod = ?,
+         receiptUrl = ?,
          notifyPayload = ?,
          notifySignature = ?,
          verifiedAt = COALESCE(verifiedAt, NOW()),
          notifyProcessedAt = NOW()
-     WHERE paymentID = ?`,
+     WHERE merchantOrderId = ?`,
     [
-      transactionId,
+      finalTransactionId,
       String(statusCode),
-      paymentMethod,
+      finalPaymentMethod,
       receiptUrl,
       JSON.stringify(gatewayPayload),
       signature || null,
-      paymentRow.paymentID
+      paymentRow.merchantOrderId
     ]
   );
 
-  await connection.query('UPDATE appointments SET status = \'Paid\' WHERE appointmentID = ?', [paymentRow.appointmentID]);
+  console.log('[PAYMENT PIPELINE] Payments Table Updated', {
+    orderId: paymentRow.merchantOrderId,
+    rowsAffected: updatePaymentResult.affectedRows,
+    transactionId: finalTransactionId
+  });
+
+  if (updatePaymentResult.affectedRows === 0) {
+    throw new Error(`Failed to update payments table for order ID ${paymentRow.merchantOrderId}`);
+  }
+
+  // 2. Update Appointment
+  const [updateAppointmentResult] = await connection.query(
+    'UPDATE appointments SET status = \'Paid\' WHERE appointmentID = ?',
+    [paymentRow.appointmentID]
+  );
+
+  console.log('[PAYMENT PIPELINE] Appointment Table Updated', {
+    appointmentId: paymentRow.appointmentID,
+    rowsAffected: updateAppointmentResult.affectedRows
+  });
+
+  if (updateAppointmentResult.affectedRows === 0) {
+    throw new Error(`Failed to update appointments table status to Paid for appointment ID ${paymentRow.appointmentID}`);
+  }
+
+  // 3. Update Invoice
+  const [existingInvoices] = await connection.query(
+    'SELECT invoiceID FROM invoice WHERE appointmentID = ?',
+    [paymentRow.appointmentID]
+  );
+
+  let invoiceResult;
+  if (existingInvoices.length === 0) {
+    const invoiceNumber = `INV-${Date.now()}`;
+    [invoiceResult] = await connection.query(
+      `INSERT INTO invoice (appointmentID, patientID, invoiceNumber, subtotal, tax, discount, totalAmount, issueDate, dueDate, status)
+       VALUES (?, ?, ?, ?, 0.00, 0.00, ?, CURDATE(), CURDATE(), 'paid')`,
+      [paymentRow.appointmentID, paymentRow.patientID, invoiceNumber, amount, amount]
+    );
+    console.log('[PAYMENT PIPELINE] Invoice Created', {
+      invoiceNumber,
+      rowsAffected: invoiceResult.affectedRows
+    });
+  } else {
+    [invoiceResult] = await connection.query(
+      `UPDATE invoice SET status = 'paid' WHERE appointmentID = ?`,
+      [paymentRow.appointmentID]
+    );
+    console.log('[PAYMENT PIPELINE] Invoice Updated', {
+      appointmentId: paymentRow.appointmentID,
+      rowsAffected: invoiceResult.affectedRows
+    });
+  }
+
+  if (invoiceResult.affectedRows === 0) {
+    throw new Error(`Failed to create/update invoice for appointment ID ${paymentRow.appointmentID}`);
+  }
 
   const [updatedRows] = await connection.query(
     `SELECT
@@ -430,6 +523,11 @@ const finalizeSuccessfulPayment = async (connection, paymentRow, gatewayPayload 
 
   const updatedPayment = updatedRows[0] || paymentRow;
 
+  console.log('[PAYMENT PIPELINE] Transaction Committed successfully', {
+    orderId: paymentRow.merchantOrderId,
+    paymentStatus: 'Completed'
+  });
+
   return {
     success: true,
     payment: updatedPayment,
@@ -451,6 +549,9 @@ const verifyPayment = async ({ payload, userID }) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+
+    // Lock the payment row to prevent race conditions with concurrent notifications/success redirects
+    await connection.query('SELECT paymentID FROM payments WHERE merchantOrderId = ? FOR UPDATE', [orderId]);
 
     const paymentRow = await getPaymentByMerchantOrderId(connection, orderId);
     if (!paymentRow) {
@@ -536,6 +637,9 @@ const handlePaymentNotification = async (payload = {}) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+
+    // Lock the payment row to prevent race conditions with concurrent notifications/success redirects
+    await connection.query('SELECT paymentID FROM payments WHERE merchantOrderId = ? FOR UPDATE', [orderId]);
 
     const paymentRow = await getPaymentByMerchantOrderId(connection, orderId);
     if (!paymentRow) {
