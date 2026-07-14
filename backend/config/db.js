@@ -39,8 +39,9 @@ async function initializePool() {
       email VARCHAR(100) NOT NULL UNIQUE,
       password VARCHAR(255) NOT NULL,
       phone VARCHAR(20) DEFAULT NULL,
-      userType ENUM('patient','doctor','receptionist','accountant','admin') NOT NULL,
+      userType ENUM('patient','doctor','receptionist','accountant','admin','superadmin','labstaff') NOT NULL,
       isActive TINYINT(1) DEFAULT 1,
+      tokenVersion INT DEFAULT 1,
       profileImage VARCHAR(255) DEFAULT NULL,
       createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -52,8 +53,15 @@ async function initializePool() {
 
   await pool.query(`
     ALTER TABLE users
+    MODIFY COLUMN userType ENUM('patient','doctor','receptionist','accountant','admin','superadmin','labstaff') NOT NULL
+  `).catch(err => console.log('Enum userType alter:', err.message));
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS tokenVersion INT DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS isActive TINYINT(1) DEFAULT 1,
     ADD COLUMN IF NOT EXISTS profileImage VARCHAR(255) DEFAULT NULL
-  `);
+  `).catch(err => console.log('Users alter columns:', err.message));
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS admin (
@@ -70,14 +78,31 @@ async function initializePool() {
       patientID INT AUTO_INCREMENT PRIMARY KEY,
       userID INT NOT NULL UNIQUE,
       patientCode VARCHAR(50) DEFAULT NULL,
+      nic VARCHAR(50) DEFAULT NULL,
+      country VARCHAR(100) DEFAULT 'Sri Lanka',
+      dateOfBirth DATE DEFAULT NULL,
+      address TEXT DEFAULT NULL,
+      emergencyContact VARCHAR(50) DEFAULT NULL,
+      allergies TEXT DEFAULT NULL,
       FOREIGN KEY (userID) REFERENCES users(userID) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
   await pool.query(`
     ALTER TABLE patient
-    ADD COLUMN IF NOT EXISTS patientCode VARCHAR(50) DEFAULT NULL
-  `);
+    ADD COLUMN IF NOT EXISTS patientCode VARCHAR(50) DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS nic VARCHAR(50) DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'Sri Lanka',
+    ADD COLUMN IF NOT EXISTS dateOfBirth DATE DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS address TEXT DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS emergencyContact VARCHAR(50) DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS allergies TEXT DEFAULT NULL
+  `).catch(err => console.log('Patient table alter:', err.message));
+
+  await pool.query(`
+    ALTER TABLE patient
+    ADD UNIQUE INDEX IF NOT EXISTS uq_patient_nic (nic)
+  `).catch(err => console.log('Patient NIC index alter:', err.message));
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS doctor (
@@ -91,9 +116,19 @@ async function initializePool() {
       averageRating DECIMAL(3,2) DEFAULT 0.00,
       totalPatients INT DEFAULT 0,
       isAvailable TINYINT(1) DEFAULT 1,
+      experience VARCHAR(100) DEFAULT '5 Years',
+      addressLine1 VARCHAR(255) DEFAULT 'PrimeHeal Clinic',
+      addressLine2 VARCHAR(255) DEFAULT 'Colombo 03',
       FOREIGN KEY (userID) REFERENCES users(userID) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  await pool.query(`
+    ALTER TABLE doctor
+    ADD COLUMN IF NOT EXISTS experience VARCHAR(100) DEFAULT '5 Years',
+    ADD COLUMN IF NOT EXISTS addressLine1 VARCHAR(255) DEFAULT 'PrimeHeal Clinic',
+    ADD COLUMN IF NOT EXISTS addressLine2 VARCHAR(255) DEFAULT 'Colombo 03'
+  `).catch(err => console.log('Doctor table alter:', err.message));
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS receptionist (
@@ -110,6 +145,16 @@ async function initializePool() {
       userID INT NOT NULL UNIQUE,
       accountingLicense VARCHAR(50) DEFAULT NULL,
       department VARCHAR(100) DEFAULT NULL,
+      FOREIGN KEY (userID) REFERENCES users(userID) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS labstaff (
+      labstaffID INT AUTO_INCREMENT PRIMARY KEY,
+      userID INT NOT NULL UNIQUE,
+      labSection VARCHAR(100) DEFAULT NULL,
+      certificateNumber VARCHAR(50) DEFAULT NULL,
       FOREIGN KEY (userID) REFERENCES users(userID) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
@@ -188,6 +233,78 @@ async function initializePool() {
       INDEX idx_userID (userID)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_history (
+      historyID INT AUTO_INCREMENT PRIMARY KEY,
+      userID INT NOT NULL,
+      passwordHash VARCHAR(255) NOT NULL,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userID) REFERENCES users(userID) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS payment_logs (
+      logID INT AUTO_INCREMENT PRIMARY KEY,
+      appointmentID INT DEFAULT NULL,
+      merchantOrderId VARCHAR(120) DEFAULT NULL,
+      action VARCHAR(50) NOT NULL,
+      payload JSON DEFAULT NULL,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      logID INT AUTO_INCREMENT PRIMARY KEY,
+      userID INT DEFAULT NULL,
+      action VARCHAR(100) NOT NULL,
+      ipAddress VARCHAR(45) DEFAULT NULL,
+      userAgent VARCHAR(255) DEFAULT NULL,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS doctoravailability (
+      availabilityID INT AUTO_INCREMENT PRIMARY KEY,
+      doctorID INT NOT NULL,
+      dayOfWeek ENUM('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday') DEFAULT NULL,
+      startTime TIME NOT NULL,
+      endTime TIME NOT NULL,
+      slotDuration INT DEFAULT 30,
+      maxAppointmentsPerSlot INT DEFAULT 1,
+      recurring TINYINT(1) DEFAULT 1,
+      specificDate DATE DEFAULT NULL,
+      isActive TINYINT(1) DEFAULT 1,
+      FOREIGN KEY (doctorID) REFERENCES doctor(doctorID) ON DELETE CASCADE,
+      INDEX idx_doctor_day (doctorID, dayOfWeek),
+      INDEX idx_specificDate (specificDate)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notification (
+      notificationID INT AUTO_INCREMENT PRIMARY KEY,
+      userID INT DEFAULT NULL,
+      appointmentID INT DEFAULT NULL,
+      message TEXT NOT NULL,
+      notificationDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      notificationType ENUM('email','sms','system') DEFAULT 'email',
+      status ENUM('pending','sent','failed','read') DEFAULT 'pending',
+      recipientEmail VARCHAR(100) DEFAULT NULL,
+      retryCount INT DEFAULT 0,
+      FOREIGN KEY (userID) REFERENCES users(userID) ON DELETE CASCADE,
+      FOREIGN KEY (appointmentID) REFERENCES appointments(appointmentID) ON DELETE CASCADE,
+      INDEX idx_user_notifications (userID, status),
+      INDEX idx_notificationDate (notificationDate)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `).catch(err => console.log('Notification table creation:', err.message));
+
+  await pool.query(`
+    ALTER TABLE notification MODIFY COLUMN userID INT NULL
+  `).catch(err => console.log('Notification table userID null alter:', err.message));
 
   const adminEmail = process.env.DEFAULT_ADMIN_EMAIL || 'admin@primeheal.com';
   const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin';

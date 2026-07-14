@@ -8,20 +8,20 @@ const getAllDoctors = async (req, res) => {
     const query = `
       SELECT u.userID as _id, u.name, u.email, u.profileImage as image,
              d.doctorID, d.specialization as speciality, d.licenseNumber, d.qualifications as degree, 
-             d.bio as about, d.consultationFee as fees, d.averageRating, d.totalPatients, d.isAvailable as available
+             d.bio as about, d.consultationFee as fees, d.averageRating, d.totalPatients, d.isAvailable as available,
+             d.experience, d.addressLine1, d.addressLine2
       FROM doctor d
       JOIN users u ON d.userID = u.userID
       WHERE u.isActive = 1
     `;
     const [doctors] = await pool.query(query);
     
-    // Add default values for frontend compatibility
     const formattedDoctors = doctors.map(doc => ({
       ...doc,
-      experience: "1 Year", // Default since it's not in DB schema currently
+      experience: doc.experience || "5 Years",
       address: {
-        line1: "PrimeHeal Medical Center",
-        line2: "Colombo, Sri Lanka"
+        line1: doc.addressLine1 || "PrimeHeal Specialist Center",
+        line2: doc.addressLine2 || "Colombo 03, Sri Lanka"
       }
     }));
 
@@ -40,7 +40,8 @@ const getDoctorById = async (req, res) => {
     const query = `
       SELECT u.userID as _id, u.name, u.email, u.profileImage as image,
              d.doctorID, d.specialization as speciality, d.licenseNumber, d.qualifications as degree, 
-             d.bio as about, d.consultationFee as fees, d.averageRating, d.totalPatients, d.isAvailable as available
+             d.bio as about, d.consultationFee as fees, d.averageRating, d.totalPatients, d.isAvailable as available,
+             d.experience, d.addressLine1, d.addressLine2
       FROM doctor d
       JOIN users u ON d.userID = u.userID
       WHERE u.userID = ? AND u.isActive = 1
@@ -52,10 +53,16 @@ const getDoctorById = async (req, res) => {
     }
 
     const doc = doctors[0];
-    doc.experience = "1 Year";
-    doc.address = { line1: "PrimeHeal Medical Center", line2: "Colombo, Sri Lanka" };
+    const formattedDoc = {
+      ...doc,
+      experience: doc.experience || "5 Years",
+      address: {
+        line1: doc.addressLine1 || "PrimeHeal Specialist Center",
+        line2: doc.addressLine2 || "Colombo 03, Sri Lanka"
+      }
+    };
 
-    res.json({ success: true, doctor: doc });
+    res.json({ success: true, doctor: formattedDoc });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -178,10 +185,106 @@ const toggleAvailability = async (req, res) => {
   }
 };
 
+const timeToMinutes = (timeStr) => {
+  if (!timeStr) return null;
+  const parts = String(timeStr).trim().split(':');
+  if (parts.length >= 2) {
+    let hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    const suffixParts = String(timeStr).trim().match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?$/i);
+    if (suffixParts && suffixParts[4]) {
+      const ampm = suffixParts[4].toUpperCase();
+      if (ampm === 'PM' && hours < 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+    }
+    return hours * 60 + minutes;
+  }
+  return null;
+};
+
+// @route   GET /api/doctors/:id/slots
+// @desc    Get weekly slot availability based on database doctoravailability and bookings
+const getDoctorSlots = async (req, res) => {
+  try {
+    const { id } = req.params; // userID of doctor
+    const [docs] = await pool.query('SELECT doctorID FROM doctor WHERE userID = ?', [id]);
+    if (docs.length === 0) {
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
+    }
+    const doctorID = docs[0].doctorID;
+
+    // Generate dates for next 7 days starting today
+    const slotsByDate = [];
+    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const today = new Date();
+
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      const formattedDate = date.toISOString().split('T')[0];
+      const dayName = weekdays[date.getDay()];
+
+      // Get availability for this date
+      const [availabilities] = await pool.query(
+        `SELECT * FROM doctoravailability 
+         WHERE doctorID = ? AND isActive = 1 AND (
+           (specificDate = ?) OR 
+           (dayOfWeek = ? AND specificDate IS NULL)
+         )`,
+        [doctorID, formattedDate, dayName]
+      );
+
+      // Get existing appointments for this date
+      const [appointments] = await pool.query(
+        `SELECT appointmentTime FROM appointments 
+         WHERE doctorID = ? AND appointmentDate = ? AND status NOT IN ('Cancelled', 'Expired')`,
+        [doctorID, formattedDate]
+      );
+      const bookedTimes = appointments.map(a => a.appointmentTime.trim().toUpperCase());
+
+      const slots = [];
+      for (const avail of availabilities) {
+        const slotDuration = avail.slotDuration || 30;
+        const startMin = timeToMinutes(avail.startTime);
+        const endMin = timeToMinutes(avail.endTime);
+
+        if (startMin === null || endMin === null) continue;
+
+        for (let min = startMin; min + slotDuration <= endMin; min += slotDuration) {
+          const hh = Math.floor(min / 60);
+          const mm = min % 60;
+          const ampm = hh >= 12 ? 'PM' : 'AM';
+          const displayH = hh % 12 === 0 ? 12 : hh % 12;
+          const displayM = String(mm).padStart(2, '0');
+          const timeStr = `${displayH}:${displayM} ${ampm}`;
+
+          slots.push({
+            time: timeStr,
+            available: !bookedTimes.includes(timeStr.toUpperCase())
+          });
+        }
+      }
+
+      slotsByDate.push({
+        date: formattedDate,
+        dayName,
+        slots
+      });
+    }
+
+    res.json({ success: true, slotsByDate });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   getAllDoctors,
   getDoctorById,
   addDoctor,
   updateDoctor,
-  toggleAvailability
+  toggleAvailability,
+  getDoctorSlots,
+  timeToMinutes
 };

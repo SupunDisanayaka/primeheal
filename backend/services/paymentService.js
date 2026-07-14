@@ -379,6 +379,17 @@ const finalizeSuccessfulPayment = async (connection, paymentRow, gatewayPayload 
     paymentRow
   });
 
+  // Log to database payment_logs
+  await connection.query(
+    'INSERT INTO payment_logs (appointmentID, merchantOrderId, action, payload) VALUES (?, ?, ?, ?)',
+    [paymentRow.appointmentID, paymentRow.merchantOrderId, 'CALLBACK_RECEIVED', JSON.stringify(gatewayPayload)]
+  ).catch(err => console.error('Failed to log payment action:', err));
+
+  if (!signature) {
+    console.error('[PAYMENT PIPELINE] Hash Verification Failed - Missing Signature', { orderId: paymentRow.merchantOrderId });
+    return { success: false, status: 400, message: 'Invalid payment signature: Signature is missing.' };
+  }
+
   const signatureCandidates = generateCallbackSignature({
     merchantId: String(gatewayPayload.merchant_id || gatewayPayload.merchantId || PAYHERE_MERCHANT_ID),
     orderId: String(gatewayPayload.order_id || gatewayPayload.orderId || paymentRow.merchantOrderId),
@@ -388,19 +399,15 @@ const finalizeSuccessfulPayment = async (connection, paymentRow, gatewayPayload 
     merchantSecret: PAYHERE_MERCHANT_SECRET
   });
 
-  if (signature) {
-    if (!signatureCandidates.includes(signature.toUpperCase())) {
-      console.error('[PAYMENT PIPELINE] Hash Verification Failed', {
-        orderId: paymentRow.merchantOrderId,
-        signature,
-        signatureCandidates
-      });
-      return { success: false, status: 400, message: 'Invalid payment signature.' };
-    }
-    console.log('[PAYMENT PIPELINE] Hash Verified Successfully', { orderId: paymentRow.merchantOrderId });
-  } else {
-    console.log('[PAYMENT PIPELINE] Hash Verification Skipped (No Signature provided - client fallback mode)', { orderId: paymentRow.merchantOrderId });
+  if (!signatureCandidates.includes(signature.toUpperCase())) {
+    console.error('[PAYMENT PIPELINE] Hash Verification Failed - Mismatch', {
+      orderId: paymentRow.merchantOrderId,
+      signature,
+      signatureCandidates
+    });
+    return { success: false, status: 400, message: 'Invalid payment signature: Hash mismatch.' };
   }
+  console.log('[PAYMENT PIPELINE] Hash Verified Successfully', { orderId: paymentRow.merchantOrderId });
 
   if (paymentRow.paymentStatus === 'Completed') {
     console.log('[PAYMENT PIPELINE] Already Processed', { orderId: paymentRow.merchantOrderId });
@@ -572,6 +579,26 @@ const verifyPayment = async ({ payload, userID }) => {
       return { success: false, status: 400, message: 'Payment amount or currency mismatch.' };
     }
 
+    const signature = String(payload.md5sig || payload.signature || '').trim();
+    if (!signature) {
+      await connection.rollback();
+      return { success: false, status: 400, message: 'Invalid payment signature: Signature is missing.' };
+    }
+
+    const signatureCandidates = generateCallbackSignature({
+      merchantId: String(payload.merchant_id || payload.merchantId || PAYHERE_MERCHANT_ID),
+      orderId: String(payload.order_id || payload.orderId || paymentRow.merchantOrderId),
+      amount,
+      currency,
+      statusCode,
+      merchantSecret: PAYHERE_MERCHANT_SECRET
+    });
+
+    if (!signatureCandidates.includes(signature.toUpperCase())) {
+      await connection.rollback();
+      return { success: false, status: 400, message: 'Invalid payment signature: Hash mismatch.' };
+    }
+
     if (statusCode !== '2') {
       const normalizedStatus = statusCode === '-1' ? 'Cancelled' : 'Failed';
       await connection.query(
@@ -654,6 +681,26 @@ const handlePaymentNotification = async (payload = {}) => {
     if (normalizeAmount(paymentRow.amount) !== amount || String(paymentRow.currency || 'LKR').toUpperCase() !== currency) {
       await connection.rollback();
       return { success: false, status: 400, message: 'Payment amount or currency mismatch.' };
+    }
+
+    const signature = String(payload.md5sig || payload.signature || '').trim();
+    if (!signature) {
+      await connection.rollback();
+      return { success: false, status: 400, message: 'Invalid payment signature: Signature is missing.' };
+    }
+
+    const signatureCandidates = generateCallbackSignature({
+      merchantId: String(payload.merchant_id || payload.merchantId || PAYHERE_MERCHANT_ID),
+      orderId: String(payload.order_id || payload.orderId || paymentRow.merchantOrderId),
+      amount,
+      currency,
+      statusCode,
+      merchantSecret: PAYHERE_MERCHANT_SECRET
+    });
+
+    if (!signatureCandidates.includes(signature.toUpperCase())) {
+      await connection.rollback();
+      return { success: false, status: 400, message: 'Invalid payment signature: Hash mismatch.' };
     }
 
     if (paymentRow.notifyProcessedAt && paymentRow.paymentStatus === 'Completed') {

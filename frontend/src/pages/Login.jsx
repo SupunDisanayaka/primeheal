@@ -11,6 +11,8 @@ const Login = () => {
   const [state, setState] = useState('Login') // 'Login' or 'Sign Up'
 
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [nic, setNic] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [dob, setDob] = useState('')
@@ -90,7 +92,51 @@ const Login = () => {
           navigate('/')
         }
       } else {
-        const data = await registerUser(name, email, password)
+        // Client-side validations
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          alert('Please enter a valid email address.');
+          return;
+        }
+
+        const phoneRegex = /^(?:\+94|0)?7[0-9]{8}$/;
+        if (phone && !phoneRegex.test(phone)) {
+          alert('Please enter a valid Sri Lankan mobile number (e.g. 0771234567).');
+          return;
+        }
+
+        const nicRegex = /^[0-9]{9}[vVxX]$|^[0-9]{12}$/;
+        if (nic && !nicRegex.test(nic)) {
+          alert('Please enter a valid Sri Lankan NIC number (e.g. 199912345678 or 991234567v).');
+          return;
+        }
+
+        const isStrong = (pass) => {
+          if (pass.length < 8) return false;
+          const hasUpper = /[A-Z]/.test(pass);
+          const hasLower = /[a-z]/.test(pass);
+          const hasNumber = /[0-9]/.test(pass);
+          const hasSpecial = /[^A-Za-z0-9]/.test(pass);
+          return hasUpper && hasLower && hasNumber && hasSpecial;
+        };
+
+        if (!isStrong(password)) {
+          alert('Password must be at least 8 characters long, and contain at least one uppercase letter, one lowercase letter, one number, and one special character.');
+          return;
+        }
+
+        const data = await registerUser({
+          name,
+          email,
+          phone,
+          nic,
+          password,
+          dateOfBirth: dob || null,
+          address: address || null,
+          emergencyContact: emergencyContact || null,
+          allergies: allergies || null
+        })
+
         if (data.success) {
           localStorage.setItem('token', data.token)
           setToken(data.token)
@@ -171,17 +217,51 @@ const Login = () => {
               {/* Mobile / Email */}
               <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200">
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                  Mobile number / email ID
+                  {state === 'Login' ? 'Mobile number / email ID' : 'Email Address'}
                 </label>
                 <input
-                  type="text"
+                  type={state === 'Login' ? 'text' : 'email'}
                   required
-                  placeholder="Enter mobile number or email"
+                  placeholder={state === 'Login' ? 'Enter mobile number or email' : 'Enter email address'}
                   className="w-full border-none bg-transparent p-0 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-0 mt-0.5"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
+
+              {/* Mobile Number (Sign Up only) */}
+              {state === 'Sign Up' && (
+                <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200">
+                  <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                    Mobile Number
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 0771234567"
+                    className="w-full border-none bg-transparent p-0 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-0 mt-0.5"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                </div>
+              )}
+
+              {/* NIC Number (Sign Up only) */}
+              {state === 'Sign Up' && (
+                <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200">
+                  <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                    NIC Number
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 199912345678 or 991234567v"
+                    className="w-full border-none bg-transparent p-0 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-0 mt-0.5"
+                    value={nic}
+                    onChange={(e) => setNic(e.target.value)}
+                  />
+                </div>
+              )}
 
               {/* Password */}
               <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200 flex items-center justify-between">

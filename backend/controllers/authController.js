@@ -11,15 +11,71 @@ const {
 
 const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 
+// Validators
+const isValidEmail = (email) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
+const isValidPhone = (phone) => {
+  if (!phone) return true;
+  return /^(?:\+94|0)?7[0-9]{8}$/.test(phone);
+};
+
+const isValidNIC = (nic) => {
+  if (!nic) return true;
+  return /^[0-9]{9}[vVxX]$/.test(nic) || /^[0-9]{12}$/.test(nic);
+};
+
+const isStrongPassword = (pass) => {
+  if (pass.length < 8) return false;
+  const hasUpper = /[A-Z]/.test(pass);
+  const hasLower = /[a-z]/.test(pass);
+  const hasNumber = /[0-9]/.test(pass);
+  const hasSpecial = /[^A-Za-z0-9]/.test(pass);
+  return hasUpper && hasLower && hasNumber && hasSpecial;
+};
+
+// Custom IP Rate Limiter for Login Attempts
+const loginAttempts = {};
+const checkLoginRateLimit = (ip) => {
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000; // 15 mins
+  const maxFailedAttempts = 5;
+
+  if (!loginAttempts[ip]) {
+    loginAttempts[ip] = [];
+  }
+  loginAttempts[ip] = loginAttempts[ip].filter(timestamp => now - timestamp < windowMs);
+  return loginAttempts[ip].length >= maxFailedAttempts;
+};
+
+const recordFailedLoginAttempt = (ip) => {
+  if (!loginAttempts[ip]) {
+    loginAttempts[ip] = [];
+  }
+  loginAttempts[ip].push(Date.now());
+};
+
+// General Audit Logger
+const logAudit = async (connectionOrPool, userID, action, req) => {
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const userAgent = req.headers['user-agent'] || 'unknown';
+  await connectionOrPool.query(
+    'INSERT INTO audit_logs (userID, action, ipAddress, userAgent) VALUES (?, ?, ?, ?)',
+    [userID, action, ip, userAgent]
+  ).catch(err => console.error('Audit logging failed:', err));
+};
+
 const createAuthToken = (user, roleId = null) => jwt.sign(
   {
-    userID: user.userID,
-    userId: user.userID,
-    id: user.userID,
+    userID: user.userID || user.id,
+    userId: user.userID || user.id,
+    id: user.userID || user.id,
     userType: user.userType,
     role: user.userType,
     name: user.name,
-    roleID: roleId
+    roleID: roleId,
+    tokenVersion: user.tokenVersion || 1
   },
   process.env.JWT_SECRET,
   { expiresIn: '30d' }
@@ -40,31 +96,70 @@ const getRoleIdForUser = async (user) => {
   } else if (user.userType === 'accountant') {
     const [rows] = await pool.query('SELECT accountantID FROM accountant WHERE userID = ?', [user.userID]);
     if (rows.length > 0) roleId = rows[0].accountantID;
-  } else if (user.userType === 'admin') {
+  } else if (user.userType === 'admin' || user.userType === 'superadmin') {
     const [rows] = await pool.query('SELECT adminID FROM admin WHERE userID = ?', [user.userID]);
     if (rows.length > 0) roleId = rows[0].adminID;
+  } else if (user.userType === 'labstaff') {
+    const [rows] = await pool.query('SELECT labstaffID FROM labstaff WHERE userID = ?', [user.userID]);
+    if (rows.length > 0) roleId = rows[0].labstaffID;
   }
 
   return roleId;
 };
 
-// @route   POST /api/auth/register
-// @desc    Register a new patient
 const register = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, phone, nic, dob, address, emergencyContact, allergies } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({ success: false, message: 'Please provide name, email, and password' });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ success: false, message: 'Invalid email format' });
+  }
+
+  if (phone && !isValidPhone(phone)) {
+    return res.status(400).json({ success: false, message: 'Invalid Sri Lankan phone number format (e.g. 0771234567)' });
+  }
+
+  if (nic && !isValidNIC(nic)) {
+    return res.status(400).json({ success: false, message: 'Invalid Sri Lankan NIC format (e.g. 199912345678 or 991234567v)' });
+  }
+
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.'
+    });
   }
 
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
 
-    // Check if user exists
-    const [existingUsers] = await connection.query('SELECT * FROM users WHERE email = ?', [email]);
+    // Check if email exists
+    const [existingUsers] = await connection.query('SELECT userID FROM users WHERE email = ?', [email]);
     if (existingUsers.length > 0) {
-      return res.status(400).json({ success: false, message: 'User already exists' });
+      await connection.rollback();
+      return res.status(400).json({ success: false, message: 'Email already exists' });
+    }
+
+    // Check if phone exists
+    if (phone) {
+      const [existingPhone] = await connection.query('SELECT userID FROM users WHERE phone = ?', [phone]);
+      if (existingPhone.length > 0) {
+        await connection.rollback();
+        return res.status(400).json({ success: false, message: 'Phone number already registered' });
+      }
+    }
+
+    // Check if NIC exists
+    if (nic) {
+      const [existingNic] = await connection.query('SELECT patientID FROM patient WHERE nic = ?', [nic]);
+      if (existingNic.length > 0) {
+        await connection.rollback();
+        return res.status(400).json({ success: false, message: 'NIC already registered' });
+      }
     }
 
     // Hash password
@@ -73,24 +168,41 @@ const register = async (req, res) => {
 
     // Insert into users table
     const [userResult] = await connection.query(
-      'INSERT INTO users (name, email, password, userType) VALUES (?, ?, ?, ?)',
-      [name, email, hashedPassword, 'patient']
+      'INSERT INTO users (name, email, password, phone, userType, isActive, tokenVersion) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, email, hashedPassword, phone || null, 'patient', 1, 1]
     );
     
     const userId = userResult.insertId;
 
-    // Generate a unique patient code (e.g., PT-0000X)
+    // Generate a unique patient code
     const patientCode = `PT-${String(userId).padStart(5, '0')}`;
 
     // Insert into patient table
     await connection.query(
-      'INSERT INTO patient (userID, patientCode) VALUES (?, ?)',
-      [userId, patientCode]
+      'INSERT INTO patient (userID, patientCode, nic, dateOfBirth, address, emergencyContact, allergies) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        userId,
+        patientCode,
+        nic || null,
+        dob || null,
+        address || null,
+        emergencyContact || null,
+        allergies || null
+      ]
     );
+
+    // Insert into password history
+    await connection.query(
+      'INSERT INTO password_history (userID, passwordHash) VALUES (?, ?)',
+      [userId, hashedPassword]
+    );
+
+    // Audit log
+    await logAudit(connection, userId, 'REGISTER_PATIENT', req);
 
     await connection.commit();
 
-    // Send registration email when available
+    // Send registration email
     try {
       await sendWelcomeEmail({ email, name, userType: 'patient' });
     } catch (emailError) {
@@ -98,7 +210,7 @@ const register = async (req, res) => {
     }
 
     // Create token
-    const token = createAuthToken({ userID: userId, userType: 'patient', name });
+    const token = createAuthToken({ userID: userId, userType: 'patient', name, tokenVersion: 1 }, userId);
 
     res.status(201).json({
       success: true,
@@ -110,6 +222,7 @@ const register = async (req, res) => {
         id: userId,
         name,
         email,
+        phone,
         userType: 'patient',
         role: 'patient'
       }
@@ -251,73 +364,42 @@ const login = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Please provide email and password' });
   }
 
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  if (checkLoginRateLimit(ip)) {
+    return res.status(429).json({ success: false, message: 'Too many failed login attempts. Please try again after 15 minutes.' });
+  }
+
   try {
     // Check if user exists
     const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
     
-    console.log(`[LOGIN] Email received: ${email}, Password received: ${password}`);
-    
     if (users.length === 0) {
+      recordFailedLoginAttempt(ip);
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
     const user = users[0];
-    console.log(`[LOGIN] User found: ${user.email}, userType: ${user.userType}, password hash: ${user.password.substring(0, 20)}...`);
 
     if (!user.isActive) {
       return res.status(403).json({ success: false, message: 'Account is deactivated' });
     }
 
     // Compare password
-    let isMatch = await bcrypt.compare(password, user.password);
-    console.log(`[LOGIN] Bcrypt comparison result: ${isMatch}`);
+    const isMatch = await bcrypt.compare(password, user.password);
 
-    if (!isMatch && user.userType === 'admin' && (password === 'admin' || password === 'admin123')) {
-      console.log(`[LOGIN] Plaintext fallback matched for admin`);
-      isMatch = true;
-    }
-
-    if (!isMatch && user.userType === 'doctor' && (password === 'doctor' || password === 'doctor123' || password === 'manuja123')) {
-      console.log(`[LOGIN] Plaintext fallback matched for doctor`);
-      isMatch = true;
-    }
-    
-    console.log(`[LOGIN] Final auth result: ${isMatch}`);
-    
     if (!isMatch) {
+      recordFailedLoginAttempt(ip);
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Let's get the specific role ID to include in the payload if needed
-    let roleId = null;
-    if (user.userType === 'patient') {
-      const [rows] = await pool.query('SELECT patientID FROM patient WHERE userID = ?', [user.userID]);
-      if (rows.length > 0) roleId = rows[0].patientID;
-    } else if (user.userType === 'doctor') {
-      const [rows] = await pool.query('SELECT doctorID FROM doctor WHERE userID = ?', [user.userID]);
-      if (rows.length > 0) roleId = rows[0].doctorID;
-    } else if (user.userType === 'receptionist') {
-      const [rows] = await pool.query('SELECT receptionistID FROM receptionist WHERE userID = ?', [user.userID]);
-      if (rows.length > 0) roleId = rows[0].receptionistID;
-    } else if (user.userType === 'accountant') {
-      const [rows] = await pool.query('SELECT accountantID FROM accountant WHERE userID = ?', [user.userID]);
-      if (rows.length > 0) roleId = rows[0].accountantID;
-    } else if (user.userType === 'admin') {
-      const [rows] = await pool.query('SELECT adminID FROM admin WHERE userID = ?', [user.userID]);
-      if (rows.length > 0) roleId = rows[0].adminID;
-    }
+    // Get specific role ID
+    const roleId = await getRoleIdForUser(user);
 
-    // Create token
-    const token = jwt.sign(
-      { 
-        userID: user.userID, 
-        userType: user.userType, 
-        name: user.name,
-        roleID: roleId
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '30d' }
-    );
+    // Create token with tokenVersion
+    const token = createAuthToken(user, roleId);
+
+    // Log login success audit
+    await logAudit(pool, user.userID, 'LOGIN_SUCCESS', req);
 
     try {
       await sendLoginEmail({ to: user.email, name: user.name, userType: user.userType });

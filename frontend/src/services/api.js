@@ -30,8 +30,8 @@ export const loginUser = async (email, password) => {
   return response.data;
 };
 
-export const registerUser = async (name, email, password) => {
-  const response = await api.post('/auth/register', { name, email, password });
+export const registerUser = async (userData) => {
+  const response = await api.post('/auth/register', userData);
   return response.data;
 };
 
@@ -89,6 +89,42 @@ export const getDoctors = async () => {
 
 export const getDoctorById = async (id) => {
   const response = await api.get(`/doctors/${id}`);
+  return response.data;
+};
+
+export const changePassword = async (currentPassword, newPassword, confirmPassword) => {
+  const response = await api.post('/users/change-password', { currentPassword, newPassword, confirmPassword });
+  return response.data;
+};
+
+export const uploadProfileImage = async (formData) => {
+  const response = await api.post('/users/profile-image', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+  return response.data;
+};
+
+export const deleteProfileImage = async () => {
+  const response = await api.delete('/users/profile-image');
+  return response.data;
+};
+
+export const downloadInvoice = async (appointmentId) => {
+  const response = await api.get(`/appointments/${appointmentId}/invoice`, {
+    responseType: 'blob'
+  });
+  return response.data;
+};
+
+export const rescheduleAppointment = async (appointmentId, newDate, newTime) => {
+  const response = await api.patch(`/appointments/${appointmentId}/reschedule`, { newDate, newTime });
+  return response.data;
+};
+
+export const getDoctorSlots = async (doctorId) => {
+  const response = await api.get(`/doctors/${doctorId}/slots`);
   return response.data;
 };
 
