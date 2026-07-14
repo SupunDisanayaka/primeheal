@@ -4,7 +4,7 @@ import { cancelAppointment as cancelAppointmentRequest, getMyAppointments, creat
 
 const MyAppointments = () => {
 
-  const { doctors } = useContext(AppContext)
+  const { doctors, currencySymbol, token } = useContext(AppContext)
   const [appointments, setAppointments] = useState([])
 
   // Payment Modal States
@@ -71,47 +71,42 @@ const MyAppointments = () => {
     }
   }, [doctors])
 
-<<<<<<< HEAD
   useEffect(() => {
     loadAppointments();
   }, [loadAppointments])
-=======
-  const cancelAppointment = (aptId) => {
-    const updated = appointments.map(apt =>
-      apt._id === aptId ? { ...apt, status: 'Cancelled' } : apt
-    )
-    setAppointments(updated)
-    localStorage.setItem('appointments', JSON.stringify(updated))
+
+  const openPaymentModal = (apt) => {
+    setSelectedApt(apt)
+    setCardNumber('•••• •••• •••• 9842')
+    setExpiry('08 / 19')
+    setCardholderName('Jeremiah Miroslavia')
+    setCvv('•••')
+    setTermsAccepted(false)
+    setPaymentStatus('idle')
+    setShowPaymentModal(true)
   }
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
 
   const cancelAppointment = async (appointmentId) => {
+    const apt = appointments.find(a => String(a.appointmentId) === String(appointmentId))
+    if (!apt || apt.isDefault || !token) {
+      const updated = appointments.map(a =>
+        String(a.appointmentId) === String(appointmentId) ? { ...a, status: 'Cancelled' } : a
+      )
+      setAppointments(updated)
+      localStorage.setItem('appointments', JSON.stringify(updated))
+      return
+    }
+
     try {
       const data = await cancelAppointmentRequest(appointmentId)
       if (!data.success) {
         throw new Error(data.message || 'Unable to cancel appointment')
       }
 
-<<<<<<< HEAD
       const updated = appointments.map((apt) =>
         String(apt.appointmentId) === String(appointmentId)
           ? { ...apt, status: 'Cancelled' }
           : apt
-=======
-  const handleMakePayment = (e) => {
-    e.preventDefault()
-    if (!termsAccepted) {
-      alert("Please accept the terms & conditions to proceed.")
-      return
-    }
-
-    setPaymentStatus('processing')
-
-    setTimeout(() => {
-      // Success transition: Update appointment status to Paid
-      const updated = appointments.map(apt =>
-        apt._id === selectedApt._id ? { ...apt, status: 'Paid' } : apt
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
       )
       setAppointments(updated)
       localStorage.setItem('appointments', JSON.stringify(updated))
@@ -204,111 +199,38 @@ const MyAppointments = () => {
     }
   };
 
+  const handleMakePayment = (e) => {
+    e.preventDefault()
+    if (!termsAccepted) {
+      alert("Please accept the terms & conditions to proceed.")
+      return
+    }
+
+    setPaymentStatus('processing')
+
+    setTimeout(() => {
+      // Success transition: Update appointment status to Paid
+      const updated = appointments.map(apt =>
+        String(apt.appointmentId) === String(selectedApt.appointmentId) ? { ...apt, status: 'Paid' } : apt
+      )
+      setAppointments(updated)
+      localStorage.setItem('appointments', JSON.stringify(updated))
+      setPaymentStatus('success')
+    }, 1500)
+  }
+
   return (
     <div>
       <p className='pb-3 mt-12 font-medium text-zinc-700 border-b'>My Appointments</p>
 
       <div>
         {appointments.map((item, index) => (
-<<<<<<< HEAD
-          <div className='grid grid-cols-[1fr_2fr] gap-4 sm:flex sm:gap-6 py-4 border-b border-gray-100' key={item.appointmentId || index}>
-            
-=======
-          <div className='grid grid-cols-[1fr_2fr] gap-4 sm:flex sm:gap-6 py-4 border-b border-gray-100' key={item._id || index}>
+          <div className='grid grid-cols-[1fr_2fr] gap-4 sm:flex sm:gap-6 py-4 border-b border-gray-100' key={item.appointmentId || item._id || index}>
 
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
             <div>
               <img className='w-32 bg-indigo-50 rounded-lg object-cover' src={item.docImage || item.image} alt={item.docName || item.name} />
             </div>
 
-<<<<<<< HEAD
-              <div className='flex-1 text-sm text-zinc-600'>
-                <p className='text-neutral-800 font-semibold text-base'>{item.docName || item.name}</p>
-                <p className='text-xs text-gray-500'>{item.docSpeciality || item.speciality}</p>
-                <p className='text-zinc-700 font-medium mt-2'>Address:</p>
-                <p className='text-xs'>{(item.docAddress || item.address)?.line1}</p>
-                <p className='text-xs'>{(item.docAddress || item.address)?.line2}</p>
-                <p className='text-xs mt-2'>
-                  <span className='text-xs text-neutral-700 font-semibold'>Date & Time:</span> {item.slotDate} | {item.slotTime}
-                </p>
-                
-                {/* Dynamic Patient Details */}
-                {!item.isDefault && (
-                  <div className="mt-2 p-2 bg-gray-50 rounded-lg text-xs text-gray-500 space-y-0.5 border border-gray-100">
-                    <p><span className="font-semibold text-gray-700">Patient:</span> {item.patientName} ({item.patientNo})</p>
-                    <p><span className="font-semibold text-gray-700">NIC:</span> {item.patientNic} | <span className="font-semibold text-gray-700">Phone:</span> {item.patientPhone}</p>
-                    <p><span className="font-semibold text-gray-700">Email:</span> {item.patientEmail} | <span className="font-semibold text-gray-700">Address:</span> {item.patientAddress}</p>
-                    <p><span className="font-semibold text-gray-700">No Show Refund:</span> {item.noShowRefund ? <span className="text-teal-600 font-semibold">Yes (Surcharge: 275 LKR)</span> : 'No'}</p>
-                    <p><span className="font-semibold text-gray-700">Total Charged:</span> <span className="font-bold text-gray-800">Rs. {item.fees}{item.noShowRefund && " + 275 LKR"}</span></p>
-                  </div>
-                )}
-
-                {item.paymentStatus === 'Completed' && (
-                  <div className="mt-2 p-2 bg-emerald-50/50 rounded-lg text-xs text-gray-500 space-y-0.5 border border-emerald-100">
-                    <p><span className="font-semibold text-emerald-800">Payment Status:</span> Paid</p>
-                    <p><span className="font-semibold text-emerald-800">Transaction ID:</span> {item.transactionId || 'N/A'}</p>
-                    <p><span className="font-semibold text-emerald-800">Amount:</span> Rs. {item.paymentAmount || item.totalCharge || item.fees}</p>
-                    {item.receiptUrl && (
-                      <p>
-                        <span className="font-semibold text-emerald-800">Receipt:</span>{' '}
-                        <a href={item.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                          View Receipt
-                        </a>
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div></div>
-              <div className='flex flex-col gap-2 justify-end'>
-                {item.status === 'Cancelled' && (
-                  <button disabled className='text-sm text-red-500 text-center sm:min-w-48 py-2 border border-red-200 bg-red-50 rounded font-medium select-none'>
-                    Cancelled
-                  </button>
-                )}
-                {item.status === 'Completed' && (
-                  <button disabled className='text-sm text-emerald-600 text-center sm:min-w-48 py-2 border border-emerald-200 bg-emerald-50 rounded font-medium select-none'>
-                    Completed
-                  </button>
-                )}
-                {item.status === 'Confirmed' && (
-                  <button disabled className='text-sm text-blue-600 text-center sm:min-w-48 py-2 border border-blue-200 bg-blue-50 rounded font-medium select-none'>
-                    Confirmed
-                  </button>
-                )}
-                {(item.paymentStatus === 'Completed' || item.status === 'Paid') && item.status !== 'Completed' && item.status !== 'Confirmed' && (
-                  <button disabled className='text-sm text-teal-600 text-center sm:min-w-48 py-2 border border-teal-200 bg-teal-50 rounded font-medium select-none'>
-                    Paid / Payment Successful
-                  </button>
-                )}
-                {item.status !== 'Cancelled' && item.status !== 'Completed' && item.status !== 'Confirmed' && item.status !== 'Paid' && item.paymentStatus !== 'Completed' && (
-                  <>
-                    <button 
-                      onClick={() => handlePayNow(item)} 
-                      disabled={payingAptId === item.appointmentId}
-                      className={`text-sm text-center sm:min-w-48 py-2 border rounded transition-all duration-300 ${
-                        payingAptId === item.appointmentId 
-                          ? 'text-stone-400 bg-stone-100 cursor-not-allowed border-stone-200' 
-                          : 'text-stone-500 hover:bg-primary hover:text-white'
-                      }`}
-                    >
-                      {payingAptId === item.appointmentId ? 'Processing...' : 'Pay Now'}
-                    </button>
-                    <button 
-                      onClick={() => cancelAppointment(item.appointmentId)} 
-                      disabled={payingAptId === item.appointmentId}
-                      className={`text-sm text-center sm:min-w-48 py-2 border rounded transition-all duration-300 ${
-                        payingAptId === item.appointmentId 
-                          ? 'text-stone-400 bg-stone-100 cursor-not-allowed border-stone-200' 
-                          : 'text-stone-500 hover:bg-[#FF9F68] hover:text-white'
-                      }`}
-                    >
-                      Cancel appointment
-                    </button>
-                  </>
-                )}
-              </div>
-=======
             <div className='flex-1 text-sm text-zinc-600'>
               <p className='text-neutral-800 font-semibold text-base'>{item.docName || item.name}</p>
               <p className='text-xs text-gray-500'>{item.docSpeciality || item.speciality}</p>
@@ -326,10 +248,25 @@ const MyAppointments = () => {
                   <p><span className="font-semibold text-gray-700">NIC:</span> {item.patientNic} | <span className="font-semibold text-gray-700">Phone:</span> {item.patientPhone}</p>
                   <p><span className="font-semibold text-gray-700">Email:</span> {item.patientEmail} | <span className="font-semibold text-gray-700">Address:</span> {item.patientAddress}</p>
                   <p><span className="font-semibold text-gray-700">No Show Refund:</span> {item.noShowRefund ? <span className="text-teal-600 font-semibold">Yes (Surcharge: 275 LKR)</span> : 'No'}</p>
-                  <p><span className="font-semibold text-gray-700">Total Charged:</span> <span className="font-bold text-gray-800">LKR {item.fees}{item.noShowRefund && " + 275 LKR"}</span></p>
+                  <p><span className="font-semibold text-gray-700">Total Charged:</span> <span className="font-bold text-gray-800">{currencySymbol}{item.fees}{item.noShowRefund && " + 275 LKR"}</span></p>
                 </div>
               )}
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
+
+              {item.paymentStatus === 'Completed' && (
+                <div className="mt-2 p-2 bg-emerald-50/50 rounded-lg text-xs text-gray-500 space-y-0.5 border border-emerald-100">
+                  <p><span className="font-semibold text-emerald-800">Payment Status:</span> Paid</p>
+                  <p><span className="font-semibold text-emerald-800">Transaction ID:</span> {item.transactionId || 'N/A'}</p>
+                  <p><span className="font-semibold text-emerald-800">Amount:</span> {currencySymbol}{item.paymentAmount || item.totalCharge || item.fees}</p>
+                  {item.receiptUrl && (
+                    <p>
+                      <span className="font-semibold text-emerald-800">Receipt:</span>{' '}
+                      <a href={item.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        View Receipt
+                      </a>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             <div></div>
             <div className='flex flex-col gap-2 justify-end'>
@@ -338,17 +275,49 @@ const MyAppointments = () => {
                   Cancelled
                 </button>
               )}
-              {item.status === 'Paid' && (
-                <button disabled className='text-sm text-teal-600 text-center sm:min-w-48 py-2 border border-teal-200 bg-teal-50 rounded font-medium select-none'>
-                  Paid
+              {item.status === 'Completed' && (
+                <button disabled className='text-sm text-emerald-600 text-center sm:min-w-48 py-2 border border-emerald-200 bg-emerald-50 rounded font-medium select-none'>
+                  Completed
                 </button>
               )}
-              {item.status !== 'Cancelled' && item.status !== 'Paid' && (
+              {item.status === 'Confirmed' && (
+                <button disabled className='text-sm text-blue-600 text-center sm:min-w-48 py-2 border border-blue-200 bg-blue-50 rounded font-medium select-none'>
+                  Confirmed
+                </button>
+              )}
+              {(item.paymentStatus === 'Completed' || item.status === 'Paid') && item.status !== 'Completed' && item.status !== 'Confirmed' && (
+                <button disabled className='text-sm text-teal-600 text-center sm:min-w-48 py-2 border border-teal-200 bg-teal-50 rounded font-medium select-none'>
+                  Paid / Payment Successful
+                </button>
+              )}
+              {item.status !== 'Cancelled' && item.status !== 'Completed' && item.status !== 'Confirmed' && item.status !== 'Paid' && item.paymentStatus !== 'Completed' && (
                 <>
-                  <button onClick={() => openPaymentModal(item)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-primary hover:text-white transition-all duration-300 rounded'>
-                    Pay Online
+                  <button
+                    onClick={() => {
+                      if (token && !item.isDefault) {
+                        handlePayNow(item);
+                      } else {
+                        openPaymentModal(item);
+                      }
+                    }}
+                    disabled={payingAptId === item.appointmentId}
+                    className={`text-sm text-center sm:min-w-48 py-2 border rounded transition-all duration-300 ${
+                      payingAptId === item.appointmentId
+                        ? 'text-stone-400 bg-stone-100 cursor-not-allowed border-stone-200'
+                        : 'text-stone-500 hover:bg-primary hover:text-white'
+                    }`}
+                  >
+                    {payingAptId === item.appointmentId ? 'Processing...' : (token && !item.isDefault ? 'Pay Now' : 'Pay Online')}
                   </button>
-                  <button onClick={() => cancelAppointment(item._id)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border hover:bg-red-500 hover:text-white transition-all duration-300 rounded'>
+                  <button
+                    onClick={() => cancelAppointment(item.appointmentId)}
+                    disabled={payingAptId === item.appointmentId}
+                    className={`text-sm text-center sm:min-w-48 py-2 border rounded transition-all duration-300 ${
+                      payingAptId === item.appointmentId
+                        ? 'text-stone-400 bg-stone-100 cursor-not-allowed border-stone-200'
+                        : 'text-stone-500 hover:bg-red-500 hover:text-white'
+                    }`}
+                  >
                     Cancel appointment
                   </button>
                 </>
@@ -387,11 +356,7 @@ const MyAppointments = () => {
                   Your payment for the appointment with <span className="font-semibold text-gray-700">{selectedApt.docName || selectedApt.name}</span> has been processed successfully.
                 </p>
                 <div className="bg-slate-50 border border-gray-100 rounded-xl p-4 w-full max-w-xs text-left text-xs text-gray-500 mt-4 space-y-1">
-<<<<<<< HEAD
-                  <p><span className="font-semibold text-gray-700">Amount Paid:</span> Rs. {(selectedApt.fees + 24.10).toFixed(2)}</p>
-=======
-                  <p><span className="font-semibold text-gray-700">Amount Paid:</span> LKR {(selectedApt.fees + 24.10).toFixed(2)}</p>
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
+                  <p><span className="font-semibold text-gray-700">Amount Paid:</span> {currencySymbol}{(selectedApt.fees + 24.10).toFixed(2)}</p>
                   <p><span className="font-semibold text-gray-700">Payment Mode:</span> {selectedCard.toUpperCase()} ending in {cardNumber.slice(-4)}</p>
                 </div>
                 <button
@@ -547,38 +512,22 @@ const MyAppointments = () => {
                     <div className="space-y-4 text-sm text-gray-500">
                       <div className="flex justify-between">
                         <span>Consultation Fee</span>
-<<<<<<< HEAD
-                        <span className="font-semibold text-gray-700">Rs. {selectedApt.fees}.00</span>
+                        <span className="font-semibold text-gray-700">{currencySymbol}{selectedApt.fees}.00</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Taxes & Fees</span>
-                        <span className="font-semibold text-gray-700">Rs. 20.00</span>
-=======
-                        <span className="font-semibold text-gray-700">LKR {selectedApt.fees}.00</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Taxes & Fees</span>
-                        <span className="font-semibold text-gray-700">LKR 20.00</span>
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
+                        <span className="font-semibold text-gray-700">{currencySymbol}20.00</span>
                       </div>
 
                       <hr className="border-gray-200" />
 
                       <div className="flex justify-between font-bold text-gray-700">
                         <span>Subtotal</span>
-<<<<<<< HEAD
-                        <span>Rs. {selectedApt.fees + 20}.00</span>
+                        <span>{currencySymbol}{selectedApt.fees + 20}.00</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Services Tax</span>
-                        <span className="font-semibold text-gray-700">Rs. 4.10</span>
-=======
-                        <span>LKR {selectedApt.fees + 20}.00</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Services Tax</span>
-                        <span className="font-semibold text-gray-700">LKR 4.10</span>
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
+                        <span className="font-semibold text-gray-700">{currencySymbol}4.10</span>
                       </div>
                     </div>
                   </div>
@@ -587,11 +536,7 @@ const MyAppointments = () => {
                     {/* Grand Total */}
                     <div className="flex items-baseline justify-between">
                       <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Total LKR</span>
-<<<<<<< HEAD
-                      <span className="text-3xl font-extrabold text-[#00B4B4]">Rs. {(selectedApt.fees + 24.10).toFixed(2)}</span>
-=======
-                      <span className="text-3xl font-extrabold text-[#00B4B4]">LKR {(selectedApt.fees + 24.10).toFixed(2)}</span>
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
+                      <span className="text-3xl font-extrabold text-[#00B4B4]">{currencySymbol}{(selectedApt.fees + 24.10).toFixed(2)}</span>
                     </div>
 
                     {/* Action buttons */}

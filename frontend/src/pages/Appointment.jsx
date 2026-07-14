@@ -8,13 +8,8 @@ import { createAppointment } from '../services/api'
 const Appointment = () => {
 
   const { docID } = useParams()
-<<<<<<< HEAD
-  const { doctors, currencySymbol, userData } = useContext(AppContext)
-  const daysOfWeek = ['SUN','MON','TUE','WED','THU','FRI','SAT']
-=======
-  const { doctors, currencySymbol } = useContext(AppContext)
+  const { doctors, currencySymbol, userData, token } = useContext(AppContext)
   const daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
 
   const [docInfo, setDocInfo] = useState(null)
   const [docSlots, setDocSlots] = useState([])
@@ -121,74 +116,72 @@ const Appointment = () => {
       return;
     }
 
-<<<<<<< HEAD
-    const payload = {
-      doctorUserID: docInfo._id,
-      doctorName: docInfo.name,
-      appointmentDate: getSelectedSlotDate(),
-      appointmentTime: slotTime,
-      fee: docInfo.fees,
-      totalCharge: formData.noShowRefund ? docInfo.fees + 275 : docInfo.fees,
-=======
-    // Create new appointment object
-    const newAppointment = {
-      _id: `apt_${Date.now()}`,
-      docId: docInfo._id,
-      docName: docInfo.name,
-      docImage: docInfo.image,
-      docSpeciality: docInfo.speciality,
-      docAddress: docInfo.address,
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
-      patientName: `${formData.title} ${formData.name}`,
-      patientPhone: formData.phone,
-      patientEmail: formData.email,
-      patientNic: formData.nic,
-      patientAddress: formData.address,
-      patientNo: patientNo,
-<<<<<<< HEAD
-      docAddress: JSON.stringify(docInfo.address),
-      noShowRefund: formData.noShowRefund,
-      currency: 'LKR'
-    };
+    if (token) {
+      const payload = {
+        doctorUserID: docInfo._id,
+        doctorName: docInfo.name,
+        appointmentDate: getSelectedSlotDate(),
+        appointmentTime: slotTime,
+        fee: docInfo.fees,
+        totalCharge: formData.noShowRefund ? Number(docInfo.fees) + 275 : Number(docInfo.fees),
+        patientName: `${formData.title} ${formData.name}`,
+        patientPhone: formData.phone,
+        patientEmail: formData.email,
+        patientNic: formData.nic,
+        patientAddress: formData.address,
+        patientNo: patientNo,
+        docAddress: JSON.stringify(docInfo.address),
+        noShowRefund: formData.noShowRefund,
+        currency: 'LKR'
+      };
 
-    try {
-      const data = await createAppointment(payload);
-      if (data.success) {
-        setShowBookingModal(false);
-        navigate('/my-appointments');
-      } else {
-        alert(data.message || 'Unable to complete appointment. Please try again.');
+      try {
+        const data = await createAppointment(payload);
+        if (data.success) {
+          setShowBookingModal(false);
+          navigate('/my-appointments');
+        } else {
+          alert(data.message || 'Unable to complete appointment. Please try again.');
+        }
+      } catch (error) {
+        console.error(error);
+        alert(error.response?.data?.message || 'Unable to complete appointment. Please try again.');
       }
-    } catch (error) {
-      console.error(error);
-      alert(error.response?.data?.message || 'Unable to complete appointment. Please try again.');
+    } else {
+      // Create new local appointment object
+      const newAppointment = {
+        _id: `apt_${Date.now()}`,
+        docId: docInfo._id,
+        docName: docInfo.name,
+        docImage: docInfo.image,
+        docSpeciality: docInfo.speciality,
+        docAddress: docInfo.address,
+        patientName: `${formData.title} ${formData.name}`,
+        patientPhone: formData.phone,
+        patientEmail: formData.email,
+        patientNic: formData.nic,
+        patientAddress: formData.address,
+        patientNo: patientNo,
+        slotDate: getSelectedSlotDate(),
+        slotTime: slotTime,
+        status: 'Pending',
+        fees: 3500 + Number(docInfo.fees),
+        totalCharge: formData.noShowRefund ? `${3500 + Number(docInfo.fees)} + 275 LKR` : `${3500 + Number(docInfo.fees)}`
+      };
+
+      // Save to local storage
+      const currentApts = JSON.parse(localStorage.getItem('appointments')) || [];
+      currentApts.unshift(newAppointment);
+      localStorage.setItem('appointments', JSON.stringify(currentApts));
+
+      setShowBookingModal(false);
+      navigate('/my-appointments');
     }
   }
 
-  const fetchDocInfo =async () => {
-    const doc = doctors.find(doc => String(doc._id) === String(docID))
-    setDocInfo(doc)    
-=======
-      slotDate: getSelectedSlotDate(),
-      slotTime: slotTime,
-      status: 'Pending',
-      fees: 3500 + Number(docInfo.fees),
-      totalCharge: formData.noShowRefund ? `${3500 + Number(docInfo.fees)} + 275 LKR` : `${3500 + Number(docInfo.fees)}`
-    };
-
-    // Save to local storage
-    const currentApts = JSON.parse(localStorage.getItem('appointments')) || [];
-    currentApts.unshift(newAppointment);
-    localStorage.setItem('appointments', JSON.stringify(currentApts));
-
-    setShowBookingModal(false);
-    navigate('/my-appointments');
-  }
-
   const fetchDocInfo = async () => {
-    const doc = doctors.find(doc => doc._id === docID)
+    const doc = doctors.find(doc => String(doc._id) === String(docID))
     setDocInfo(doc)
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
   }
 
   const getAvailableSlots = async () => {

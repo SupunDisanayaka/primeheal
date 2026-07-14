@@ -75,11 +75,7 @@ const Navbar = () => {
 
         {token ? (
           <div className='flex items-center gap-2 cursor-pointer group relative'>
-<<<<<<< HEAD
-            <img className='w-8 h-8 rounded-full border border-white/20 object-cover bg-blue-50' src={userData?.profileImage || avatar_blue_hair} alt="Profile" />
-=======
-            <img className='w-8 h-8 rounded-full border border-white/20 object-cover bg-blue-50' src={userData.image} alt="Profile" />
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
+            <img className='w-8 h-8 rounded-full border border-white/20 object-cover bg-blue-50' src={userData?.profileImage || userData?.image || avatar_blue_hair} alt="Profile" />
             <img className='w-2.5' src={assets.dropdown_icon} alt="Dropdown" />
 
             {/* Dropdown */}
@@ -88,20 +84,12 @@ const Navbar = () => {
 
                 {/* Avatar with circular outline */}
                 <div className="w-20 h-20 rounded-full border-2 border-white/90 p-0.5 overflow-hidden shadow-lg bg-slate-850">
-<<<<<<< HEAD
-                  <img className="w-full h-full rounded-full object-cover" src={userData?.profileImage || avatar_blue_hair} alt="Avatar" />
-=======
-                  <img className="w-full h-full rounded-full object-cover" src={userData.image} alt="Avatar" />
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
+                  <img className="w-full h-full rounded-full object-cover" src={userData?.profileImage || userData?.image || avatar_blue_hair} alt="Avatar" />
                 </div>
 
                 {/* Profile Details */}
                 <div>
-<<<<<<< HEAD
                   <h3 className="font-bold text-lg tracking-wide text-white">{userData?.name || 'Loading...'}</h3>
-=======
-                  <h3 className="font-bold text-lg tracking-wide text-white">{userData.name}</h3>
->>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
                   <p className="text-[10px] text-slate-300 font-light mt-1 max-w-[200px] leading-relaxed">
                     {userData?.email || ''}
                   </p>
