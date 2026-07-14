@@ -8,13 +8,18 @@ import { createAppointment } from '../services/api'
 const Appointment = () => {
 
   const { docID } = useParams()
+<<<<<<< HEAD
   const { doctors, currencySymbol, userData } = useContext(AppContext)
   const daysOfWeek = ['SUN','MON','TUE','WED','THU','FRI','SAT']
+=======
+  const { doctors, currencySymbol } = useContext(AppContext)
+  const daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+>>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
 
   const [docInfo, setDocInfo] = useState(null)
-  const [docSlots,setDocSlots] = useState([])
-  const [slotIndex,setSlotIndex] = useState(0)
-  const [slotTime,setSlotTime] = useState('')
+  const [docSlots, setDocSlots] = useState([])
+  const [slotIndex, setSlotIndex] = useState(0)
+  const [slotTime, setSlotTime] = useState('')
 
   const navigate = useNavigate()
 
@@ -83,16 +88,16 @@ const Appointment = () => {
       alert('Please select a time slot first.');
       return;
     }
-    
+
     // Set booking click time
     const now = new Date();
     const formattedClickTime = now.toLocaleDateString() + ', ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     setBookingTime(formattedClickTime);
-    
+
     // Generate random patient No (e.g. PT-49281)
     const randomNum = Math.floor(10000 + Math.random() * 90000);
     setPatientNo(`PT-${randomNum}`);
-    
+
     // Reset timer and form
     setTimeLeft(600);
     setFormData({
@@ -105,7 +110,7 @@ const Appointment = () => {
       address: '',
       noShowRefund: false
     });
-    
+
     setShowBookingModal(true);
   }
 
@@ -116,6 +121,7 @@ const Appointment = () => {
       return;
     }
 
+<<<<<<< HEAD
     const payload = {
       doctorUserID: docInfo._id,
       doctorName: docInfo.name,
@@ -123,12 +129,23 @@ const Appointment = () => {
       appointmentTime: slotTime,
       fee: docInfo.fees,
       totalCharge: formData.noShowRefund ? docInfo.fees + 275 : docInfo.fees,
+=======
+    // Create new appointment object
+    const newAppointment = {
+      _id: `apt_${Date.now()}`,
+      docId: docInfo._id,
+      docName: docInfo.name,
+      docImage: docInfo.image,
+      docSpeciality: docInfo.speciality,
+      docAddress: docInfo.address,
+>>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
       patientName: `${formData.title} ${formData.name}`,
       patientPhone: formData.phone,
       patientEmail: formData.email,
       patientNic: formData.nic,
       patientAddress: formData.address,
       patientNo: patientNo,
+<<<<<<< HEAD
       docAddress: JSON.stringify(docInfo.address),
       noShowRefund: formData.noShowRefund,
       currency: 'LKR'
@@ -151,6 +168,27 @@ const Appointment = () => {
   const fetchDocInfo =async () => {
     const doc = doctors.find(doc => String(doc._id) === String(docID))
     setDocInfo(doc)    
+=======
+      slotDate: getSelectedSlotDate(),
+      slotTime: slotTime,
+      status: 'Pending',
+      fees: 3500 + Number(docInfo.fees),
+      totalCharge: formData.noShowRefund ? `${3500 + Number(docInfo.fees)} + 275 LKR` : `${3500 + Number(docInfo.fees)}`
+    };
+
+    // Save to local storage
+    const currentApts = JSON.parse(localStorage.getItem('appointments')) || [];
+    currentApts.unshift(newAppointment);
+    localStorage.setItem('appointments', JSON.stringify(currentApts));
+
+    setShowBookingModal(false);
+    navigate('/my-appointments');
+  }
+
+  const fetchDocInfo = async () => {
+    const doc = doctors.find(doc => doc._id === docID)
+    setDocInfo(doc)
+>>>>>>> 84f2d783fcc04ef938456dcd307ac9b12820a753
   }
 
   const getAvailableSlots = async () => {
@@ -159,29 +197,29 @@ const Appointment = () => {
     //getting current date
     let today = new Date()
 
-    for(let i=0; i < 7; i++){
+    for (let i = 0; i < 7; i++) {
       //getting date with index
       let currentDate = new Date(today)
       currentDate.setDate(today.getDate() + i)
 
       //setting end time of the date with index
-      let endTime =new Date()
+      let endTime = new Date()
       endTime.setDate(today.getDate() + i)
-      endTime.setHours(21,0,0,0)
+      endTime.setHours(21, 0, 0, 0)
 
       //setting hours
       if (today.getDate() === currentDate.getDate()) {
         currentDate.setHours(currentDate.getHours() > 10 ? currentDate.getHours() + 1 : 10)
         currentDate.setMinutes(currentDate.getMinutes() > 30 ? 30 : 0)
-      } else{
+      } else {
         currentDate.setHours(10)
         currentDate.setMinutes(0)
       }
 
       let timeSlots = []
 
-      while(currentDate < endTime) {
-        let formattedTime = currentDate.toLocaleTimeString([],{ hour:'2-digit', minute:'2-digit'})
+      while (currentDate < endTime) {
+        let formattedTime = currentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
         // add slot to array
         timeSlots.push({
@@ -201,16 +239,16 @@ const Appointment = () => {
 
 
   useEffect(() => {
-      fetchDocInfo()
-    }, [doctors, docID])
+    fetchDocInfo()
+  }, [doctors, docID])
 
-  useEffect(()=> {
-      getAvailableSlots()
+  useEffect(() => {
+    getAvailableSlots()
   }, [docInfo])
 
-  useEffect (() => {
+  useEffect(() => {
     console.log(docSlots);
-  },[docSlots] )
+  }, [docSlots])
 
 
   if (!docInfo) {
@@ -242,7 +280,7 @@ const Appointment = () => {
 
             {/* Content Overlays */}
             <div className='absolute inset-0 p-5 flex flex-col justify-between z-20'>
-              
+
               {/* Top: Name and Status */}
               <div className='text-center'>
                 <h3 className='text-white text-lg md:text-xl font-semibold tracking-wide drop-shadow-sm truncate'>{docInfo.name}</h3>
@@ -258,7 +296,7 @@ const Appointment = () => {
 
               {/* Bottom: Info Footer */}
               <div className='flex items-end justify-between w-full gap-2'>
-                
+
                 {/* Left: Avatar and Handle */}
                 <div className='flex items-center gap-2 min-w-0'>
                   <img
@@ -315,9 +353,12 @@ const Appointment = () => {
 
           {/* -------- Fees -------- */}
           <p className="text-gray-500 font-medium mt-4">
-            Appointment fee:
-            <span className="text-gray-600 ml-1">
-              {currencySymbol}{docInfo.fees}
+            Channeling fee:
+            <span className="text-gray-600 ml-1 font-bold text-teal-600">
+              LKR {3500 + Number(docInfo.fees)}
+            </span>
+            <span className="text-xs text-gray-400 font-normal block mt-1">
+              (LKR 3500 base channeling fee + LKR {docInfo.fees} booking fee)
             </span>
           </p>
 
@@ -329,23 +370,23 @@ const Appointment = () => {
         <p>Booking slots</p>
         <div className='flex gap-3 items-center w- full overflow-scroll mt-4'>
           {
-            docSlots.length && docSlots.map((item,index)=>(
-              <div onClick={()=> setSlotIndex(index)} className={`text-center py-6 min-w-16 rounded-full cursor-pointer ${slotIndex === index ? 'bg-primary text-white':'border border-gray-200' }`} key={index}>
+            docSlots.length && docSlots.map((item, index) => (
+              <div onClick={() => setSlotIndex(index)} className={`text-center py-6 min-w-16 rounded-full cursor-pointer ${slotIndex === index ? 'bg-primary text-white' : 'border border-gray-200'}`} key={index}>
                 <p>{item[0] && daysOfWeek[item[0].datetime.getDate()]}</p>
                 <p>{item[0] && item[0].datetime.getDate()}</p>
-              </div> 
+              </div>
             ))
           }
         </div>
 
-        <div className='flex items-center gap-3 w-full overflow-x-scroll mt-4'> 
-          {docSlots.length && docSlots[slotIndex].map((item,index)=>(
-            <p onClick={()=>setSlotTime(item.time)} className={`text-sm font-light flex-shrink-0 px-5 py-2 rounded-full cursor-pointer ${item.time === slotTime ? 'bg-primary text-white' : 'text-gray-400 border border-gray-300'}`} key={index}>
+        <div className='flex items-center gap-3 w-full overflow-x-scroll mt-4'>
+          {docSlots.length && docSlots[slotIndex].map((item, index) => (
+            <p onClick={() => setSlotTime(item.time)} className={`text-sm font-light flex-shrink-0 px-5 py-2 rounded-full cursor-pointer ${item.time === slotTime ? 'bg-primary text-white' : 'text-gray-400 border border-gray-300'}`} key={index}>
               {item.time.toLowerCase()}
             </p>
           ))}
         </div>
-        <button onClick={handleOpenBooking} className='bg-[#FF9F68] text-black text-sm font-light px-14 py-3 rounded-full my-6 hover:shadow-md transition-all active:scale-95 duration-150'> Book an appointment</button>
+        <button onClick={handleOpenBooking} className='bg-[#00A7a7] text-white text-sm font-light px-14 py-3 rounded-full my-6 hover:shadow-md transition-all active:scale-95 duration-150 hover:bg-[#008f8f]'> Book an appointment</button>
       </div>
 
       {/*----- Listing Related Doctors ----*/}
@@ -355,7 +396,7 @@ const Appointment = () => {
       {showBookingModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-300">
           <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 transform transition-all duration-300 flex flex-col max-h-[90vh]">
-            
+
             {/* Modal Top Bar */}
             <div className="bg-gradient-to-r from-[#00A7A7] to-[#008F8F] text-white p-5 select-none relative shadow-md">
               <div className="flex justify-between items-start">
@@ -376,7 +417,7 @@ const Appointment = () => {
 
             {/* Modal Form */}
             <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-              
+
               {/* Session Expiration Message */}
               {timeLeft === 0 && (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-600 text-sm font-medium flex items-center justify-between">
@@ -392,7 +433,7 @@ const Appointment = () => {
                   <select
                     disabled={timeLeft === 0}
                     value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all cursor-pointer"
                   >
                     <option value="Mr">Mr.</option>
@@ -408,7 +449,7 @@ const Appointment = () => {
                     disabled={timeLeft === 0}
                     placeholder="Enter full name"
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                   />
                 </div>
@@ -421,7 +462,7 @@ const Appointment = () => {
                   <select
                     disabled={timeLeft === 0}
                     value={formData.country}
-                    onChange={(e) => setFormData({...formData, country: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all cursor-pointer"
                   >
                     <option value="Sri Lanka">Sri Lanka</option>
@@ -439,7 +480,7 @@ const Appointment = () => {
                     disabled={timeLeft === 0}
                     placeholder="e.g. 199912345678"
                     value={formData.nic}
-                    onChange={(e) => setFormData({...formData, nic: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, nic: e.target.value })}
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                   />
                 </div>
@@ -455,7 +496,7 @@ const Appointment = () => {
                     disabled={timeLeft === 0}
                     placeholder="e.g. 0771234567"
                     value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                   />
                 </div>
@@ -467,7 +508,7 @@ const Appointment = () => {
                     disabled={timeLeft === 0}
                     placeholder="e.g. pat@example.com"
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                   />
                 </div>
@@ -482,7 +523,7 @@ const Appointment = () => {
                   disabled={timeLeft === 0}
                   placeholder="Enter patient home address"
                   value={formData.address}
-                  onChange={(e) => setFormData({...formData, address: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none"
                 />
               </div>
@@ -494,7 +535,7 @@ const Appointment = () => {
                   type="checkbox"
                   disabled={timeLeft === 0}
                   checked={formData.noShowRefund}
-                  onChange={(e) => setFormData({...formData, noShowRefund: e.target.checked})}
+                  onChange={(e) => setFormData({ ...formData, noShowRefund: e.target.checked })}
                   className="w-4 h-4 rounded border-gray-300 text-[#00A7A7] focus:ring-primary cursor-pointer mt-1"
                 />
                 <div>
@@ -514,8 +555,8 @@ const Appointment = () => {
               {/* Fees Summary */}
               <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between text-sm">
                 <span className="font-medium text-gray-500">Total Booking Cost:</span>
-                <span className="font-bold text-gray-800">
-                  {currencySymbol}{docInfo.fees}
+                <span className="font-bold text-gray-800 text-teal-600">
+                  LKR {3500 + Number(docInfo.fees)}
                   {formData.noShowRefund && <span className="text-xs font-semibold text-[#00A7A7] ml-1.5">+ 275 LKR</span>}
                 </span>
               </div>

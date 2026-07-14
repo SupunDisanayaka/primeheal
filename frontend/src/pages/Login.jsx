@@ -21,6 +21,12 @@ const Login = () => {
 
   // Slideshow state
   const loginImages = [assets.login1, assets.login2, assets.login3, assets.login4]
+  const captions = [
+    "Your health is our priority. Connect with expert doctors seamlessly.",
+    "Book your appointments with trusted healthcare providers in just a few clicks.",
+    "Simplifying healthcare access for you and your family.",
+    "Your health is our priority. Connect with expert doctors seamlessly."
+  ]
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   useEffect(() => {
@@ -99,7 +105,7 @@ const Login = () => {
 
   return (
     <div className="w-full min-h-screen bg-white flex flex-col md:flex-row overflow-hidden transition-all duration-300">
-      
+
       {/* Left side: Slideshow and Branding Overlay */}
       <div className="relative hidden md:block md:w-[58%] h-screen min-h-screen overflow-hidden bg-slate-900">
         {loginImages.map((img, idx) => (
@@ -107,30 +113,23 @@ const Login = () => {
             key={idx}
             src={img}
             alt={`Login Visual ${idx + 1}`}
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
-              idx === currentImageIndex ? 'opacity-100' : 'opacity-0'
-            }`}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${idx === currentImageIndex ? 'opacity-100' : 'opacity-0'
+              }`}
           />
         ))}
-        
+
         {/* Soft dark gradient overlay for text readability at the bottom */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
         {/* Branding Logo Overlay - Top Left */}
         <div className="absolute top-12 left-12 flex items-center gap-3 text-white select-none">
-          <div className="w-12 h-12 rounded-full border-2 border-white/90 flex items-center justify-center font-black text-2xl backdrop-blur-sm shadow-md">
-            5
-          </div>
-          <div className="leading-tight">
-            <span className="font-extrabold tracking-widest block text-base">SECOND</span>
-            <span className="font-medium tracking-[0.25em] text-xs opacity-90 block -mt-1">OPINION</span>
-          </div>
+          <img className='w-40' src={assets.logo} alt="Prime Heal Logo" />
         </div>
 
         {/* Dynamic Caption - Bottom */}
-        <div className="absolute bottom-16 left-16 right-16 text-white">
-          <h3 className="text-3xl font-bold leading-snug drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
-            Lorem Ipsum is simply dummy text of the printing
+        <div className="absolute bottom-16 left-16 right-16 text-white min-h-[5.5rem]">
+          <h3 className="text-3xl font-bold leading-snug drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)] transition-all duration-500">
+            {captions[currentImageIndex]}
           </h3>
         </div>
       </div>
@@ -144,12 +143,14 @@ const Login = () => {
               {state === 'Login' ? 'Sign In' : 'Sign Up'}
             </h2>
             <p className="text-gray-400 mt-2 text-sm leading-relaxed font-normal">
-              Lorem Ipsum is simply dummy text of the printing
+              {state === 'Login'
+                ? 'Please sign in to access your appointments and consult expert doctors.'
+                : 'Create an account to start booking appointments with trusted healthcare providers.'}
             </p>
 
             {/* Inputs Container */}
             <div className="mt-8 flex flex-col gap-4">
-              
+
               {/* Full Name (Sign Up only) */}
               {state === 'Sign Up' && (
                 <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200">
@@ -197,7 +198,7 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
-                
+
                 {/* Toggle Password Visibility */}
                 <button
                   type="button"

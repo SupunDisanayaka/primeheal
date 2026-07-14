@@ -49,6 +49,7 @@ import header_img_05 from './header_img_05.png'
 import header_img_06 from './header_img_06.png'
 import header_img_07 from './header_img_07.png'
 import header_img_08 from './header_img_08.png'
+import contact_us from './contact_us.png'
 
 
 export const assets = {
@@ -81,7 +82,8 @@ export const assets = {
     header_img_05,
     header_img_06,
     header_img_07,
-    header_img_08
+    header_img_08,
+    contact_us
 }
 
 export const specialityData = [
