@@ -123,8 +123,9 @@ export const rescheduleAppointment = async (appointmentId, newDate, newTime) => 
   return response.data;
 };
 
-export const getDoctorSlots = async (doctorId) => {
-  const response = await api.get(`/doctors/${doctorId}/slots`);
+export const getDoctorSlots = async (doctorId, date) => {
+  const url = date ? `/doctors/${doctorId}/slots?date=${date}` : `/doctors/${doctorId}/slots`;
+  const response = await api.get(url);
   return response.data;
 };
 

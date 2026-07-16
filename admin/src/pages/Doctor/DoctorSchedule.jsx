@@ -1,7 +1,8 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { AppContext } from "../../context/AppContext";
 import { DoctorContext } from "../../context/DoctorContext";
 import { assets } from "../../assets/assets";
+import api, { saveDoctorAvailabilityAPI } from "../../services/api";
 
 const ALL_TIME_SLOTS = [
   "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
@@ -25,7 +26,6 @@ const parseTimeToMinutes = (timeStr) => {
 
 const DoctorSchedule = () => {
   const { currentDoctorId } = useContext(DoctorContext);
-  const { doctorSchedules, setDoctorSchedules } = useContext(AppContext);
 
   // Set default date picker value to today's date formatted as YYYY-MM-DD
   const getTodayInputStr = () => {
@@ -40,6 +40,7 @@ const DoctorSchedule = () => {
   const [rangeStart, setRangeStart] = useState("09:00 AM");
   const [rangeEnd, setRangeEnd] = useState("05:00 PM");
   const [savedNotification, setSavedNotification] = useState("");
+  const [availableSlots, setAvailableSlots] = useState([]);
 
   const months = [
     "January", "February", "March", "April", "May", "June",
@@ -58,52 +59,60 @@ const DoctorSchedule = () => {
 
   const selectedFormattedDate = getFormattedDateStr(selectedDateInput);
 
-  // Find schedule configuration for selected date and doctor
-  const currentSchedule = doctorSchedules.find(
-    (s) => s.docId === currentDoctorId && s.date === selectedFormattedDate
-  );
+  // Fetch availability from backend
+  useEffect(() => {
+    const loadAvailability = async () => {
+      if (!currentDoctorId || !selectedDateInput) return;
+      try {
+        const response = await api.get(`/doctors/${currentDoctorId}/slots?date=${selectedDateInput}`);
+        if (response.data && response.data.success) {
+          const slotsByDate = response.data.slotsByDate;
+          if (slotsByDate && slotsByDate[0]) {
+            const times = slotsByDate[0].slots.map(s => s.time.trim().toUpperCase());
+            // Map ALL_TIME_SLOTS to match trim and upper casing for accurate matching
+            const matchedTimes = ALL_TIME_SLOTS.filter(t => times.includes(t.toUpperCase()));
+            setAvailableSlots(matchedTimes);
+          } else {
+            setAvailableSlots([]);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load availability from backend:", err);
+        setAvailableSlots([]);
+      }
+    };
+    loadAvailability();
+  }, [currentDoctorId, selectedDateInput]);
 
-  const availableSlots = currentSchedule ? currentSchedule.availableSlots : [];
+  const saveSlotsToBackend = async (newSlots) => {
+    try {
+      setSavedNotification("Saving to database...");
+      const res = await saveDoctorAvailabilityAPI(currentDoctorId, {
+        date: selectedDateInput,
+        slots: newSlots
+      });
+      if (res.success) {
+        setAvailableSlots(newSlots);
+        setSavedNotification("Schedule saved successfully!");
+        setTimeout(() => setSavedNotification(""), 3000);
+      }
+    } catch (err) {
+      console.error("Failed to save schedule:", err);
+      alert("Failed to save schedule to database");
+      setSavedNotification("Failed to save");
+      setTimeout(() => setSavedNotification(""), 3000);
+    }
+  };
 
   // Toggle availability of a specific slot
   const handleToggleSlot = (timeSlot) => {
-    setSavedNotification("Schedule auto-saved!");
-    setTimeout(() => setSavedNotification(""), 3000);
-
-    setDoctorSchedules((prev) => {
-      const existingIndex = prev.findIndex(
-        (s) => s.docId === currentDoctorId && s.date === selectedFormattedDate
-      );
-
-      if (existingIndex > -1) {
-        // Edit existing date entry
-        const updated = [...prev];
-        const currentSlots = updated[existingIndex].availableSlots;
-        if (currentSlots.includes(timeSlot)) {
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            availableSlots: currentSlots.filter((s) => s !== timeSlot),
-          };
-        } else {
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            availableSlots: [...currentSlots, timeSlot],
-          };
-        }
-        return updated;
-      } else {
-        // Create new date entry
-        return [
-          ...prev,
-          {
-            _id: `sched_${Date.now()}`,
-            docId: currentDoctorId,
-            date: selectedFormattedDate,
-            availableSlots: [timeSlot],
-          },
-        ];
-      }
-    });
+    let updatedSlots;
+    if (availableSlots.includes(timeSlot)) {
+      updatedSlots = availableSlots.filter((s) => s !== timeSlot);
+    } else {
+      updatedSlots = [...availableSlots, timeSlot];
+    }
+    saveSlotsToBackend(updatedSlots);
   };
 
   // Apply a time range availability (e.g. 4 pm to 8 pm)
@@ -122,47 +131,13 @@ const DoctorSchedule = () => {
       return slotMins >= startMins && slotMins <= endMins;
     });
 
-    setSavedNotification("Range schedule applied & saved!");
-    setTimeout(() => setSavedNotification(""), 3000);
-
-    setDoctorSchedules((prev) => {
-      const existingIndex = prev.findIndex(
-        (s) => s.docId === currentDoctorId && s.date === selectedFormattedDate
-      );
-
-      if (existingIndex > -1) {
-        const updated = [...prev];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          availableSlots: filteredRangeSlots,
-        };
-        return updated;
-      } else {
-        return [
-          ...prev,
-          {
-            _id: `sched_${Date.now()}`,
-            docId: currentDoctorId,
-            date: selectedFormattedDate,
-            availableSlots: filteredRangeSlots,
-          },
-        ];
-      }
-    });
+    saveSlotsToBackend(filteredRangeSlots);
   };
 
   // Clear availability for this date
   const handleClearDate = () => {
     if (window.confirm("Are you sure you want to clear your schedule for this date?")) {
-      setDoctorSchedules((prev) =>
-        prev.map((s) =>
-          s.docId === currentDoctorId && s.date === selectedFormattedDate
-            ? { ...s, availableSlots: [] }
-            : s
-        )
-      );
-      setSavedNotification("All slots cleared!");
-      setTimeout(() => setSavedNotification(""), 3000);
+      saveSlotsToBackend([]);
     }
   };
 

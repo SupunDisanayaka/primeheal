@@ -8,7 +8,7 @@ const DoctorDashboard = () => {
   const { appointments, doctors, setAppointments, syncAppointmentStatus, currencySymbol } = useContext(AppContext);
 
   // Filter appointments specifically assigned to this logged-in doctor
-  const docApts = appointments.filter((apt) => apt.docId === currentDoctorId);
+  const docApts = appointments.filter((apt) => String(apt.docId) === String(currentDoctorId));
 
   // Stats Computations
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -61,7 +61,7 @@ const DoctorDashboard = () => {
         <h2 className="text-2xl font-bold text-gray-900">
           Welcome back,{" "}
           <span className="text-primary font-extrabold">
-            {doctors.find((d) => d._id === currentDoctorId)?.name || "Doctor"}
+            {doctors.find((d) => String(d._id) === String(currentDoctorId))?.name || "Doctor"}
           </span>
         </h2>
         <p className="text-sm text-gray-500 mt-1">

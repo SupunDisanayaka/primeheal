@@ -119,7 +119,13 @@ export const getDoctorAppointmentsAPI = async () => {
 };
 
 export const addDoctorAPI = async (doctorData) => {
-  const response = await api.post('/doctors', doctorData);
+  const headers = doctorData instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {};
+  const response = await api.post('/doctors', doctorData, { headers });
+  return response.data;
+};
+
+export const saveDoctorAvailabilityAPI = async (id, availabilityData) => {
+  const response = await api.post(`/doctors/${id}/availability`, availabilityData);
   return response.data;
 };
 
@@ -140,6 +146,25 @@ export const updateDoctorProfile = async (id, doctorData) => {
 
 export const toggleDoctorAvailability = async (id) => {
   const response = await api.put(`/doctors/${id}/availability`);
+  return response.data;
+};
+
+export const changePasswordAPI = async (payload) => {
+  const response = await api.post('/users/change-password', payload);
+  return response.data;
+};
+
+export const uploadProfileImageAPI = async (formData) => {
+  const response = await api.post('/users/profile-image', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+  return response.data;
+};
+
+export const deleteProfileImageAPI = async () => {
+  const response = await api.delete('/users/profile-image');
   return response.data;
 };
 

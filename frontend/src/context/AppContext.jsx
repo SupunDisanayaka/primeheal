@@ -71,6 +71,8 @@ const AppContextProvider = ({ children }) => {
     loadUserProfile();
   }, [loadUserProfile])
 
+  const backendUrl = import.meta.env.VITE_BACKEND_URL ? import.meta.env.VITE_BACKEND_URL.replace('/api', '') : 'http://localhost:5000';
+
   const value = {
     doctors,
     currencySymbol,
@@ -82,7 +84,8 @@ const AppContextProvider = ({ children }) => {
     profileLoading,
     profileError,
     loadUserProfile,
-    fetchDoctorsData
+    fetchDoctorsData,
+    backendUrl
   };
 
   return (

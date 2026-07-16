@@ -1,9 +1,10 @@
 import React, { useContext } from "react";
 import { AppContext } from "../../context/AppContext";
 import { toggleDoctorAvailability } from "../../services/api";
+import { assets } from "../../assets/assets";
 
 const DoctorsList = () => {
-  const { doctors, setDoctors } = useContext(AppContext);
+  const { doctors, setDoctors, backendUrl } = useContext(AppContext);
 
   const toggleAvailability = async (docId) => {
     try {
@@ -38,7 +39,7 @@ const DoctorsList = () => {
               <div className="relative overflow-hidden aspect-square bg-gradient-to-b from-primary to-[#E0F2F1]/50 flex items-center justify-center">
                 <img
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  src={item.image}
+                  src={item.image ? (item.image.startsWith('http') ? item.image : `${backendUrl}${item.image}`) : assets[`doc${((item._id || 0) % 15) + 1}`]}
                   alt={item.name}
                 />
               </div>

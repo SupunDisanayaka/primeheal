@@ -40,26 +40,24 @@ const AddDoctor = () => {
       return;
     }
 
-    // Map state to what the API expects (using FormData for image upload or just passing the object if no image)
-    const doctorData = {
-      name: `Dr. ${name}`,
-      email,
-      password,
-      speciality,
-      degree,
-      experience,
-      about,
-      fees: Number(fees),
-      address1,
-      address2: address2 || "Circle, London",
-      image: null
-    };
+    const formData = new FormData();
+    formData.append("name", `Dr. ${name}`);
+    formData.append("email", email);
+    formData.append("password", password);
+    formData.append("speciality", speciality);
+    formData.append("degree", degree);
+    formData.append("experience", experience);
+    formData.append("about", about);
+    formData.append("fees", Number(fees));
+    formData.append("address1", address1);
+    formData.append("address2", address2 || "Colombo 03");
+    if (docImg) {
+      formData.append("image", docImg);
+    }
 
-    // If API supports image upload via multer we'd use FormData, but for now we just assume basic JSON
-    addDoctorAPI(doctorData).then((res) => {
+    addDoctorAPI(formData).then((res) => {
       if (res.success) {
         setSuccessMsg("Doctor successfully added to the roster!");
-        // Refresh doctors list if we are still using context for the list
         // Clear state
         setDocImg(null);
         setName("");

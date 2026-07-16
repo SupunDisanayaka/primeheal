@@ -80,8 +80,35 @@ const timeToMinutes = (timeStr) => {
   return null;
 };
 
+const formatDateToISO = (dateStr) => {
+  if (!dateStr) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return null;
+  if (dateStr.includes('-')) {
+    const yyyy = date.getUTCFullYear();
+    const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(date.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  } else {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+};
+
+const getDayOfWeek = (normalizedDateStr) => {
+  const [year, month, day] = normalizedDateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return weekdays[date.getDay()];
+};
+
 const createAppointment = async (req, res) => {
-  const { doctorUserID, doctorName, appointmentDate, appointmentTime, fee, totalCharge, patientName, patientPhone, patientEmail, patientNic, patientAddress, noShowRefund, docAddress, currency } = req.body;
+  let { doctorUserID, doctorName, appointmentDate, appointmentTime, fee, totalCharge, patientName, patientPhone, patientEmail, patientNic, patientAddress, noShowRefund, docAddress, currency } = req.body;
   const { userID, userType, name: loggedName, email: loggedEmail } = req.user;
 
   if (userType !== 'patient') {
@@ -91,6 +118,12 @@ const createAppointment = async (req, res) => {
   if (!doctorUserID || !appointmentDate || !appointmentTime || !patientName || !patientEmail) {
     return res.status(400).json({ success: false, message: 'Missing required appointment fields' });
   }
+
+  const normalizedDate = formatDateToISO(appointmentDate);
+  if (!normalizedDate) {
+    return res.status(400).json({ success: false, message: 'Invalid appointment date format' });
+  }
+  appointmentDate = normalizedDate;
 
   const connection = await pool.getConnection();
   try {
@@ -112,8 +145,7 @@ const createAppointment = async (req, res) => {
     const doctorID = doctorRows[0].doctorID;
 
     // 1. Verify doctor schedule & availability
-    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const dayOfWeekName = weekdays[new Date(appointmentDate).getDay()];
+    const dayOfWeekName = getDayOfWeek(appointmentDate);
 
     const [availabilities] = await connection.query(
       `SELECT * FROM doctoravailability 
@@ -242,6 +274,8 @@ const getMyAppointments = async (req, res) => {
           a.doctorID,
           d.userID AS doctorUserId,
           u.name AS doctorName,
+          u.profileImage AS docImage,
+          d.specialization AS docSpeciality,
           a.appointmentDate,
           a.appointmentTime,
           a.status,
@@ -281,6 +315,8 @@ const getMyAppointments = async (req, res) => {
           a.doctorID,
           d.userID AS doctorUserId,
           u.name AS doctorName,
+          u.profileImage AS docImage,
+          d.specialization AS docSpeciality,
           a.appointmentDate,
           a.appointmentTime,
           a.status,
@@ -562,8 +598,14 @@ const rescheduleAppointment = async (req, res) => {
     }
 
     // 1. Verify doctor schedule & availability
-    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const dayOfWeekName = weekdays[new Date(newDate).getDay()];
+    const normalizedNewDate = formatDateToISO(newDate);
+    if (!normalizedNewDate) {
+      await connection.rollback();
+      return res.status(400).json({ success: false, message: 'Invalid reschedule date format' });
+    }
+    newDate = normalizedNewDate;
+
+    const dayOfWeekName = getDayOfWeek(newDate);
 
     const [availabilities] = await connection.query(
       `SELECT * FROM doctoravailability 

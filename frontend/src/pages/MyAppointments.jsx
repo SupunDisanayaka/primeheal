@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect, useCallback } from 'react'
 import { AppContext } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
 import { cancelAppointment as cancelAppointmentRequest, getMyAppointments, createPaymentSession, downloadInvoice } from '../services/api'
+import { assets } from '../assets/assets'
 
 const MyAppointments = () => {
   const { doctors, currencySymbol, token } = useContext(AppContext)
@@ -35,11 +36,21 @@ const MyAppointments = () => {
     try {
       const data = await getMyAppointments()
       if (data.success) {
-        setAppointments(data.appointments.map((item) => ({
-          ...item,
-          appointmentId: item.appointmentId ?? item.appointmentID ?? item._id,
-          docAddress: item.docAddress ? JSON.parse(item.docAddress) : item.docAddress
-        })))
+        setAppointments(data.appointments.map((item) => {
+          let parsedAddress = item.docAddress;
+          if (item.docAddress && typeof item.docAddress === 'string') {
+            try {
+              parsedAddress = JSON.parse(item.docAddress);
+            } catch (e) {
+              parsedAddress = { line1: item.docAddress, line2: '' };
+            }
+          }
+          return {
+            ...item,
+            appointmentId: item.appointmentId ?? item.appointmentID ?? item._id,
+            docAddress: parsedAddress
+          };
+        }))
       }
     } catch (error) {
       console.error('Failed to load appointments from database.', error)
@@ -224,7 +235,7 @@ const MyAppointments = () => {
                   <p className='text-xs text-[#00B4B4] font-medium mt-0.5'>{item.docSpeciality || item.speciality}</p>
                   
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    <p><span className="font-semibold text-gray-500">Date:</span> {new Date(item.appointmentDate).toLocaleDateString()}</p>
+                    <p><span className="font-semibold text-gray-500">Date:</span> {(() => { const d = new Date(item.appointmentDate); return !item.appointmentDate || isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString(); })()}</p>
                     <p><span className="font-semibold text-gray-500">Time:</span> {item.appointmentTime}</p>
                     <p className="col-span-2"><span className="font-semibold text-gray-500">Hospital:</span> {item.docAddress?.line1 || 'PrimeHeal specialist center'}, {item.docAddress?.line2 || 'Colombo 03'}</p>
                   </div>

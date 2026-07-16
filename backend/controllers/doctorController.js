@@ -72,7 +72,7 @@ const getDoctorById = async (req, res) => {
 // @route   POST /api/doctors
 // @desc    Add a new doctor (Admin only)
 const addDoctor = async (req, res) => {
-  const { name, email, password, speciality, degree, experience, fees, about, address1, address2, image } = req.body;
+  const { name, email, password, speciality, degree, experience, fees, about, address1, address2 } = req.body;
 
   if (!name || !email || !password || !speciality || !degree || !fees || !about) {
     return res.status(400).json({ success: false, message: 'Missing required fields' });
@@ -85,6 +85,7 @@ const addDoctor = async (req, res) => {
     // Check if user exists
     const [existingUsers] = await connection.query('SELECT * FROM users WHERE email = ?', [email]);
     if (existingUsers.length > 0) {
+      await connection.rollback();
       return res.status(400).json({ success: false, message: 'Email already exists' });
     }
 
@@ -92,10 +93,16 @@ const addDoctor = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Resolve uploaded file if any
+    let imagePath = null;
+    if (req.file) {
+      imagePath = `/uploads/profile/${req.file.filename}`;
+    }
+
     // Insert user
     const [userResult] = await connection.query(
       'INSERT INTO users (name, email, password, userType, profileImage, isActive) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, email, hashedPassword, 'doctor', image || null, 1]
+      [name, email, hashedPassword, 'doctor', imagePath, 1]
     );
     
     const userId = userResult.insertId;
@@ -103,11 +110,21 @@ const addDoctor = async (req, res) => {
 
     // Insert doctor
     await connection.query(
-      'INSERT INTO doctor (userID, specialization, licenseNumber, qualifications, bio, consultationFee) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, speciality, licenseNumber, degree, about, fees]
+      `INSERT INTO doctor 
+        (userID, specialization, licenseNumber, qualifications, bio, consultationFee, experience, addressLine1, addressLine2) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        speciality,
+        licenseNumber,
+        degree,
+        about,
+        fees,
+        experience || '5 Years',
+        address1 || 'PrimeHeal Clinic',
+        address2 || 'Colombo 03'
+      ]
     );
-
-    // We could store experience and address in the bio as JSON, or ignore for now since they are not in schema.
     
     await connection.commit();
 
@@ -127,6 +144,11 @@ const addDoctor = async (req, res) => {
 const updateDoctor = async (req, res) => {
   const { id } = req.params; // userID
   const { fees, about, available, address, name, email } = req.body;
+
+  // Enforce IDOR protection: doctors can only update their own profile
+  if (req.user && req.user.userType === 'doctor' && String(req.user.userID) !== String(id)) {
+    return res.status(403).json({ success: false, message: 'Forbidden: You can only update your own profile.' });
+  }
 
   try {
     const [users] = await pool.query('SELECT * FROM users WHERE userID = ? AND userType = "doctor"', [id]);
@@ -166,6 +188,11 @@ const updateDoctor = async (req, res) => {
 // @desc    Toggle doctor availability
 const toggleAvailability = async (req, res) => {
   const { id } = req.params; // userID
+
+  // Enforce IDOR protection: doctors can only toggle their own availability
+  if (req.user && req.user.userType === 'doctor' && String(req.user.userID) !== String(id)) {
+    return res.status(403).json({ success: false, message: 'Forbidden: You can only toggle your own availability.' });
+  }
 
   try {
     const [doctors] = await pool.query('SELECT isAvailable FROM doctor WHERE userID = ?', [id]);
@@ -207,16 +234,17 @@ const timeToMinutes = (timeStr) => {
 const getDoctorSlots = async (req, res) => {
   try {
     const { id } = req.params; // userID of doctor
+    const { date: queryDate } = req.query;
     const [docs] = await pool.query('SELECT doctorID FROM doctor WHERE userID = ?', [id]);
     if (docs.length === 0) {
       return res.status(404).json({ success: false, message: 'Doctor not found' });
     }
     const doctorID = docs[0].doctorID;
 
-    // Generate dates for next 7 days starting today
+    // Generate dates for next 7 days starting today (or queryDate)
     const slotsByDate = [];
     const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const today = new Date();
+    const today = queryDate ? new Date(queryDate) : new Date();
 
     for (let i = 0; i < 7; i++) {
       const date = new Date(today);
@@ -279,6 +307,74 @@ const getDoctorSlots = async (req, res) => {
   }
 };
 
+// @route   POST /api/doctors/:id/availability
+// @desc    Update specific date availability slots
+const updateAvailability = async (req, res) => {
+  const { id } = req.params; // userID of doctor
+  const { date, slots } = req.body; // date is YYYY-MM-DD, slots is e.g. ["08:00 AM", "08:30 AM"]
+
+  if (!date || !Array.isArray(slots)) {
+    return res.status(400).json({ success: false, message: 'Date and slots array are required' });
+  }
+
+  // IDOR protection: doctors can only update their own availability
+  if (req.user && req.user.userType === 'doctor' && String(req.user.userID) !== String(id)) {
+    return res.status(403).json({ success: false, message: 'Forbidden: You can only update your own availability.' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 1. Get doctorID from userID
+    const [docs] = await connection.query('SELECT doctorID FROM doctor WHERE userID = ?', [id]);
+    if (docs.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
+    }
+    const doctorID = docs[0].doctorID;
+
+    // 2. Delete existing specificDate availability for this doctor on this date
+    await connection.query(
+      'DELETE FROM doctoravailability WHERE doctorID = ? AND specificDate = ?',
+      [doctorID, date]
+    );
+
+    // 3. Insert new slots
+    for (const slotStr of slots) {
+      const startMin = timeToMinutes(slotStr);
+      if (startMin === null) continue;
+
+      const endMin = startMin + 30; // default 30 min duration
+      
+      const formatTime = (minutes) => {
+        const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
+        const mm = String(minutes % 60).padStart(2, '0');
+        return `${hh}:${mm}:00`;
+      };
+
+      const startTimeStr = formatTime(startMin);
+      const endTimeStr = formatTime(endMin);
+
+      await connection.query(
+        `INSERT INTO doctoravailability 
+          (doctorID, startTime, endTime, slotDuration, recurring, specificDate, isActive) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [doctorID, startTimeStr, endTimeStr, 30, 0, date, 1]
+      );
+    }
+
+    await connection.commit();
+    res.json({ success: true, message: 'Availability schedule saved successfully' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Update availability error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
 module.exports = {
   getAllDoctors,
   getDoctorById,
@@ -286,5 +382,6 @@ module.exports = {
   updateDoctor,
   toggleAvailability,
   getDoctorSlots,
+  updateAvailability,
   timeToMinutes
 };

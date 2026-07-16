@@ -72,13 +72,13 @@ INSERT INTO `admin` VALUES (1,13,'{\"manage_users\": true, \"view_reports\": tru
 UNLOCK TABLES;
 
 --
--- Table structure for table `appointment`
+-- Table structure for table `appointments`
 --
 
-DROP TABLE IF EXISTS `appointment`;
+DROP TABLE IF EXISTS `appointments`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `appointment` (
+CREATE TABLE `appointments` (
   `appointmentID` int NOT NULL AUTO_INCREMENT,
   `patientID` int NOT NULL,
   `doctorID` int NOT NULL,
@@ -109,13 +109,13 @@ CREATE TABLE `appointment` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `appointment`
+-- Dumping data for table `appointments`
 --
 
-LOCK TABLES `appointment` WRITE;
-/*!40000 ALTER TABLE `appointment` DISABLE KEYS */;
-INSERT INTO `appointment` VALUES (1,1,1,1,'2024-11-15','09:00:00',30,3500.00,'completed','Chest pain and shortness of breath','ECG performed. Prescribed beta-blockers. Follow-up in 2 weeks.',0,0.00,1,'2024-11-15 03:25:00','2024-11-10 05:00:00','2025-12-07 16:24:43'),(2,2,2,1,'2024-11-20','08:30:00',30,2500.00,'completed','Child vaccination - MMR','MMR vaccine administered. No adverse reactions. Next visit in 1 month.',0,0.00,1,'2024-11-20 02:55:00','2024-11-15 08:50:00','2025-12-07 16:24:43'),(3,3,3,2,'2024-11-25','16:00:00',20,2000.00,'completed','Fever and cold for 3 days','Viral infection. Prescribed paracetamol and rest. Return if fever persists.',0,0.00,1,'2024-11-25 10:28:00','2024-11-24 04:15:00','2025-12-07 16:24:43'),(4,4,4,1,'2024-12-10','10:00:00',30,3000.00,'confirmed','Acne treatment consultation',NULL,0,0.00,0,NULL,'2024-12-01 06:00:00','2025-12-07 16:24:43'),(5,5,1,2,'2024-12-12','09:30:00',30,3500.00,'confirmed','Follow-up for hypertension',NULL,0,0.00,0,NULL,'2024-12-02 11:15:00','2025-12-07 16:24:43'),(6,1,3,1,'2024-12-15','16:00:00',20,2000.00,'confirmed','General checkup',NULL,0,0.00,0,NULL,'2024-12-05 04:30:00','2025-12-07 16:24:43'),(7,2,4,NULL,'2024-12-18','11:00:00',30,3000.00,'pending','Skin rash evaluation',NULL,0,0.00,0,NULL,'2024-12-06 07:50:00','2025-12-07 16:24:43'),(8,3,2,NULL,'2024-12-08','08:00:00',30,2500.00,'cancelled','Child health checkup - patient requested cancellation',NULL,0,0.00,0,NULL,'2024-11-30 03:45:00','2025-12-07 16:24:43'),(9,6,1,NULL,'2024-12-20','10:00:00',30,3500.00,'confirmed','Regular checkup',NULL,0,0.00,0,NULL,'2026-05-09 11:17:46','2026-05-09 11:27:43');
-/*!40000 ALTER TABLE `appointment` ENABLE KEYS */;
+LOCK TABLES `appointments` WRITE;
+/*!40000 ALTER TABLE `appointments` DISABLE KEYS */;
+INSERT INTO `appointments` VALUES (1,1,1,1,'2024-11-15','09:00:00',30,3500.00,'completed','Chest pain and shortness of breath','ECG performed. Prescribed beta-blockers. Follow-up in 2 weeks.',0,0.00,1,'2024-11-15 03:25:00','2024-11-10 05:00:00','2025-12-07 16:24:43'),(2,2,2,1,'2024-11-20','08:30:00',30,2500.00,'completed','Child vaccination - MMR','MMR vaccine administered. No adverse reactions. Next visit in 1 month.',0,0.00,1,'2024-11-20 02:55:00','2024-11-15 08:50:00','2025-12-07 16:24:43'),(3,3,3,2,'2024-11-25','16:00:00',20,2000.00,'completed','Fever and cold for 3 days','Viral infection. Prescribed paracetamol and rest. Return if fever persists.',0,0.00,1,'2024-11-25 10:28:00','2024-11-24 04:15:00','2025-12-07 16:24:43'),(4,4,4,1,'2024-12-10','10:00:00',30,3000.00,'confirmed','Acne treatment consultation',NULL,0,0.00,0,NULL,'2024-12-01 06:00:00','2025-12-07 16:24:43'),(5,5,1,2,'2024-12-12','09:30:00',30,3500.00,'confirmed','Follow-up for hypertension',NULL,0,0.00,0,NULL,'2024-12-02 11:15:00','2025-12-07 16:24:43'),(6,1,3,1,'2024-12-15','16:00:00',20,2000.00,'confirmed','General checkup',NULL,0,0.00,0,NULL,'2024-12-05 04:30:00','2025-12-07 16:24:43'),(7,2,4,NULL,'2024-12-18','11:00:00',30,3000.00,'pending','Skin rash evaluation',NULL,0,0.00,0,NULL,'2024-12-06 07:50:00','2025-12-07 16:24:43'),(8,3,2,NULL,'2024-12-08','08:00:00',30,2500.00,'cancelled','Child health checkup - patient requested cancellation',NULL,0,0.00,0,NULL,'2024-11-30 03:45:00','2025-12-07 16:24:43'),(9,6,1,NULL,'2024-12-20','10:00:00',30,3500.00,'confirmed','Regular checkup',NULL,0,0.00,0,NULL,'2026-05-09 11:17:46','2026-05-09 11:27:43');
+/*!40000 ALTER TABLE `appointments` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -250,7 +250,7 @@ CREATE TABLE `feedback` (
   KEY `patientID` (`patientID`),
   KEY `idx_doctor_feedback` (`doctorID`,`isVisible`),
   KEY `idx_rating` (`rating`),
-  CONSTRAINT `feedback_ibfk_1` FOREIGN KEY (`appointmentID`) REFERENCES `appointment` (`appointmentID`) ON DELETE CASCADE,
+  CONSTRAINT `feedback_ibfk_1` FOREIGN KEY (`appointmentID`) REFERENCES `appointments` (`appointmentID`) ON DELETE CASCADE,
   CONSTRAINT `feedback_ibfk_2` FOREIGN KEY (`patientID`) REFERENCES `patient` (`patientID`) ON DELETE CASCADE,
   CONSTRAINT `feedback_ibfk_3` FOREIGN KEY (`doctorID`) REFERENCES `doctor` (`doctorID`) ON DELETE CASCADE,
   CONSTRAINT `feedback_chk_1` CHECK (((`rating` >= 1) and (`rating` <= 5)))
@@ -293,7 +293,7 @@ CREATE TABLE `invoice` (
   KEY `idx_invoiceNumber` (`invoiceNumber`),
   KEY `idx_status` (`status`),
   KEY `idx_issueDate` (`issueDate`),
-  CONSTRAINT `invoice_ibfk_1` FOREIGN KEY (`appointmentID`) REFERENCES `appointment` (`appointmentID`) ON DELETE CASCADE,
+  CONSTRAINT `invoice_ibfk_1` FOREIGN KEY (`appointmentID`) REFERENCES `appointments` (`appointmentID`) ON DELETE CASCADE,
   CONSTRAINT `invoice_ibfk_2` FOREIGN KEY (`patientID`) REFERENCES `patient` (`patientID`) ON DELETE RESTRICT
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -331,7 +331,7 @@ CREATE TABLE `medicalreport` (
   KEY `doctorID` (`doctorID`),
   KEY `idx_patient_reports` (`patientID`,`reportDate`),
   KEY `idx_reportDate` (`reportDate`),
-  CONSTRAINT `medicalreport_ibfk_1` FOREIGN KEY (`appointmentID`) REFERENCES `appointment` (`appointmentID`) ON DELETE CASCADE,
+  CONSTRAINT `medicalreport_ibfk_1` FOREIGN KEY (`appointmentID`) REFERENCES `appointments` (`appointmentID`) ON DELETE CASCADE,
   CONSTRAINT `medicalreport_ibfk_2` FOREIGN KEY (`patientID`) REFERENCES `patient` (`patientID`) ON DELETE RESTRICT,
   CONSTRAINT `medicalreport_ibfk_3` FOREIGN KEY (`doctorID`) REFERENCES `doctor` (`doctorID`) ON DELETE RESTRICT
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -369,7 +369,7 @@ CREATE TABLE `notification` (
   KEY `idx_user_notifications` (`userID`,`status`),
   KEY `idx_notificationDate` (`notificationDate`),
   CONSTRAINT `notification_ibfk_1` FOREIGN KEY (`userID`) REFERENCES `users` (`userID`) ON DELETE CASCADE,
-  CONSTRAINT `notification_ibfk_2` FOREIGN KEY (`appointmentID`) REFERENCES `appointment` (`appointmentID`) ON DELETE CASCADE
+  CONSTRAINT `notification_ibfk_2` FOREIGN KEY (`appointmentID`) REFERENCES `appointments` (`appointmentID`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -421,13 +421,13 @@ INSERT INTO `patient` VALUES (1,NULL,1,'1990-05-15','123, Galle Road, Colombo 03
 UNLOCK TABLES;
 
 --
--- Table structure for table `payment`
+-- Table structure for table `payments`
 --
 
-DROP TABLE IF EXISTS `payment`;
+DROP TABLE IF EXISTS `payments`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `payment` (
+CREATE TABLE `payments` (
   `paymentID` int NOT NULL AUTO_INCREMENT,
   `appointmentID` int NOT NULL,
   `invoiceID` int NOT NULL,
@@ -446,20 +446,20 @@ CREATE TABLE `payment` (
   KEY `idx_payment_status` (`status`),
   KEY `idx_transactionID` (`transactionID`),
   KEY `idx_paymentDate` (`paymentDate`),
-  CONSTRAINT `payment_ibfk_1` FOREIGN KEY (`appointmentID`) REFERENCES `appointment` (`appointmentID`) ON DELETE RESTRICT,
+  CONSTRAINT `payment_ibfk_1` FOREIGN KEY (`appointmentID`) REFERENCES `appointments` (`appointmentID`) ON DELETE RESTRICT,
   CONSTRAINT `payment_ibfk_2` FOREIGN KEY (`invoiceID`) REFERENCES `invoice` (`invoiceID`) ON DELETE RESTRICT,
   CONSTRAINT `payment_ibfk_3` FOREIGN KEY (`accountantID`) REFERENCES `accountant` (`accountantID`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `payment`
+-- Dumping data for table `payments`
 --
 
-LOCK TABLES `payment` WRITE;
-/*!40000 ALTER TABLE `payment` DISABLE KEYS */;
-INSERT INTO `payment` VALUES (1,1,1,1,3500.00,0.00,'card','2024-11-15 04:15:00','completed','TXN-001-2024-1115',NULL),(2,2,2,1,2400.00,0.00,'online','2024-11-20 03:30:00','completed','PAYHERE-20241120-9876',NULL),(3,3,3,1,2000.00,0.00,'cash','2024-11-25 11:00:00','completed',NULL,NULL);
-/*!40000 ALTER TABLE `payment` ENABLE KEYS */;
+LOCK TABLES `payments` WRITE;
+/*!40000 ALTER TABLE `payments` DISABLE KEYS */;
+INSERT INTO `payments` VALUES (1,1,1,1,3500.00,0.00,'card','2024-11-15 04:15:00','completed','TXN-001-2024-1115',NULL),(2,2,2,1,2400.00,0.00,'online','2024-11-20 03:30:00','completed','PAYHERE-20241120-9876',NULL),(3,3,3,1,2000.00,0.00,'cash','2024-11-25 11:00:00','completed',NULL,NULL);
+/*!40000 ALTER TABLE `payments` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --

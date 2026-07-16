@@ -1,14 +1,15 @@
 import React, { useContext, useState, useEffect } from "react";
 import { DoctorContext } from "../../context/DoctorContext";
 import { AppContext } from "../../context/AppContext";
-import { updateDoctorProfile } from "../../services/api";
+import { updateDoctorProfile, changePasswordAPI, uploadProfileImageAPI, deleteProfileImageAPI } from "../../services/api";
+import { assets } from "../../assets/assets";
 
 const DoctorProfile = () => {
   const { currentDoctorId } = useContext(DoctorContext);
-  const { doctors, setDoctors, currencySymbol } = useContext(AppContext);
+  const { doctors, setDoctors, currencySymbol, backendUrl } = useContext(AppContext);
 
   // Retrieve current doctor details
-  const docInfo = doctors.find((d) => d._id === currentDoctorId);
+  const docInfo = doctors.find((d) => String(d._id) === String(currentDoctorId));
 
   // Edit Mode state
   const [isEdit, setIsEdit] = useState(false);
@@ -19,6 +20,12 @@ const DoctorProfile = () => {
   const [available, setAvailable] = useState(false);
 
   const [notification, setNotification] = useState("");
+
+  // Password change states
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   // Sync state with docInfo when docInfo changes or when entering edit mode
   useEffect(() => {
@@ -78,6 +85,83 @@ const DoctorProfile = () => {
     }
   };
 
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setNotification("");
+    if (newPassword !== confirmPassword) {
+      alert("New passwords do not match.");
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      const res = await changePasswordAPI({ currentPassword, newPassword, confirmPassword });
+      if (res.success) {
+        setNotification("Password updated successfully!");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setTimeout(() => setNotification(""), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to update password.");
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setNotification("");
+
+    const formData = new FormData();
+    formData.append("profileImage", file);
+
+    try {
+      const res = await uploadProfileImageAPI(formData);
+      if (res.success) {
+        // Reload page or update doctors list in context
+        // Since image path is returned in res.imagePath or similar, let's update local context
+        const imagePath = res.imagePath || `/uploads/profile/${file.name}`; // fallback or check response
+        setDoctors((prev) =>
+          prev.map((doc) =>
+            doc._id === currentDoctorId
+              ? { ...doc, image: res.profileImage || imagePath }
+              : doc
+          )
+        );
+        setNotification("Profile photo updated successfully!");
+        setTimeout(() => setNotification(""), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to upload photo.");
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!window.confirm("Are you sure you want to delete your profile photo?")) return;
+    setNotification("");
+    try {
+      const res = await deleteProfileImageAPI();
+      if (res.success) {
+        setDoctors((prev) =>
+          prev.map((doc) =>
+            doc._id === currentDoctorId
+              ? { ...doc, image: null }
+              : doc
+          )
+        );
+        setNotification("Profile photo removed successfully!");
+        setTimeout(() => setNotification(""), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to delete photo.");
+    }
+  };
+
   return (
     <div className="m-5 sm:m-8 w-full max-w-4xl">
       <h2 className="text-xl font-bold text-gray-900 mb-6">Doctor Profile</h2>
@@ -92,7 +176,11 @@ const DoctorProfile = () => {
         {/* Left Aspect: Profile Photo */}
         <div className="w-full md:w-1/3 bg-slate-50 flex items-center justify-center p-6 border-b md:border-b-0 md:border-r border-zinc-100">
           <div className="w-48 h-48 sm:w-60 sm:h-60 rounded-2xl overflow-hidden shadow-sm border border-zinc-150">
-            <img className="w-full h-full object-cover" src={docInfo.image} alt={docInfo.name} />
+            <img
+              className="w-full h-full object-cover"
+              src={docInfo.image ? (docInfo.image.startsWith('http') ? docInfo.image : `${backendUrl}${docInfo.image}`) : assets[`doc${(((docInfo._id || docInfo.userID || 0) % 15) + 1)}`]}
+              alt={docInfo.name}
+            />
           </div>
         </div>
 
@@ -251,6 +339,88 @@ const DoctorProfile = () => {
                 Edit Profile
               </button>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Account Settings / Security Section */}
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Change Password Block */}
+        <div className="bg-white border border-zinc-100 rounded-2xl p-6 sm:p-8 shadow-xs">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">Security & Password</h3>
+          <form onSubmit={handlePasswordChange} className="flex flex-col gap-4">
+            <div>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Current Password</label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl p-2.5 w-full text-sm text-gray-800 transition-all bg-gray-50/20"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl p-2.5 w-full text-sm text-gray-800 transition-all bg-gray-50/20"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Confirm New Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl p-2.5 w-full text-sm text-gray-800 transition-all bg-gray-50/20"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={passwordLoading}
+              className="bg-primary hover:bg-[#4f5fef] text-white py-2.5 px-6 rounded-xl font-semibold shadow-xs transition-all cursor-pointer text-sm active:scale-95 disabled:opacity-50"
+            >
+              {passwordLoading ? "Updating..." : "Update Password"}
+            </button>
+          </form>
+        </div>
+
+        {/* Change Profile Photo Block */}
+        <div className="bg-white border border-zinc-100 rounded-2xl p-6 sm:p-8 shadow-xs">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">Profile Photo</h3>
+          <div className="flex flex-col gap-4 items-center">
+            <div className="w-28 h-28 rounded-full overflow-hidden shadow-sm border border-zinc-150 relative group">
+              <img
+                className="w-full h-full object-cover"
+                src={docInfo.image ? (docInfo.image.startsWith('http') ? docInfo.image : `${backendUrl}${docInfo.image}`) : assets[`doc${(((docInfo._id || docInfo.userID || 0) % 15) + 1)}`]}
+                alt={docInfo.name}
+              />
+            </div>
+            <div className="flex flex-col gap-2 w-full mt-2">
+              <input
+                type="file"
+                id="profile-img-upload"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+              <label
+                htmlFor="profile-img-upload"
+                className="bg-primary hover:bg-[#4f5fef] text-white py-2.5 px-6 rounded-xl font-semibold shadow-xs transition-all cursor-pointer text-sm text-center block active:scale-95"
+              >
+                Upload New Photo
+              </label>
+              <button
+                onClick={handleDeletePhoto}
+                className="border border-red-200 hover:bg-red-50 text-red-600 py-2.5 px-6 rounded-xl font-semibold transition-all cursor-pointer text-sm active:scale-95 bg-white"
+              >
+                Remove Photo
+              </button>
+            </div>
           </div>
         </div>
       </div>

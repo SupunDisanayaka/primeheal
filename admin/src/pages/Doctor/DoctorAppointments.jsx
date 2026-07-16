@@ -8,7 +8,7 @@ const DoctorAppointments = () => {
   const { appointments, setAppointments, syncAppointmentStatus, currencySymbol } = useContext(AppContext);
 
   // Filter appointments specifically assigned to this logged-in doctor
-  const docApts = appointments.filter((apt) => apt.docId === currentDoctorId);
+  const docApts = appointments.filter((apt) => String(apt.docId) === String(currentDoctorId));
 
   const handleStatusChange = async (aptId, newStatus) => {
     try {
