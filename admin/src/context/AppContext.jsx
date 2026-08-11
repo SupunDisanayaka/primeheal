@@ -15,22 +15,23 @@ const AppContextProvider = ({ children }) => {
 
   const [doctors, setDoctors] = useState([]);
 
-  React.useEffect(() => {
-    const fetchDoctors = async () => {
-      try {
-        const data = await getDoctors();
-        if (data.success) {
-          setDoctors(data.doctors.map((doctor) => ({
-            ...doctor,
-            fees: Number(doctor.fees || 0)
-          })));
-        }
-      } catch (error) {
-        console.error("Failed to fetch doctors:", error);
+  const fetchDoctors = useCallback(async () => {
+    try {
+      const data = await getDoctors();
+      if (data.success && Array.isArray(data.doctors)) {
+        setDoctors(data.doctors.map((doctor) => ({
+          ...doctor,
+          fees: Number(doctor.fees || 0)
+        })));
       }
-    };
-    fetchDoctors();
+    } catch (error) {
+      console.error("Failed to fetch doctors:", error);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchDoctors();
+  }, [fetchDoctors]);
 
   const getFormattedDate = (offsetDays = 0) => {
     const months = [
@@ -370,6 +371,7 @@ const AppContextProvider = ({ children }) => {
   const value = {
     doctors,
     setDoctors,
+    fetchDoctors,
     appointments,
     setAppointments,
     adminDashboardStats,
