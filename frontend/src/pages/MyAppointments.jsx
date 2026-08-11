@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect, useCallback } from 'react'
 import { AppContext } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
-import { cancelAppointment as cancelAppointmentRequest, getMyAppointments, createPaymentSession, downloadInvoice } from '../services/api'
+import { cancelAppointment as cancelAppointmentRequest, getMyAppointments, createPaymentSession, downloadInvoice, verifyPaymentAPI } from '../services/api'
 import { assets } from '../assets/assets'
 
 const MyAppointments = () => {
@@ -26,13 +26,13 @@ const MyAppointments = () => {
   const [paymentStatus, setPaymentStatus] = useState('idle') 
   const [payingAptId, setPayingAptId] = useState(null)
 
-  const loadAppointments = useCallback(async () => {
+  const loadAppointments = useCallback(async (showLoadingSpinner = false) => {
     if (!token) {
       setAppointments([])
       setLoading(false)
       return
     }
-    setLoading(true)
+    if (showLoadingSpinner) setLoading(true)
     try {
       const data = await getMyAppointments()
       if (data.success) {
@@ -56,12 +56,12 @@ const MyAppointments = () => {
       console.error('Failed to load appointments from database.', error)
       setAppointments([])
     } finally {
-      setLoading(false)
+      if (showLoadingSpinner) setLoading(false)
     }
   }, [token])
 
   useEffect(() => {
-    loadAppointments()
+    loadAppointments(true)
   }, [loadAppointments])
 
   const openPaymentModal = (apt) => {
@@ -99,11 +99,14 @@ const MyAppointments = () => {
         return
       }
 
+      const activeOrderId = data.checkout?.order_id || data.payment?.merchantOrderId;
+
       // Configure PayHere SDK Callbacks
-      window.payhere.onCompleted = function onCompleted(orderId) {
-        console.log("Payment completed. OrderID:" + orderId)
+      window.payhere.onCompleted = async function onCompleted(orderId) {
+        const finalOrderId = orderId || activeOrderId;
+        console.log("Payment completed. OrderID:" + finalOrderId)
         
-        // Optimistically update frontend state
+        // Optimistically update frontend state immediately
         setAppointments((prev) =>
           prev.map((item) =>
             String(item.appointmentId) === String(apt.appointmentId)
@@ -112,32 +115,41 @@ const MyAppointments = () => {
           )
         )
         setPayingAptId(null)
-        
-        let attempts = 0
-        const maxAttempts = 10
-        const interval = setInterval(async () => {
-          attempts++
-          try {
-            const res = await getMyAppointments()
-            if (res.success) {
-              const updatedApt = res.appointments.find(
-                (a) => String(a.appointmentId ?? a.appointmentID) === String(apt.appointmentId)
-              )
-              if (updatedApt && (updatedApt.paymentStatus === 'Completed' || updatedApt.status === 'Paid')) {
-                clearInterval(interval)
-                loadAppointments()
-                alert("Payment completed and verified successfully!")
-                return
+
+        // Directly call backend to finalize payment and save 'Paid' status in MySQL DB
+        try {
+          if (finalOrderId) {
+            const verifyRes = await verifyPaymentAPI({ orderId: finalOrderId });
+            console.log("[PAYMENT COMPLETE] Backend verification response:", verifyRes);
+          }
+          await loadAppointments();
+        } catch (verifyErr) {
+          console.error("Payment verification API error:", verifyErr);
+          let attempts = 0
+          const maxAttempts = 5
+          const interval = setInterval(async () => {
+            attempts++
+            try {
+              const res = await getMyAppointments()
+              if (res.success) {
+                const updatedApt = res.appointments.find(
+                  (a) => String(a.appointmentId ?? a.appointmentID) === String(apt.appointmentId)
+                )
+                if (updatedApt && (updatedApt.paymentStatus === 'Completed' || updatedApt.status === 'Paid')) {
+                  clearInterval(interval)
+                  loadAppointments()
+                  return
+                }
               }
+            } catch (e) {
+              console.error('Polling error', e)
             }
-          } catch (e) {
-            console.error('Polling error', e)
-          }
-          if (attempts >= maxAttempts) {
-            clearInterval(interval)
-            loadAppointments()
-          }
-        }, 2000)
+            if (attempts >= maxAttempts) {
+              clearInterval(interval)
+              loadAppointments()
+            }
+          }, 2000)
+        }
       }
 
       window.payhere.onDismissed = function onDismissed() {
@@ -164,17 +176,28 @@ const MyAppointments = () => {
     }
   }
 
-  const handleMakePayment = (e) => {
+  const handleMakePayment = async (e) => {
     e.preventDefault()
     if (!termsAccepted) {
       alert("Please accept the terms & conditions to proceed.")
       return
     }
     setPaymentStatus('processing')
-    setTimeout(() => {
+    try {
+      if (selectedApt) {
+        const session = await createPaymentSession(selectedApt.appointmentId);
+        if (session.success && (session.payment?.merchantOrderId || session.checkout?.order_id)) {
+          const orderId = session.payment?.merchantOrderId || session.checkout?.order_id;
+          await verifyPaymentAPI({ orderId });
+        }
+      }
       setPaymentStatus('success')
-      loadAppointments()
-    }, 1500)
+      await loadAppointments()
+    } catch (err) {
+      console.error('Payment modal error:', err)
+      setPaymentStatus('idle')
+      alert('Payment processing failed.')
+    }
   }
 
   const handleDownloadInvoice = async (appointmentId) => {

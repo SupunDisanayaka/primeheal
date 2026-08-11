@@ -253,14 +253,22 @@ const getDoctorSlots = async (req, res) => {
       const dayName = weekdays[date.getDay()];
 
       // Get availability for this date
-      const [availabilities] = await pool.query(
-        `SELECT * FROM doctoravailability 
-         WHERE doctorID = ? AND isActive = 1 AND (
-           (specificDate = ?) OR 
-           (dayOfWeek = ? AND specificDate IS NULL)
-         )`,
-        [doctorID, formattedDate, dayName]
+      const [specificAvail] = await pool.query(
+        `SELECT * FROM doctoravailability WHERE doctorID = ? AND specificDate = ?`,
+        [doctorID, formattedDate]
       );
+
+      let availabilities = [];
+      if (specificAvail.length > 0) {
+        availabilities = specificAvail.filter(a => Number(a.isActive) === 1);
+      } else {
+        const [recurringAvail] = await pool.query(
+          `SELECT * FROM doctoravailability 
+           WHERE doctorID = ? AND dayOfWeek = ? AND specificDate IS NULL AND isActive = 1`,
+          [doctorID, dayName]
+        );
+        availabilities = recurringAvail;
+      }
 
       // Get existing appointments for this date
       const [appointments] = await pool.query(
@@ -340,28 +348,37 @@ const updateAvailability = async (req, res) => {
       [doctorID, date]
     );
 
-    // 3. Insert new slots
-    for (const slotStr of slots) {
-      const startMin = timeToMinutes(slotStr);
-      if (startMin === null) continue;
-
-      const endMin = startMin + 30; // default 30 min duration
-      
-      const formatTime = (minutes) => {
-        const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
-        const mm = String(minutes % 60).padStart(2, '0');
-        return `${hh}:${mm}:00`;
-      };
-
-      const startTimeStr = formatTime(startMin);
-      const endTimeStr = formatTime(endMin);
-
+    // 3. Insert new slots or marker if empty
+    if (slots.length === 0) {
       await connection.query(
         `INSERT INTO doctoravailability 
           (doctorID, startTime, endTime, slotDuration, recurring, specificDate, isActive) 
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [doctorID, startTimeStr, endTimeStr, 30, 0, date, 1]
+         VALUES (?, '00:00:00', '00:00:00', 30, 0, ?, 0)`,
+        [doctorID, date]
       );
+    } else {
+      for (const slotStr of slots) {
+        const startMin = timeToMinutes(slotStr);
+        if (startMin === null) continue;
+
+        const endMin = startMin + 30; // default 30 min duration
+        
+        const formatTime = (minutes) => {
+          const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
+          const mm = String(minutes % 60).padStart(2, '0');
+          return `${hh}:${mm}:00`;
+        };
+
+        const startTimeStr = formatTime(startMin);
+        const endTimeStr = formatTime(endMin);
+
+        await connection.query(
+          `INSERT INTO doctoravailability 
+            (doctorID, startTime, endTime, slotDuration, recurring, specificDate, isActive) 
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [doctorID, startTimeStr, endTimeStr, 30, 0, date, 1]
+        );
+      }
     }
 
     await connection.commit();

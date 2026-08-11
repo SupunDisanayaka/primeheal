@@ -19,10 +19,10 @@ const AppContextProvider = ({ children }) => {
   const fetchDoctorsData = useCallback(async () => {
     try {
       const data = await getDoctors();
-      if (data.success) {
+      if (data.success && Array.isArray(data.doctors)) {
         setDoctors(data.doctors.map((doctor) => ({
           ...doctor,
-          fees: doctor.fees || 2500
+          fees: Number(doctor.fees || 0)
         })));
       } else {
         setDoctors([]);

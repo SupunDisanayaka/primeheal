@@ -1,15 +1,25 @@
 import React, { useContext, useState, useEffect } from "react";
 import { DoctorContext } from "../../context/DoctorContext";
 import { AppContext } from "../../context/AppContext";
-import { updateDoctorProfile, changePasswordAPI, uploadProfileImageAPI, deleteProfileImageAPI } from "../../services/api";
+import { updateDoctorProfile, changePasswordAPI, uploadProfileImageAPI, deleteProfileImageAPI, getUserProfile } from "../../services/api";
 import { assets } from "../../assets/assets";
 
 const DoctorProfile = () => {
   const { currentDoctorId } = useContext(DoctorContext);
   const { doctors, setDoctors, currencySymbol, backendUrl } = useContext(AppContext);
 
-  // Retrieve current doctor details
-  const docInfo = doctors.find((d) => String(d._id) === String(currentDoctorId));
+  const [apiDoc, setApiDoc] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Retrieve current doctor details from context or direct API fetch
+  const contextDoc = doctors.find(
+    (d) =>
+      String(d._id) === String(currentDoctorId) ||
+      String(d.userID) === String(currentDoctorId) ||
+      String(d.doctorID) === String(currentDoctorId)
+  );
+
+  const docInfo = apiDoc || contextDoc;
 
   // Edit Mode state
   const [isEdit, setIsEdit] = useState(false);
@@ -27,21 +37,66 @@ const DoctorProfile = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
 
+  useEffect(() => {
+    const fetchProfileDirectly = async () => {
+      setLoading(true);
+      try {
+        const res = await getUserProfile();
+        if (res.success && res.user) {
+          const u = res.user;
+          const formatted = {
+            _id: u.userID || u._id,
+            userID: u.userID || u._id,
+            doctorID: u.doctorID,
+            name: u.name,
+            email: u.email,
+            image: u.profileImage || u.image,
+            speciality: u.specialization || u.speciality || "General Physician",
+            degree: u.qualifications || u.degree || "MBBS",
+            about: u.bio || u.about || "",
+            fees: Number(u.consultationFee ?? u.fees ?? 0),
+            available: u.isAvailable !== undefined ? Boolean(u.isAvailable) : true,
+            experience: u.experience || "5 Years",
+            address: {
+              line1: u.addressLine1 || (typeof u.address === 'object' ? u.address?.line1 : u.address) || "PrimeHeal Clinic",
+              line2: u.addressLine2 || (typeof u.address === 'object' ? u.address?.line2 : "") || "Colombo 03"
+            }
+          };
+          setApiDoc(formatted);
+        }
+      } catch (err) {
+        console.error("Direct doctor profile fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfileDirectly();
+  }, [currentDoctorId]);
+
   // Sync state with docInfo when docInfo changes or when entering edit mode
   useEffect(() => {
     if (docInfo) {
-      setFees(docInfo.fees);
-      setAddress1(docInfo.address.line1);
-      setAddress2(docInfo.address.line2);
-      setAbout(docInfo.about);
-      setAvailable(docInfo.available);
+      setFees(docInfo.fees ?? "");
+      setAddress1(docInfo.address?.line1 ?? "");
+      setAddress2(docInfo.address?.line2 ?? "");
+      setAbout(docInfo.about ?? "");
+      setAvailable(Boolean(docInfo.available));
     }
   }, [docInfo, isEdit]);
+
+  if (loading && !docInfo) {
+    return (
+      <div className="m-5 sm:m-8 p-6 text-center text-gray-500 font-medium animate-pulse">
+        Loading doctor profile...
+      </div>
+    );
+  }
 
   if (!docInfo) {
     return (
       <div className="m-5 sm:m-8 p-6 text-center text-gray-500 font-medium">
-        Error loading profile. Doctor not found.
+        Error loading profile. Doctor record not found.
       </div>
     );
   }

@@ -12,12 +12,25 @@ const Doctors = () => {
 
   const [filterDoc, setFilterDoc] = useState([])
   const [showFilter, setShowFilter] = useState(false) // ✅ fixed
+  const getDoctorImage = (item) => {
+    if (item.image && typeof item.image === 'string') {
+      return item.image.startsWith('http') ? item.image : `${backendUrl}${item.image}`;
+    }
+    const numericId = parseInt(String(item._id || item.userID || '1').replace(/\D/g, ''), 10) || 1;
+    const docKey = `doc${((numericId - 1) % 15) + 1}`;
+    return assets[docKey] || assets.doc1;
+  };
 
   // Apply filter
   const applyFilter = () => {
     if (speciality) {
+      const target = speciality.toLowerCase().trim().replace(/s$/, '');
       setFilterDoc(
-        doctors.filter(doc => doc.speciality === speciality)
+        doctors.filter(doc => {
+          if (!doc.speciality) return false;
+          const s = doc.speciality.toLowerCase().trim().replace(/s$/, '');
+          return s === target || s.includes(target) || target.includes(s);
+        })
       )
     } else {
       setFilterDoc(doctors)
@@ -58,14 +71,9 @@ const Doctors = () => {
 
           {/* Header branding overlay */}
           <div className="flex items-center justify-between pb-4 border-b border-gray-200/40 select-none">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#00A7A7] to-[#00E0E0] flex items-center justify-center text-white font-extrabold shadow-sm text-lg">
-                H
-              </div>
-              <div>
-                <h4 className="font-bold text-gray-800 text-sm">Specialities</h4>
-                <p className="text-[10px] text-gray-500 font-medium">Filter doctors list</p>
-              </div>
+            <div>
+              <h4 className="font-bold text-gray-800 text-sm">Specialities</h4>
+              <p className="text-[10px] text-gray-500 font-medium">Filter doctors list</p>
             </div>
             <div className="w-7 h-7 rounded-full bg-white/80 border border-gray-100 flex items-center justify-center text-gray-500 text-xs shadow-xs cursor-pointer hover:bg-white transition-all">
               &gt;
@@ -178,7 +186,7 @@ const Doctors = () => {
 
                 {/* Main Portrait Image of Doctor */}
                 <img
-                  src={item.image ? (item.image.startsWith('http') ? item.image : `${backendUrl}${item.image}`) : assets[`doc${(((item._id || item.userID || 0) % 15) + 1)}`]}
+                  src={getDoctorImage(item)}
                   alt={item.name}
                   className='absolute inset-x-0 bottom-0 w-full h-[85%] object-contain object-bottom pointer-events-none group-hover:scale-105 transition-transform duration-500 z-0'
                 />
@@ -200,7 +208,7 @@ const Doctors = () => {
                     {/* Left: Avatar and Handle */}
                     <div className='flex items-center gap-2 min-w-0'>
                       <img
-                        src={item.image ? (item.image.startsWith('http') ? item.image : `${backendUrl}${item.image}`) : assets[`doc${(((item._id || item.userID || 0) % 15) + 1)}`]}
+                        src={getDoctorImage(item)}
                         alt="avatar"
                         className='w-8 h-8 rounded-full border border-white/50 object-cover bg-white/70 flex-shrink-0'
                       />

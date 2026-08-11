@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { assets } from "../assets/assets";
 import { AdminContext } from "./AdminContext";
 import { DoctorContext } from "./DoctorContext";
-import { getDoctors, getAdminAppointments, getAdminDashboard, getAdminRecentAppointments, updateAdminAppointmentStatus, getDoctorAppointmentsAPI } from "../services/api";
+import { getDoctors, getAdminAppointments, getAdminDashboard, getAdminRecentAppointments, updateAdminAppointmentStatus, getDoctorAppointmentsAPI, getReceptionistsAPI, getAccountantsAPI } from "../services/api";
 
 export const AppContext = createContext();
 
@@ -22,7 +22,7 @@ const AppContextProvider = ({ children }) => {
         if (data.success) {
           setDoctors(data.doctors.map((doctor) => ({
             ...doctor,
-            fees: toLkr(doctor.fees)
+            fees: Number(doctor.fees || 0)
           })));
         }
       } catch (error) {
@@ -235,55 +235,61 @@ const AppContextProvider = ({ children }) => {
     }
   ]);
 
-  const [receptionists, setReceptionists] = useState([
-    {
-      _id: "rec1",
-      name: "Alice Johnson",
-      email: "alice@primeheal.com",
-      phone: "+1 555-0101",
-      image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400",
-      shift: "Morning (08:00 AM - 04:00 PM)",
-      deskBlock: "A-Block, Reception Desk 1",
-      available: true,
-      createdAt: new Date("2024-01-15T08:00:00")
-    },
-    {
-      _id: "rec2",
-      name: "David Smith",
-      email: "david@primeheal.com",
-      phone: "+1 555-0102",
-      image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=400",
-      shift: "Evening (04:00 PM - 12:00 AM)",
-      deskBlock: "B-Block, Reception Desk 2",
-      available: true,
-      createdAt: new Date("2024-02-20T16:00:00")
-    }
-  ]);
+  const [receptionists, setReceptionists] = useState([]);
+  const [receptionistsLoading, setReceptionistsLoading] = useState(false);
+  const [receptionistsError, setReceptionistsError] = useState(null);
 
-  const [accountants, setAccountants] = useState([
-    {
-      _id: "acc1",
-      name: "Sarah Jenkins",
-      email: "sarah.j@primeheal.com",
-      phone: "+1 555-0201",
-      image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400",
-      department: "Billing & Insurance",
-      shift: "Full-Time (09:00 AM - 05:00 PM)",
-      available: true,
-      createdAt: new Date("2024-03-10T09:00:00")
-    },
-    {
-      _id: "acc2",
-      name: "Robert Miller",
-      email: "robert@primeheal.com",
-      phone: "+1 555-0202",
-      image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400",
-      department: "Payroll & Accounts",
-      shift: "Full-Time (09:00 AM - 05:00 PM)",
-      available: false,
-      createdAt: new Date("2024-04-05T09:00:00")
+  const fetchReceptionists = useCallback(async () => {
+    if (!adminToken) return;
+    setReceptionistsLoading(true);
+    setReceptionistsError(null);
+    try {
+      const data = await getReceptionistsAPI();
+      if (data.success) {
+        setReceptionists(data.receptionists || []);
+      } else {
+        setReceptionistsError(data.message || 'Failed to load receptionists');
+      }
+    } catch (error) {
+      console.error('[AppContext] fetchReceptionists error:', error);
+      setReceptionistsError(error.response?.data?.message || error.message || 'Failed to load receptionists');
+    } finally {
+      setReceptionistsLoading(false);
     }
-  ]);
+  }, [adminToken]);
+
+  // Fetch receptionists whenever the admin token changes
+  useEffect(() => {
+    fetchReceptionists();
+  }, [fetchReceptionists]);
+
+  const [accountants, setAccountants] = useState([]);
+  const [accountantsLoading, setAccountantsLoading] = useState(false);
+  const [accountantsError, setAccountantsError] = useState(null);
+
+  const fetchAccountants = useCallback(async () => {
+    if (!adminToken) return;
+    setAccountantsLoading(true);
+    setAccountantsError(null);
+    try {
+      const data = await getAccountantsAPI();
+      if (data.success) {
+        setAccountants(data.accountants || []);
+      } else {
+        setAccountantsError(data.message || 'Failed to load accountants');
+      }
+    } catch (error) {
+      console.error('[AppContext] fetchAccountants error:', error);
+      setAccountantsError(error.response?.data?.message || error.message || 'Failed to load accountants');
+    } finally {
+      setAccountantsLoading(false);
+    }
+  }, [adminToken]);
+
+  // Fetch accountants whenever the admin token changes
+  useEffect(() => {
+    fetchAccountants();
+  }, [fetchAccountants]);
 
   const [receptionistToken, setReceptionistToken] = useState(
     localStorage.getItem("receptionistToken") || ""
@@ -375,8 +381,14 @@ const AppContextProvider = ({ children }) => {
     syncAppointmentStatus,
     receptionists,
     setReceptionists,
+    receptionistsLoading,
+    receptionistsError,
+    fetchReceptionists,
     accountants,
     setAccountants,
+    accountantsLoading,
+    accountantsError,
+    fetchAccountants,
     receptionistToken,
     setReceptionistToken,
     currentReceptionistId,

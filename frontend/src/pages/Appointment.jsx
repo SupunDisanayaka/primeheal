@@ -165,8 +165,8 @@ const Appointment = () => {
         slotDate: getSelectedSlotDate(),
         slotTime: slotTime,
         status: 'Pending',
-        fees: 3500 + Number(docInfo.fees),
-        totalCharge: formData.noShowRefund ? `${3500 + Number(docInfo.fees)} + 275 LKR` : `${3500 + Number(docInfo.fees)}`
+        fees: Number(docInfo.fees),
+        totalCharge: formData.noShowRefund ? `${Number(docInfo.fees) + 275} LKR` : `${Number(docInfo.fees)} LKR`
       };
 
       // Save to local storage
@@ -334,10 +334,7 @@ const Appointment = () => {
           <p className="text-gray-500 font-medium mt-4">
             Channeling fee:
             <span className="text-gray-600 ml-1 font-bold text-teal-600">
-              LKR {3500 + Number(docInfo.fees)}
-            </span>
-            <span className="text-xs text-gray-400 font-normal block mt-1">
-              (LKR 3500 base channeling fee + LKR {docInfo.fees} booking fee)
+              LKR {Number(docInfo.fees).toFixed(2)}
             </span>
           </p>
 
@@ -546,7 +543,7 @@ const Appointment = () => {
               <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between text-sm">
                 <span className="font-medium text-gray-500">Total Booking Cost:</span>
                 <span className="font-bold text-gray-800 text-teal-600">
-                  LKR {3500 + Number(docInfo.fees)}
+                  LKR {Number(docInfo.fees).toFixed(2)}
                   {formData.noShowRefund && <span className="text-xs font-semibold text-[#00A7A7] ml-1.5">+ 275 LKR</span>}
                 </span>
               </div>

@@ -41,6 +41,8 @@ const DoctorSchedule = () => {
   const [rangeEnd, setRangeEnd] = useState("05:00 PM");
   const [savedNotification, setSavedNotification] = useState("");
   const [availableSlots, setAvailableSlots] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const months = [
     "January", "February", "March", "April", "May", "June",
@@ -76,46 +78,54 @@ const DoctorSchedule = () => {
             setAvailableSlots([]);
           }
         }
+        setHasUnsavedChanges(false);
       } catch (err) {
         console.error("Failed to load availability from backend:", err);
         setAvailableSlots([]);
+        setHasUnsavedChanges(false);
       }
     };
     loadAvailability();
   }, [currentDoctorId, selectedDateInput]);
 
-  const saveSlotsToBackend = async (newSlots) => {
+  const handleSaveUpdate = async () => {
     try {
-      setSavedNotification("Saving to database...");
+      setIsSaving(true);
+      setSavedNotification("Saving schedule to database...");
       const res = await saveDoctorAvailabilityAPI(currentDoctorId, {
         date: selectedDateInput,
-        slots: newSlots
+        slots: availableSlots
       });
       if (res.success) {
-        setAvailableSlots(newSlots);
-        setSavedNotification("Schedule saved successfully!");
-        setTimeout(() => setSavedNotification(""), 3000);
+        setSavedNotification("Schedule updated successfully!");
+        setHasUnsavedChanges(false);
+        setTimeout(() => setSavedNotification(""), 3500);
+      } else {
+        alert(res.message || "Failed to save schedule");
+        setSavedNotification("");
       }
     } catch (err) {
       console.error("Failed to save schedule:", err);
       alert("Failed to save schedule to database");
-      setSavedNotification("Failed to save");
-      setTimeout(() => setSavedNotification(""), 3000);
+      setSavedNotification("");
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Toggle availability of a specific slot
+  // Toggle availability of a specific slot (local state)
   const handleToggleSlot = (timeSlot) => {
-    let updatedSlots;
-    if (availableSlots.includes(timeSlot)) {
-      updatedSlots = availableSlots.filter((s) => s !== timeSlot);
-    } else {
-      updatedSlots = [...availableSlots, timeSlot];
-    }
-    saveSlotsToBackend(updatedSlots);
+    setAvailableSlots((prev) => {
+      if (prev.includes(timeSlot)) {
+        return prev.filter((s) => s !== timeSlot);
+      } else {
+        return [...prev, timeSlot];
+      }
+    });
+    setHasUnsavedChanges(true);
   };
 
-  // Apply a time range availability (e.g. 4 pm to 8 pm)
+  // Apply a time range availability (local state)
   const handleApplyRange = (e) => {
     e.preventDefault();
     const startMins = parseTimeToMinutes(rangeStart);
@@ -131,13 +141,15 @@ const DoctorSchedule = () => {
       return slotMins >= startMins && slotMins <= endMins;
     });
 
-    saveSlotsToBackend(filteredRangeSlots);
+    setAvailableSlots(filteredRangeSlots);
+    setHasUnsavedChanges(true);
   };
 
-  // Clear availability for this date
+  // Clear availability for this date (local state)
   const handleClearDate = () => {
-    if (window.confirm("Are you sure you want to clear your schedule for this date?")) {
-      saveSlotsToBackend([]);
+    if (window.confirm("Are you sure you want to clear your schedule for this date? (Click 'Save Update' after to apply changes)")) {
+      setAvailableSlots([]);
+      setHasUnsavedChanges(true);
     }
   };
 
@@ -149,11 +161,30 @@ const DoctorSchedule = () => {
           <h2 className="text-2xl font-bold text-gray-900">My Availability Schedule</h2>
           <p className="text-sm text-gray-500 mt-1">Configure the days and times you are available for consultation slots.</p>
         </div>
-        {savedNotification && (
-          <div className="bg-teal-50 text-teal-600 px-4 py-2 rounded-xl text-xs font-bold border border-teal-200 animate-pulse transition-all">
-            {savedNotification}
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {savedNotification && (
+            <div className="bg-teal-50 text-teal-600 px-4 py-2 rounded-xl text-xs font-bold border border-teal-200 animate-pulse transition-all">
+              {savedNotification}
+            </div>
+          )}
+          <button
+            onClick={handleSaveUpdate}
+            disabled={isSaving}
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold text-white shadow-md transition-all flex items-center gap-2 ${
+              hasUnsavedChanges
+                ? "bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-300"
+                : "bg-primary hover:bg-[#4f5fef]"
+            } disabled:opacity-50 cursor-pointer`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+            </svg>
+            {isSaving ? "Saving..." : "Save Update"}
+            {hasUnsavedChanges && (
+              <span className="w-2 h-2 bg-amber-300 rounded-full animate-ping"></span>
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -220,7 +251,7 @@ const DoctorSchedule = () => {
               </div>
               <button
                 type="submit"
-                className="bg-primary hover:bg-[#4f5fef] text-white py-2.5 rounded-xl text-xs font-bold mt-2 shadow-md transition-all"
+                className="bg-primary hover:bg-[#4f5fef] text-white py-2.5 rounded-xl text-xs font-bold mt-2 shadow-md transition-all cursor-pointer"
               >
                 Apply Range
               </button>
@@ -234,15 +265,24 @@ const DoctorSchedule = () => {
             <div className="flex justify-between items-center border-b border-zinc-100 pb-4">
               <div>
                 <h3 className="text-md font-bold text-gray-900">Available Time Slots</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Toggle individual slot items to set precise availability.</p>
+                <p className="text-xs text-gray-400 mt-0.5">Toggle individual slot items to set precise availability, then click Save Update.</p>
               </div>
-              <button
-                onClick={handleClearDate}
-                disabled={availableSlots.length === 0}
-                className="text-xs font-bold text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/50 py-1.5 px-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Clear All
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleClearDate}
+                  disabled={availableSlots.length === 0}
+                  className="text-xs font-bold text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/50 py-1.5 px-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Clear All
+                </button>
+                <button
+                  onClick={handleSaveUpdate}
+                  disabled={isSaving}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-1.5 px-4 rounded-lg shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSaving ? "Saving..." : "Save Update"}
+                </button>
+              </div>
             </div>
 
             {/* Slots Grid */}
@@ -253,7 +293,7 @@ const DoctorSchedule = () => {
                   <button
                     key={slot}
                     onClick={() => handleToggleSlot(slot)}
-                    className={`py-3 px-2 border rounded-xl text-xs font-bold text-center transition-all duration-200 ${
+                    className={`py-3 px-2 border rounded-xl text-xs font-bold text-center transition-all duration-200 cursor-pointer ${
                       isSelected
                         ? "bg-teal-50 border-teal-300 text-teal-700 shadow-xs hover:bg-teal-100/70"
                         : "bg-slate-50/50 border-zinc-100 text-gray-400 hover:bg-slate-50 hover:text-gray-700"
@@ -269,6 +309,9 @@ const DoctorSchedule = () => {
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 bg-teal-50 border border-teal-300 rounded-full inline-block"></span>
                 Available Slots ({availableSlots.length})
+                {hasUnsavedChanges && (
+                  <span className="text-amber-600 font-bold ml-2">(Unsaved Changes)</span>
+                )}
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 bg-slate-50 border border-zinc-100 rounded-full inline-block"></span>

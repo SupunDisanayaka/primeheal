@@ -134,10 +134,22 @@ export const addReceptionistAPI = async (receptionistData) => {
   return response.data;
 };
 
+export const getReceptionistsAPI = async () => {
+  const response = await api.get('/admin/receptionists');
+  return response.data;
+};
+
+
 export const addAccountantAPI = async (accountantData) => {
   const response = await api.post('/auth/register-accountant', accountantData);
   return response.data;
 };
+
+export const getAccountantsAPI = async () => {
+  const response = await api.get('/admin/accountants');
+  return response.data;
+};
+
 
 export const updateDoctorProfile = async (id, doctorData) => {
   const response = await api.put(`/doctors/${id}`, doctorData);

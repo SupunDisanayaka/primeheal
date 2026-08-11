@@ -24,10 +24,11 @@ const DoctorContextProvider = ({ children }) => {
       console.log('Doctor login response:', { status: response.status, data });
 
       if (data.success && data.user?.userType === "doctor") {
+        const idVal = data.user._id || data.user.userID || data.user.doctorID || "";
         setDoctorToken(data.token);
-        setCurrentDoctorId(data.user._id || "");
+        setCurrentDoctorId(idVal);
         localStorage.setItem("doctorToken", data.token);
-        localStorage.setItem("currentDoctorId", data.user._id || "");
+        localStorage.setItem("currentDoctorId", idVal);
         return true;
       }
       

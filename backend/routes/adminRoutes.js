@@ -6,7 +6,9 @@ const {
   getAdminAppointments,
   getAdminRecentAppointments,
   getAdminDashboard,
-  getAdminStats
+  getAdminStats,
+  getReceptionists,
+  getAccountants
 } = require('../controllers/adminController');
 const { updateAppointmentStatus } = require('../controllers/appointmentController');
 
@@ -15,5 +17,7 @@ router.get('/recent-appointments', verifyToken, requireRole(['admin']), getAdmin
 router.get('/dashboard', verifyToken, requireRole(['admin']), getAdminDashboard);
 router.get('/stats', verifyToken, requireRole(['admin']), getAdminStats);
 router.patch('/appointments/:appointmentId/status', verifyToken, requireRole(['admin']), updateAppointmentStatus);
+router.get('/receptionists', verifyToken, requireRole(['admin']), getReceptionists);
+router.get('/accountants', verifyToken, requireRole(['admin']), getAccountants);
 
 module.exports = router;

@@ -7,12 +7,8 @@ const USD_TO_LKR_RATE = 300;
 
 const toLkr = (value) => Number((Number(value ?? 0) * USD_TO_LKR_RATE).toFixed(2));
 
-const normalizeMoney = (value, currency = 'USD') => {
-  if (String(currency).toUpperCase() === 'LKR') {
-    return Number(value ?? 0);
-  }
-
-  return toLkr(value);
+const normalizeMoney = (value) => {
+  return Number(value ?? 0);
 };
 
 const getLatestPaymentFields = () => `

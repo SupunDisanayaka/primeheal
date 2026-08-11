@@ -341,10 +341,98 @@ const updateAppointmentStatus = async (req, res) => {
   }
 };
 
+const getReceptionists = async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        u.userID        AS _id,
+        u.name,
+        u.email,
+        u.phone,
+        u.profileImage  AS image,
+        u.isActive      AS available,
+        u.createdAt,
+        r.receptionistID,
+        r.department    AS deskBlock
+      FROM users u
+      INNER JOIN receptionist r ON r.userID = u.userID
+      WHERE u.userType = 'receptionist'
+      ORDER BY u.createdAt DESC
+    `);
+
+    const receptionists = rows.map((row) => ({
+      _id: row._id,
+      name: row.name || '',
+      email: row.email || '',
+      phone: row.phone || '',
+      image: row.image || null,
+      shift: null,          // shift not stored in DB yet; kept for frontend compatibility
+      deskBlock: row.deskBlock || 'Front Desk',
+      available: Boolean(row.available),
+      createdAt: row.createdAt
+    }));
+
+    return res.json({ success: true, receptionists });
+  } catch (error) {
+    console.error('Get receptionists error:', {
+      message: error.message,
+      code: error.code,
+      sqlMessage: error.sqlMessage
+    });
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+const getAccountants = async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        u.userID        AS _id,
+        u.name,
+        u.email,
+        u.phone,
+        u.profileImage  AS image,
+        u.isActive      AS available,
+        u.createdAt,
+        a.accountantID,
+        a.department,
+        a.accountingLicense
+      FROM users u
+      INNER JOIN accountant a ON a.userID = u.userID
+      WHERE u.userType = 'accountant'
+      ORDER BY u.createdAt DESC
+    `);
+
+    const accountants = rows.map((row) => ({
+      _id: row._id,
+      name: row.name || '',
+      email: row.email || '',
+      phone: row.phone || '',
+      image: row.image || null,
+      department: row.department || 'Billing & Insurance',
+      shift: null,
+      accountingLicense: row.accountingLicense || null,
+      available: Boolean(row.available),
+      createdAt: row.createdAt
+    }));
+
+    return res.json({ success: true, accountants });
+  } catch (error) {
+    console.error('Get accountants error:', {
+      message: error.message,
+      code: error.code,
+      sqlMessage: error.sqlMessage
+    });
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   getAdminAppointments,
   getAdminRecentAppointments,
   getAdminDashboard,
   getAdminStats,
-  updateAppointmentStatus
+  updateAppointmentStatus,
+  getReceptionists,
+  getAccountants
 };

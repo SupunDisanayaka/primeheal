@@ -4,7 +4,7 @@ import { assets } from "../../assets/assets";
 import { addAccountantAPI } from "../../services/api";
 
 const Accountant = () => {
-  const { accountants, setAccountants } = useContext(AppContext);
+  const { accountants, setAccountants, accountantsLoading, accountantsError, fetchAccountants } = useContext(AppContext);
   const [activeTab, setActiveTab] = useState("list"); // 'list' or 'add'
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -59,21 +59,6 @@ const Accountant = () => {
       });
 
       if (data.success) {
-        const newAcc = {
-          _id: `acc_${Date.now()}`,
-          name,
-          email,
-          phone,
-          image: accImg
-            ? URL.createObjectURL(accImg)
-            : "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400",
-          department,
-          shift,
-          available: true,
-          createdAt: new Date(),
-        };
-
-        setAccountants((prev) => [...prev, newAcc]);
         setSuccessMsg(`Accountant registered successfully! The account can now sign in with ${email} and the chosen password.`);
 
         setAccImg(null);
@@ -83,6 +68,9 @@ const Accountant = () => {
         setPhone("");
         setDepartment("Billing & Insurance");
         setShift("Full-Time (09:00 AM - 05:00 PM)");
+
+        // Refresh list from real DB
+        await fetchAccountants();
 
         setTimeout(() => {
           setSuccessMsg("");
@@ -102,7 +90,7 @@ const Accountant = () => {
     (acc) =>
       acc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       acc.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      acc.department.toLowerCase().includes(searchTerm.toLowerCase())
+      (acc.department || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -164,78 +152,106 @@ const Accountant = () => {
             />
           </div>
 
+          {/* Loading State */}
+          {accountantsLoading && (
+            <div className="bg-white p-12 border border-zinc-100 rounded-2xl text-center shadow-xs">
+              <div className="flex flex-col items-center gap-3">
+                <svg className="animate-spin w-8 h-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <p className="text-sm text-gray-400 font-medium">Loading staff roster...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {!accountantsLoading && accountantsError && (
+            <div className="bg-rose-50 border border-rose-100 p-6 rounded-2xl text-center shadow-xs">
+              <p className="text-rose-600 font-semibold text-sm mb-3">{accountantsError}</p>
+              <button
+                onClick={fetchAccountants}
+                className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-[#4f5fef] transition-all"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Cards Grid */}
-          {filteredAccountants.length === 0 ? (
-            <div className="bg-white p-12 border border-zinc-100 rounded-2xl text-center text-gray-500 font-medium shadow-xs">
-              No accountants found.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredAccountants.map((acc) => (
-                <div
-                  key={acc._id}
-                  className="bg-white border border-zinc-100 rounded-2xl p-6 shadow-xs hover:shadow-md hover:translate-y-[-2px] transition-all duration-300 flex flex-col justify-between"
-                >
-                  <div>
-                    {/* Header: Photo and Badges */}
-                    <div className="flex items-start gap-4">
-                      <img
-                        className="w-16 h-16 rounded-full object-cover bg-slate-100 border border-zinc-100"
-                        src={acc.image}
-                        alt={acc.name}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-lg font-bold text-gray-900 truncate">{acc.name}</h4>
-                        <p className="text-xs text-gray-400 truncate mt-0.5">{acc.email}</p>
-                        <p className="text-xs text-gray-500 font-medium mt-1">{acc.phone}</p>
-                      </div>
-                    </div>
-
-                    {/* Metadata details */}
-                    <div className="mt-5 pt-4 border-t border-zinc-100 flex flex-col gap-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-gray-400 font-medium uppercase tracking-wider">Department</span>
-                        <span className="text-gray-800 font-semibold">{acc.department}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-gray-400 font-medium uppercase tracking-wider">Shift</span>
-                        <span className="text-gray-800 font-semibold">{acc.shift}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions Block */}
-                  <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-between">
-                    {/* Toggle */}
-                    <div className="flex items-center gap-2 select-none">
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={acc.available}
-                          onChange={() => toggleAvailability(acc._id)}
-                          className="sr-only peer"
+          {!accountantsLoading && !accountantsError && (
+            filteredAccountants.length === 0 ? (
+              <div className="bg-white p-12 border border-zinc-100 rounded-2xl text-center text-gray-500 font-medium shadow-xs">
+                No accountants found.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredAccountants.map((acc) => (
+                  <div
+                    key={acc._id}
+                    className="bg-white border border-zinc-100 rounded-2xl p-6 shadow-xs hover:shadow-md hover:translate-y-[-2px] transition-all duration-300 flex flex-col justify-between"
+                  >
+                    <div>
+                      {/* Header: Photo and Badges */}
+                      <div className="flex items-start gap-4">
+                        <img
+                          className="w-16 h-16 rounded-full object-cover bg-slate-100 border border-zinc-100"
+                          src={acc.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(acc.name)}&background=6574f0&color=fff&size=64`}
+                          alt={acc.name}
                         />
-                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                      </label>
-                      <span className={`text-xs font-bold transition-colors ${acc.available ? "text-primary" : "text-gray-400"}`}>
-                        {acc.available ? "Active" : "Inactive"}
-                      </span>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-lg font-bold text-gray-900 truncate">{acc.name}</h4>
+                          <p className="text-xs text-gray-400 truncate mt-0.5">{acc.email}</p>
+                          <p className="text-xs text-gray-500 font-medium mt-1">{acc.phone}</p>
+                        </div>
+                      </div>
+
+                      {/* Metadata details */}
+                      <div className="mt-5 pt-4 border-t border-zinc-100 flex flex-col gap-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-gray-400 font-medium uppercase tracking-wider">Department</span>
+                          <span className="text-gray-800 font-semibold">{acc.department}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-gray-400 font-medium uppercase tracking-wider">Shift</span>
+                          <span className="text-gray-800 font-semibold">{acc.shift || "Not assigned"}</span>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Delete Icon */}
-                    <button
-                      onClick={() => handleDelete(acc._id)}
-                      className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-all"
-                      title="Remove staff member"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    {/* Actions Block */}
+                    <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-between">
+                      {/* Toggle */}
+                      <div className="flex items-center gap-2 select-none">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={acc.available}
+                            onChange={() => toggleAvailability(acc._id)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                        <span className={`text-xs font-bold transition-colors ${acc.available ? "text-primary" : "text-gray-400"}`}>
+                          {acc.available ? "Active" : "Inactive"}
+                        </span>
+                      </div>
+
+                      {/* Delete Icon */}
+                      <button
+                        onClick={() => handleDelete(acc._id)}
+                        className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-all"
+                        title="Remove staff member"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )
           )}
         </div>
       )}

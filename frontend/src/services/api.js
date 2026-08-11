@@ -81,6 +81,11 @@ export const createPaymentSession = async (appointmentId) => {
   return response.data;
 };
 
+export const verifyPaymentAPI = async (payload) => {
+  const response = await api.post('/payment/verify', payload);
+  return response.data;
+};
+
 // Doctor Services
 export const getDoctors = async () => {
   const response = await api.get('/doctors');
