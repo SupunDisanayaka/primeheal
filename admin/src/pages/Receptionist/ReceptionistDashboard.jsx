@@ -1,10 +1,13 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { AppContext } from "../../context/AppContext";
 import { assets } from "../../assets/assets";
+import { checkInPatientAPI, createWalkInAppointmentAPI, getReceptionistStatsAPI, updateAdminAppointmentStatus } from "../../services/api";
 
 const ReceptionistDashboard = () => {
-  const { appointments, setAppointments, doctors, currencySymbol } = useContext(AppContext);
+  const { appointments, setAppointments, doctors, currencySymbol, fetchAllAppointments } = useContext(AppContext);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [loadingAction, setLoadingAction] = useState(false);
+  const [stats, setStats] = useState({ totalApts: 0, pendingApts: 0, checkedInApts: 0, availableDocs: 0 });
 
   // Form State for Booking
   const [patientName, setPatientName] = useState("");
@@ -12,70 +15,129 @@ const ReceptionistDashboard = () => {
   const [patientPhone, setPatientPhone] = useState("");
   const [patientGender, setPatientGender] = useState("Male");
   const [patientDob, setPatientDob] = useState("");
-  const [selectedDocId, setSelectedDocId] = useState(doctors[0]?._id || "");
+  const [selectedDocId, setSelectedDocId] = useState(doctors[0]?._id || doctors[0]?.id || "");
   const [slotDate, setSlotDate] = useState("");
   const [slotTime, setSlotTime] = useState("");
 
-  const handleCheckIn = (aptId) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt._id === aptId ? { ...apt, status: "Checked In" } : apt))
-    );
+  const loadStats = async () => {
+    try {
+      const data = await getReceptionistStatsAPI();
+      if (data.success && data.stats) {
+        setStats(data.stats);
+      }
+    } catch (e) {
+      console.error("Stats load error:", e);
+    }
   };
 
-  const handleCancel = (aptId) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt._id === aptId ? { ...apt, status: "Cancelled" } : apt))
-    );
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const handleCheckIn = async (aptId) => {
+    try {
+      setLoadingAction(true);
+      const res = await checkInPatientAPI(aptId);
+      if (res.success) {
+        alert(res.message || "Patient checked in successfully.");
+        if (fetchAllAppointments) fetchAllAppointments();
+        loadStats();
+      } else {
+        alert(res.message || "Check in failed.");
+      }
+    } catch (err) {
+      console.error("Check-in error:", err);
+      // Fallback local update
+      setAppointments((prev) =>
+        prev.map((apt) => (apt._id === aptId || apt.appointmentId === aptId ? { ...apt, status: "Checked In" } : apt))
+      );
+    } finally {
+      setLoadingAction(false);
+    }
   };
+
+  const handleCancel = async (aptId) => {
+    if (!window.confirm("Cancel this appointment?")) return;
+    try {
+      setLoadingAction(true);
+      const res = await updateAdminAppointmentStatus(aptId, "Cancelled");
+      if (res.success) {
+        alert("Appointment cancelled successfully.");
+        if (fetchAllAppointments) fetchAllAppointments();
+        loadStats();
+      }
+    } catch (err) {
+      console.error("Cancel error:", err);
+      setAppointments((prev) =>
+        prev.map((apt) => (apt._id === aptId || apt.appointmentId === aptId ? { ...apt, status: "Cancelled" } : apt))
+      );
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
 
   const handleComplete = (aptId) => {
     setAppointments((prev) =>
-      prev.map((apt) => (apt._id === aptId ? { ...apt, status: "Completed" } : apt))
+      prev.map((apt) => (apt._id === aptId || apt.appointmentId === aptId ? { ...apt, status: "Completed" } : apt))
     );
   };
 
-  const handleBookAppointment = (e) => {
+  const handleBookAppointment = async (e) => {
     e.preventDefault();
-    if (!patientName || !patientEmail || !patientPhone || !selectedDocId || !slotDate || !slotTime) {
+    const docToUse = selectedDocId || doctors[0]?._id || doctors[0]?.id;
+    if (!patientName || !docToUse || !slotDate || !slotTime) {
       alert("Please fill all required fields.");
       return;
     }
 
-    const doc = doctors.find((d) => d._id === selectedDocId);
+    const doc = doctors.find((d) => String(d._id || d.id) === String(docToUse));
 
-    const newApt = {
-      _id: `apt_${Date.now()}`,
-      patientName,
-      patientEmail,
-      patientPhone,
-      patientGender,
-      patientDob,
-      docId: selectedDocId,
-      slotDate,
-      slotTime,
-      amount: doc ? doc.fees : 50,
-      status: "Pending",
-      createdAt: new Date(),
-    };
+    try {
+      setLoadingAction(true);
+      const payload = {
+        patientName,
+        patientEmail,
+        patientPhone,
+        patientGender,
+        patientDob,
+        docId: docToUse,
+        slotDate,
+        slotTime,
+        amount: doc ? (doc.fees || doc.consultationFee) : 2500
+      };
+      const res = await createWalkInAppointmentAPI(payload);
+      if (res.success) {
+        alert(res.message || "Walk-in appointment created successfully!");
+        if (fetchAllAppointments) fetchAllAppointments();
+        loadStats();
+        setShowAddModal(false);
 
-    setAppointments((prev) => [newApt, ...prev]);
-    setShowAddModal(false);
-
-    // Reset Form
-    setPatientName("");
-    setPatientEmail("");
-    setPatientPhone("");
-    setPatientGender("Male");
-    setPatientDob("");
-    setSlotDate("");
-    setSlotTime("");
+        // Reset Form
+        setPatientName("");
+        setPatientEmail("");
+        setPatientPhone("");
+        setPatientGender("Male");
+        setPatientDob("");
+        setSlotDate("");
+        setSlotTime("");
+      } else {
+        alert(res.message || "Failed to create walk-in appointment.");
+      }
+    } catch (err) {
+      console.error("Book walk-in error:", err);
+      alert(err.response?.data?.message || "Error creating walk-in appointment");
+    } finally {
+      setLoadingAction(false);
+    }
   };
 
   // Metrics
-  const totalApts = appointments.length;
-  const pendingApts = appointments.filter((a) => a.status === "Pending").length;
-  const checkedInApts = appointments.filter((a) => a.status === "Checked In").length;
-  const availableDocs = doctors.filter((d) => d.available).length;
+  const totalApts = stats.totalApts || appointments.length;
+  const pendingApts = stats.pendingApts || appointments.filter((a) => a.status === "Pending").length;
+  const checkedInApts = stats.checkedInApts || appointments.filter((a) => a.status === "Checked In").length;
+  const availableDocs = stats.availableDocs || doctors.filter((d) => d.available || d.isAvailable).length;
+
 
   return (
     <div className="m-5 sm:m-8 w-full max-w-6xl flex flex-col gap-6">

@@ -180,4 +180,37 @@ export const deleteProfileImageAPI = async () => {
   return response.data;
 };
 
+// --- Receptionist Operations ---
+export const checkInPatientAPI = async (appointmentId) => {
+  const response = await api.put(`/receptionist/check-in/${appointmentId}`);
+  return response.data;
+};
+
+export const createWalkInAppointmentAPI = async (walkInData) => {
+  const response = await api.post('/receptionist/walkin', walkInData);
+  return response.data;
+};
+
+export const getReceptionistStatsAPI = async () => {
+  const response = await api.get('/receptionist/stats');
+  return response.data;
+};
+
+// --- Accountant Operations ---
+export const collectCounterPaymentAPI = async (paymentData) => {
+  const response = await api.post('/accountant/collect-payment', paymentData);
+  return response.data;
+};
+
+export const issueRefundAPI = async (refundData) => {
+  const response = await api.post('/accountant/refund', refundData);
+  return response.data;
+};
+
+export const getFinancialSummaryAPI = async () => {
+  const response = await api.get('/accountant/financial-reports');
+  return response.data;
+};
+
 export default api;
+

@@ -1,60 +1,114 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { AppContext } from "../../context/AppContext";
 import { assets } from "../../assets/assets";
+import { collectCounterPaymentAPI, issueRefundAPI, getFinancialSummaryAPI } from "../../services/api";
 
 const AccountantDashboard = () => {
-  const { appointments, setAppointments, doctors, currencySymbol } = useContext(AppContext);
+  const { appointments, setAppointments, doctors, currencySymbol, fetchAllAppointments } = useContext(AppContext);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All"); // 'All', 'Paid', 'Unpaid', 'Cancelled'
+  const [financialData, setFinancialData] = useState(null);
+  const [loadingAction, setLoadingAction] = useState(false);
 
-  const handleMarkPaid = (aptId) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt._id === aptId ? { ...apt, status: "Completed" } : apt))
-    );
-  };
-
-  const handleRefund = (aptId) => {
-    if (window.confirm("Refund this transaction? This will mark the invoice as Cancelled.")) {
-      setAppointments((prev) =>
-        prev.map((apt) => (apt._id === aptId ? { ...apt, status: "Cancelled" } : apt))
-      );
+  const loadFinancialSummary = async () => {
+    try {
+      const data = await getFinancialSummaryAPI();
+      if (data.success) {
+        setFinancialData(data);
+      }
+    } catch (err) {
+      console.error("Error loading financial summary:", err);
     }
   };
 
-  // Metrics Calculations (calculated over all appointments)
-  const completedApts = appointments.filter((a) => a.status === "Completed");
-  const unpaidApts = appointments.filter((a) => a.status === "Pending" || a.status === "Checked In");
-  
-  const totalRevenue = completedApts.reduce((sum, item) => sum + item.amount, 0);
-  const pendingRevenue = unpaidApts.reduce((sum, item) => sum + item.amount, 0);
-  const totalInvoices = appointments.length;
-  const unpaidCount = unpaidApts.length;
+  useEffect(() => {
+    loadFinancialSummary();
+  }, []);
 
-  // Breakdown of earnings per doctor for graphical tracking
-  const doctorRevenueBreakdown = doctors.map((doc) => {
-    const docApts = appointments.filter((a) => a.docId === doc._id && a.status === "Completed");
-    const earned = docApts.reduce((sum, a) => sum + a.amount, 0);
-    return {
-      name: doc.name,
-      earned,
-      count: docApts.length
-    };
-  });
+  const handleMarkPaid = async (aptId) => {
+    try {
+      setLoadingAction(true);
+      const targetApt = appointments.find((a) => a._id === aptId || a.appointmentId === aptId);
+      const res = await collectCounterPaymentAPI({
+        appointmentId: aptId,
+        paymentMethod: "Cash",
+        amount: targetApt ? (targetApt.amount || targetApt.fees) : undefined
+      });
+      if (res.success) {
+        alert(res.message || "Payment collected successfully.");
+        if (fetchAllAppointments) fetchAllAppointments();
+        loadFinancialSummary();
+      } else {
+        alert(res.message || "Collection failed.");
+      }
+    } catch (err) {
+      console.error("Mark paid error:", err);
+      setAppointments((prev) =>
+        prev.map((apt) => (apt._id === aptId || apt.appointmentId === aptId ? { ...apt, status: "Completed" } : apt))
+      );
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  const handleRefund = async (aptId) => {
+    if (!window.confirm("Refund this transaction? This will mark the appointment as Cancelled.")) return;
+    try {
+      setLoadingAction(true);
+      const res = await issueRefundAPI({ appointmentId: aptId });
+      if (res.success) {
+        alert(res.message || "Refund issued successfully.");
+        if (fetchAllAppointments) fetchAllAppointments();
+        loadFinancialSummary();
+      } else {
+        alert(res.message || "Refund failed.");
+      }
+    } catch (err) {
+      console.error("Refund error:", err);
+      setAppointments((prev) =>
+        prev.map((apt) => (apt._id === aptId || apt.appointmentId === aptId ? { ...apt, status: "Cancelled" } : apt))
+      );
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  // Metrics Calculations
+  const completedApts = appointments.filter((a) => a.status === "Completed" || a.status === "Paid");
+  const unpaidApts = appointments.filter((a) => a.status === "Pending" || a.status === "Checked In");
+
+  const totalRevenue = financialData ? financialData.totalRevenue : completedApts.reduce((sum, item) => sum + (Number(item.amount || item.fees || 0)), 0);
+  const pendingRevenue = financialData ? financialData.pendingRevenue : unpaidApts.reduce((sum, item) => sum + (Number(item.amount || item.fees || 0)), 0);
+  const totalInvoices = financialData ? financialData.totalInvoices : appointments.length;
+  const unpaidCount = financialData ? financialData.unpaidCount : unpaidApts.length;
+
+  // Breakdown of earnings per doctor
+  const doctorRevenueBreakdown = (financialData && financialData.doctorRevenueBreakdown)
+    ? financialData.doctorRevenueBreakdown
+    : doctors.map((doc) => {
+        const docApts = appointments.filter((a) => (a.docId === doc._id || a.doctorID === doc.doctorID) && (a.status === "Completed" || a.status === "Paid"));
+        const earned = docApts.reduce((sum, a) => sum + Number(a.amount || a.fees || 0), 0);
+        return {
+          name: doc.name,
+          earned,
+          count: docApts.length
+        };
+      });
 
   // Filtered Appointments
   const filteredAppointments = appointments.filter((apt) => {
-    const doc = doctors.find((d) => d._id === apt.docId) || {};
-    
-    // Search match
+    const doc = doctors.find((d) => d._id === apt.docId || d.doctorID === apt.doctorID) || {};
+
+    const patientNameStr = apt.patientName || "";
+    const patientPhoneStr = apt.patientPhone || "";
     const matchesSearch =
-      apt.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      apt.patientPhone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patientNameStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patientPhoneStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (doc.name && doc.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    // Status filter match
     let matchesStatus = true;
     if (statusFilter === "Paid") {
-      matchesStatus = apt.status === "Completed";
+      matchesStatus = apt.status === "Completed" || apt.status === "Paid";
     } else if (statusFilter === "Unpaid") {
       matchesStatus = apt.status === "Pending" || apt.status === "Checked In";
     } else if (statusFilter === "Cancelled") {
@@ -63,6 +117,7 @@ const AccountantDashboard = () => {
 
     return matchesSearch && matchesStatus;
   });
+
 
   return (
     <div className="m-5 sm:m-8 w-full max-w-6xl flex flex-col gap-6">

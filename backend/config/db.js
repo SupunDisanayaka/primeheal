@@ -189,6 +189,11 @@ async function initializePool() {
   `);
 
   await pool.query(`
+    ALTER TABLE appointments
+    MODIFY COLUMN status ENUM('Pending', 'Paid', 'Confirmed', 'Checked In', 'Completed', 'Cancelled', 'Expired', 'No Show') DEFAULT 'Pending'
+  `).catch(err => console.log('Appointments status enum alter:', err.message));
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS payments (
       paymentID INT AUTO_INCREMENT PRIMARY KEY,
       appointmentID INT NOT NULL,
@@ -199,7 +204,7 @@ async function initializePool() {
       paymentGateway VARCHAR(50) DEFAULT 'PayHere',
       amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
       currency VARCHAR(10) NOT NULL DEFAULT 'LKR',
-      paymentStatus ENUM('Pending','Completed','Failed','Cancelled') DEFAULT 'Pending',
+      paymentStatus ENUM('Pending','Completed','Failed','Cancelled','Refunded') DEFAULT 'Pending',
       payhereStatusCode VARCHAR(20) DEFAULT NULL,
       paymentMethod VARCHAR(50) DEFAULT NULL,
       receiptUrl VARCHAR(255) DEFAULT NULL,
@@ -219,6 +224,43 @@ async function initializePool() {
       INDEX idx_payments_createdAt (createdAt)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  await pool.query(`
+    ALTER TABLE payments
+    MODIFY COLUMN paymentStatus ENUM('Pending','Completed','Failed','Cancelled','Refunded') DEFAULT 'Pending'
+  `).catch(err => console.log('Payments status enum alter:', err.message));
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS queue_tokens (
+      tokenID INT AUTO_INCREMENT PRIMARY KEY,
+      appointmentID INT NOT NULL,
+      patientID INT NOT NULL,
+      tokenNumber INT NOT NULL,
+      queueDate DATE NOT NULL,
+      status ENUM('Waiting', 'In-Consultation', 'Completed', 'Cancelled') DEFAULT 'Waiting',
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (appointmentID) REFERENCES appointments(appointmentID) ON DELETE CASCADE,
+      FOREIGN KEY (patientID) REFERENCES patient(patientID) ON DELETE CASCADE,
+      INDEX idx_queueDate (queueDate),
+      INDEX idx_tokenStatus (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `).catch(err => console.log('Queue tokens table creation:', err.message));
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS doctor_payouts (
+      payoutID INT AUTO_INCREMENT PRIMARY KEY,
+      doctorID INT NOT NULL,
+      month INT NOT NULL,
+      year INT NOT NULL,
+      totalConsultations INT DEFAULT 0,
+      totalAmount DECIMAL(10,2) DEFAULT 0.00,
+      status ENUM('Pending', 'Approved', 'Paid') DEFAULT 'Pending',
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (doctorID) REFERENCES doctor(doctorID) ON DELETE CASCADE,
+      INDEX idx_doctorPayout (doctorID, month, year)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `).catch(err => console.log('Doctor payouts table creation:', err.message));
+
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
