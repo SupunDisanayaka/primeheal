@@ -45,6 +45,7 @@ app.use('/api/doctors', require('./routes/doctorRoutes'));
 app.use('/api/appointments', require('./routes/appointmentRoutes'));
 app.use('/api/payment', require('./routes/paymentRoutes'));
 app.use('/api/email', require('./routes/emailRoutes'));
+app.use('/api/feedback', require('./routes/feedbackRoutes'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

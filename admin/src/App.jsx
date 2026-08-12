@@ -27,6 +27,8 @@ import DoctorSchedule from "./pages/Doctor/DoctorSchedule";
 import ReceptionistDashboard from "./pages/Receptionist/ReceptionistDashboard";
 import AccountantDashboard from "./pages/Accountant/AccountantDashboard";
 
+import AdminFeedbackModeration from "./pages/admin/AdminFeedbackModeration";
+
 const App = () => {
   const { adminToken } = useContext(AdminContext);
   const { doctorToken } = useContext(DoctorContext);
@@ -57,12 +59,14 @@ const App = () => {
                 <Route path="/all-appointments" element={<AllAppointments />} />
                 <Route path="/add-doctor" element={<AddDoctor />} />
                 <Route path="/doctors-list" element={<DoctorsList />} />
+                <Route path="/feedback-moderation" element={<AdminFeedbackModeration />} />
                 <Route path="/receptionist" element={<Receptionist />} />
                 <Route path="/accountant" element={<Accountant />} />
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/admin-dashboard" replace />} />
               </>
             )}
+
 
             {/* Doctor Dedicated Routes */}
             {doctorToken && (

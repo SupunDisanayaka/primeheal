@@ -134,4 +134,9 @@ export const getDoctorSlots = async (doctorId, date) => {
   return response.data;
 };
 
+export const submitFeedbackAPI = async (payload) => {
+  const response = await api.post('/feedback/submit', payload);
+  return response.data;
+};
+
 export default api;

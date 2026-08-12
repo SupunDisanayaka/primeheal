@@ -306,6 +306,45 @@ async function initializePool() {
     ALTER TABLE notification MODIFY COLUMN userID INT NULL
   `).catch(err => console.log('Notification table userID null alter:', err.message));
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      feedbackID INT AUTO_INCREMENT PRIMARY KEY,
+      appointmentID INT NOT NULL,
+      patientID INT NOT NULL,
+      doctorID INT NOT NULL,
+      rating INT NOT NULL,
+      comments TEXT DEFAULT NULL,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      isVisible TINYINT(1) DEFAULT 1,
+      isApproved TINYINT(1) DEFAULT 0,
+      FOREIGN KEY (appointmentID) REFERENCES appointments(appointmentID) ON DELETE CASCADE,
+      FOREIGN KEY (patientID) REFERENCES patient(patientID) ON DELETE CASCADE,
+      FOREIGN KEY (doctorID) REFERENCES doctor(doctorID) ON DELETE CASCADE,
+      INDEX idx_feedback_doctor (doctorID),
+      INDEX idx_feedback_patient (patientID),
+      INDEX idx_feedback_appointment (appointmentID)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `).catch(err => console.log('Feedback table creation:', err.message));
+
+  // Auto-migrate feedback table foreign key if referencing stale singular appointment table
+  try {
+    const [fkRows] = await pool.query(`
+      SELECT CONSTRAINT_NAME, REFERENCED_TABLE_NAME
+      FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'feedback' AND COLUMN_NAME = 'appointmentID'
+      AND REFERENCED_TABLE_NAME IS NOT NULL
+    `);
+    if (fkRows.length > 0 && fkRows[0].REFERENCED_TABLE_NAME === 'appointment') {
+      const constraintName = fkRows[0].CONSTRAINT_NAME;
+      await pool.query(`ALTER TABLE feedback DROP FOREIGN KEY \`${constraintName}\``);
+      await pool.query(`ALTER TABLE feedback ADD CONSTRAINT \`${constraintName}\` FOREIGN KEY (appointmentID) REFERENCES appointments(appointmentID) ON DELETE CASCADE`);
+      console.log(`Migrated feedback foreign key ${constraintName} to reference appointments(appointmentID)`);
+    }
+  } catch (err) {
+    console.log('Feedback FK check migration notice:', err.message);
+  }
+
+
   const adminEmail = process.env.DEFAULT_ADMIN_EMAIL || 'admin@primeheal.com';
   const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin';
   const hashedPassword = await bcrypt.hash(adminPassword, 10);

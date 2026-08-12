@@ -3,7 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
 import { assets } from '../assets/assets'
 import RelatedDoctors from '../components/RelatedDoctors'
+import DoctorFeedbackView from '../components/feedback/DoctorFeedbackView'
 import { createAppointment, getDoctorSlots } from '../services/api'
+
 
 const Appointment = () => {
 
@@ -376,8 +378,14 @@ const Appointment = () => {
         <button onClick={handleOpenBooking} className='bg-[#00A7a7] text-white text-sm font-light px-14 py-3 rounded-full my-6 hover:shadow-md transition-all active:scale-95 duration-150 hover:bg-[#008f8f]'> Book an appointment</button>
       </div>
 
+      {/* Doctor Verified Ratings & Reviews */}
+      <div className="mt-8">
+        <DoctorFeedbackView doctorId={docID} />
+      </div>
+
       {/*----- Listing Related Doctors ----*/}
       <RelatedDoctors docID={docID} speciality={docInfo.speciality} />
+
 
       {/* ---------- Patient Booking Modal ---------- */}
       {showBookingModal && (

@@ -3,6 +3,7 @@ import { AppContext } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
 import { cancelAppointment as cancelAppointmentRequest, getMyAppointments, createPaymentSession, downloadInvoice, verifyPaymentAPI } from '../services/api'
 import { assets } from '../assets/assets'
+import FeedbackModal from '../components/feedback/FeedbackModal'
 
 const MyAppointments = () => {
   const { doctors, currencySymbol, token } = useContext(AppContext)
@@ -25,6 +26,10 @@ const MyAppointments = () => {
   // Payment Processing States
   const [paymentStatus, setPaymentStatus] = useState('idle') 
   const [payingAptId, setPayingAptId] = useState(null)
+
+  // Feedback Modal States
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [feedbackApt, setFeedbackApt] = useState(null)
 
   const loadAppointments = useCallback(async (showLoadingSpinner = false) => {
     if (!token) {
@@ -74,6 +79,11 @@ const MyAppointments = () => {
     setPaymentStatus('idle')
     setShowPaymentModal(true)
   }
+
+  const openFeedbackModal = (apt) => {
+    setFeedbackApt(apt);
+    setShowFeedbackModal(true);
+  };
 
   const cancelAppointment = async (appointmentId) => {
     if (!window.confirm('Are you sure you want to cancel this appointment?')) return;
@@ -295,10 +305,22 @@ const MyAppointments = () => {
                     Appointment Cancelled
                   </button>
                 )}
+                
                 {item.status === 'Completed' && (
-                  <button disabled className='w-full sm:min-w-44 text-xs text-emerald-600 py-2 border border-emerald-100 bg-emerald-50/50 rounded-lg font-bold select-none cursor-not-allowed'>
-                    Completed
-                  </button>
+                  <>
+                    <span className='w-full sm:min-w-44 text-xs text-center text-emerald-600 py-2 border border-emerald-100 bg-emerald-50/50 rounded-lg font-bold select-none block'>
+                      Completed
+                    </span>
+                    <button
+                      onClick={() => openFeedbackModal(item)}
+                      className='w-full sm:min-w-44 text-xs text-amber-600 hover:text-white bg-amber-50 hover:bg-amber-500 py-2 border border-amber-300 rounded-lg font-bold transition-all cursor-pointer flex items-center justify-center space-x-1.5 shadow-2xs group'
+                    >
+                      <svg className="w-3.5 h-3.5 text-amber-500 group-hover:text-white transition-colors" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      <span>Leave Feedback</span>
+                    </button>
+                  </>
                 )}
                 
                 {(item.paymentStatus === 'Completed' || item.status === 'Paid') && (
@@ -346,7 +368,21 @@ const MyAppointments = () => {
         </div>
       )}
 
-      {/* ---------- Sandbox Payment Modal (Not active for DB flow, but kept as helper fallback) ---------- */}
+      {/* Feedback Submission Modal */}
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        appointment={feedbackApt}
+        appointmentID={feedbackApt?.appointmentId || feedbackApt?.appointmentID}
+        doctorID={feedbackApt?.doctorID || feedbackApt?.docId}
+        doctorName={feedbackApt?.docName || feedbackApt?.doctorName || feedbackApt?.name}
+        token={token}
+        onSubmitSuccess={() => {
+          loadAppointments();
+        }}
+      />
+
+      {/* ---------- Sandbox Payment Modal ---------- */}
       {showPaymentModal && selectedApt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-[900px] overflow-hidden flex flex-col md:flex-row border border-gray-100/80 relative transition-all duration-300">
@@ -369,7 +405,7 @@ const MyAppointments = () => {
                 <h3 className="text-3xl font-extrabold text-gray-800 tracking-tight mt-2">Payment Successful!</h3>
                 <button
                   onClick={() => setShowPaymentModal(false)}
-                  className="bg-[#00B4B4] hover:bg-[#009E9E] text-white font-semibold px-8 py-3 rounded-xl mt-6 cursor-pointer"
+                  className="bg-[#00B4B4] hover:bg-[#009E9E] text-[#ffffff] font-semibold px-8 py-3 rounded-xl mt-6 cursor-pointer"
                 >
                   Done
                 </button>
