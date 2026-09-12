@@ -1,11 +1,17 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { DoctorContext } from "../../context/DoctorContext";
 import { AppContext } from "../../context/AppContext";
 import { assets } from "../../assets/assets";
+import { updateDoctorNotesAPI } from "../../services/api";
 
 const DoctorAppointments = () => {
   const { currentDoctorId } = useContext(DoctorContext);
   const { appointments, setAppointments, syncAppointmentStatus, currencySymbol } = useContext(AppContext);
+
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
+  const [activeApt, setActiveApt] = useState(null);
+  const [currentNotes, setCurrentNotes] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
 
   // Filter appointments specifically assigned to this logged-in doctor
   const docApts = appointments.filter((apt) => String(apt.docId) === String(currentDoctorId));
@@ -16,6 +22,37 @@ const DoctorAppointments = () => {
     } catch (error) {
       console.error(error);
       alert(error.response?.data?.message || error.message || "Failed to update status");
+    }
+  };
+
+  const handleOpenNotes = (apt) => {
+    setActiveApt(apt);
+    setCurrentNotes(apt.doctorNotes || "");
+    setNotesModalOpen(true);
+  };
+
+  const handleSaveNotes = async (e) => {
+    e.preventDefault();
+    if (!activeApt) return;
+    setSavingNotes(true);
+    try {
+      const res = await updateDoctorNotesAPI(activeApt._id || activeApt.appointmentId, currentNotes);
+      if (res.success) {
+        alert("Consultation notes saved successfully.");
+        setAppointments((prev) =>
+          prev.map((a) =>
+            (a._id === activeApt._id || a.appointmentId === activeApt.appointmentId)
+              ? { ...a, doctorNotes: currentNotes }
+              : a
+          )
+        );
+        setNotesModalOpen(false);
+      }
+    } catch (err) {
+      console.error("Failed to save clinical notes:", err);
+      alert(err.response?.data?.message || "Failed to save clinical notes");
+    } finally {
+      setSavingNotes(false);
     }
   };
 
@@ -98,24 +135,34 @@ const DoctorAppointments = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                          {apt.status === "Completed" || apt.status === "Cancelled" ? (
-                            <span className="text-xs text-gray-400 font-semibold select-none">No Action</span>
-                          ) : apt.status === "Pending" ? (
-                            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1 text-center font-semibold select-none">Awaiting Payment</span>
-                          ) : (
-                            <select
-                              value={apt.status === "Completed" ? "Completed" : apt.status}
-                              onChange={(e) => handleStatusChange(apt._id, e.target.value)}
-                              className={`border outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold bg-white cursor-pointer transition-all ${
-                                apt.status === "Completed"
-                                  ? "border-emerald-200 text-emerald-600 focus:border-emerald-400"
-                                  : "border-indigo-200 text-indigo-600 focus:border-indigo-400"
-                              }`}
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenNotes(apt)}
+                              className="px-2.5 py-1 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors cursor-pointer"
                             >
-                              <option value={apt.status} disabled className="font-semibold">{apt.status}</option>
-                              <option value="Completed" className="text-emerald-600 font-semibold">Completed</option>
-                            </select>
-                          )}
+                              {apt.doctorNotes ? 'View Notes' : '+ Add Notes'}
+                            </button>
+
+                            {apt.status === "Completed" || apt.status === "Cancelled" ? (
+                              <span className="text-xs text-gray-400 font-semibold select-none">No Action</span>
+                            ) : apt.status === "Pending" ? (
+                              <span className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1 text-center font-semibold select-none">Awaiting Payment</span>
+                            ) : (
+                              <select
+                                value={apt.status === "Completed" ? "Completed" : apt.status}
+                                onChange={(e) => handleStatusChange(apt._id, e.target.value)}
+                                className={`border outline-none rounded-lg px-2 py-1 text-xs font-bold bg-white cursor-pointer transition-all ${
+                                  apt.status === "Completed"
+                                    ? "border-emerald-200 text-emerald-600 focus:border-emerald-400"
+                                    : "border-indigo-200 text-indigo-600 focus:border-indigo-400"
+                                }`}
+                              >
+                                <option value={apt.status} disabled className="font-semibold">{apt.status}</option>
+                                <option value="Completed" className="text-emerald-600 font-semibold">Completed</option>
+                              </select>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -126,6 +173,68 @@ const DoctorAppointments = () => {
           </div>
         )}
       </div>
+
+      {/* CLINICAL CONSULTATION NOTES MODAL */}
+      {notesModalOpen && activeApt && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-zinc-100 animate-fade-in">
+            <div className="flex items-center justify-between pb-4 border-b border-zinc-100 mb-5">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Consultation Clinical Notes</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Patient: {activeApt.patientName} • {activeApt.slotDate} at {activeApt.slotTime}
+                </p>
+              </div>
+              <button onClick={() => setNotesModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer">✕</button>
+            </div>
+
+            {/* Patient Clinical Flags */}
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-zinc-100 mb-4 text-xs grid grid-cols-2 gap-2">
+              <div>
+                <span className="text-gray-400 font-medium block">Allergies:</span>
+                <span className="font-bold text-rose-600">{activeApt.patientAllergies || 'None reported'}</span>
+              </div>
+              <div>
+                <span className="text-gray-400 font-medium block">Gender / Age:</span>
+                <span className="font-bold text-gray-800">{activeApt.patientGender || 'N/A'} • {calculateAge(activeApt.patientDob)} yrs</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveNotes} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-gray-700 block mb-1">
+                  Doctor's Clinical Notes, Diagnosis & Prescriptions:
+                </label>
+                <textarea
+                  rows="5"
+                  required
+                  placeholder="Record diagnosis, observations, prescribed medications, dosages, and follow-up plan..."
+                  value={currentNotes}
+                  onChange={(e) => setCurrentNotes(e.target.value)}
+                  className="w-full p-3 border border-zinc-200 rounded-xl text-sm focus:outline-primary bg-white leading-relaxed"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setNotesModalOpen(false)}
+                  className="px-4 py-2 border border-zinc-200 rounded-xl text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingNotes}
+                  className="px-5 py-2 bg-primary hover:bg-[#008B8B] text-white rounded-xl font-bold shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {savingNotes ? 'Saving Notes...' : 'Save Consultation Notes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

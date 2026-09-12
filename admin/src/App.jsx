@@ -16,6 +16,9 @@ import AddDoctor from "./pages/Admin/AddDoctor";
 import DoctorsList from "./pages/Admin/DoctorsList";
 import Receptionist from "./pages/Admin/Receptionist";
 import Accountant from "./pages/Admin/Accountant";
+import PatientDirectory from "./pages/Admin/PatientDirectory";
+import AdminComplaints from "./pages/Admin/AdminComplaints";
+import AdminReports from "./pages/Admin/AdminReports";
 
 // Doctor Panel Pages
 import DoctorDashboard from "./pages/Doctor/DoctorDashboard";
@@ -62,6 +65,9 @@ const App = () => {
                 <Route path="/feedback-moderation" element={<AdminFeedbackModeration />} />
                 <Route path="/receptionist" element={<Receptionist />} />
                 <Route path="/accountant" element={<Accountant />} />
+                <Route path="/patients" element={<PatientDirectory />} />
+                <Route path="/complaints" element={<AdminComplaints />} />
+                <Route path="/reports" element={<AdminReports />} />
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/admin-dashboard" replace />} />
               </>
@@ -86,6 +92,8 @@ const App = () => {
               <>
                 <Route path="/" element={<Navigate to="/receptionist-dashboard" replace />} />
                 <Route path="/receptionist-dashboard" element={<ReceptionistDashboard />} />
+                <Route path="/patients" element={<PatientDirectory />} />
+                <Route path="/reports" element={<AdminReports />} />
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/receptionist-dashboard" replace />} />
               </>
@@ -96,6 +104,7 @@ const App = () => {
               <>
                 <Route path="/" element={<Navigate to="/accountant-dashboard" replace />} />
                 <Route path="/accountant-dashboard" element={<AccountantDashboard />} />
+                <Route path="/reports" element={<AdminReports />} />
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/accountant-dashboard" replace />} />
               </>

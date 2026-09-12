@@ -40,12 +40,27 @@ const collectCounterPayment = async (req, res) => {
     // Update appointment status to 'Completed' (or 'Paid')
     await pool.query("UPDATE appointments SET status = 'Completed' WHERE appointmentID = ?", [aptID]);
 
+    // Ensure invoice record is created / updated
+    const [existingInvoices] = await pool.query('SELECT invoiceID FROM invoice WHERE appointmentID = ?', [aptID]);
+    let generatedInvoiceNumber;
+    if (existingInvoices.length === 0) {
+      generatedInvoiceNumber = `INV-CTR-${Date.now()}`;
+      await pool.query(
+        `INSERT INTO invoice (appointmentID, patientID, invoiceNumber, subtotal, tax, discount, totalAmount, issueDate, dueDate, status)
+         VALUES (?, ?, ?, ?, 0.00, 0.00, ?, CURDATE(), CURDATE(), 'paid')`,
+        [aptID, appt.patientID, generatedInvoiceNumber, finalAmount, finalAmount]
+      );
+    } else {
+      await pool.query("UPDATE invoice SET status = 'paid', totalAmount = ? WHERE appointmentID = ?", [finalAmount, aptID]);
+    }
+
     return res.status(200).json({
       success: true,
-      message: `Counter payment of LKR ${finalAmount.toFixed(2)} recorded successfully via ${methodToUse}.`,
+      message: `Counter payment of LKR ${finalAmount.toFixed(2)} recorded successfully via ${methodToUse}. Invoice issued.`,
       appointmentID: aptID,
       paymentStatus: 'Completed',
-      status: 'Completed'
+      status: 'Completed',
+      invoiceNumber: generatedInvoiceNumber
     });
   } catch (error) {
     console.error('Error collecting counter payment:', error);
@@ -80,6 +95,9 @@ const issueRefund = async (req, res) => {
 
     // Update payment status to 'Refunded'
     await pool.query("UPDATE payments SET paymentStatus = 'Refunded' WHERE appointmentID = ?", [aptID]);
+
+    // Update invoice status to 'cancelled'
+    await pool.query("UPDATE invoice SET status = 'cancelled' WHERE appointmentID = ?", [aptID]);
 
     return res.status(200).json({
       success: true,
@@ -147,8 +165,129 @@ const getFinancialSummary = async (req, res) => {
   }
 };
 
+/**
+ * 4. recreateInvoice
+ * Avoid the hassle of creating new invoices from scratch when needed;
+ * allows accountants to recreate, regenerate, or adjust invoices for an appointment.
+ */
+const recreateInvoice = async (req, res) => {
+  const { appointmentId, subtotal, tax, discount, dueDate } = req.body;
+  const aptID = Number(appointmentId);
+
+  if (!aptID || isNaN(aptID)) {
+    return res.status(400).json({ success: false, message: 'Valid appointment ID is required' });
+  }
+
+  try {
+    const [apptRows] = await pool.query(
+      'SELECT a.*, p.patientID FROM appointments a INNER JOIN patient p ON a.patientID = p.patientID WHERE a.appointmentID = ?',
+      [aptID]
+    );
+
+    if (apptRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Appointment record not found' });
+    }
+
+    const appt = apptRows[0];
+    const sub = subtotal !== undefined ? Number(subtotal) : Number(appt.fee || appt.totalCharge || 0);
+    const tx = tax !== undefined ? Number(tax) : 0.00;
+    const disc = discount !== undefined ? Number(discount) : 0.00;
+    const total = Math.max(0, sub + tx - disc);
+
+    const newInvoiceNumber = `INV-REC-${Date.now()}`;
+    const invoiceDueDate = dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const [existing] = await pool.query('SELECT invoiceID FROM invoice WHERE appointmentID = ?', [aptID]);
+
+    let invoiceID;
+    if (existing.length > 0) {
+      invoiceID = existing[0].invoiceID;
+      await pool.query(
+        `UPDATE invoice
+         SET invoiceNumber = ?, subtotal = ?, tax = ?, discount = ?, totalAmount = ?, dueDate = ?, status = 'issued'
+         WHERE invoiceID = ?`,
+        [newInvoiceNumber, sub, tx, disc, total, invoiceDueDate, invoiceID]
+      );
+    } else {
+      const [ins] = await pool.query(
+        `INSERT INTO invoice (appointmentID, patientID, invoiceNumber, subtotal, tax, discount, totalAmount, issueDate, dueDate, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE(), ?, 'issued')`,
+        [aptID, appt.patientID, newInvoiceNumber, sub, tx, disc, total, invoiceDueDate]
+      );
+      invoiceID = ins.insertId;
+    }
+
+    return res.json({
+      success: true,
+      message: `Invoice recreated successfully with Invoice #${newInvoiceNumber}`,
+      invoice: {
+        invoiceID,
+        appointmentID: aptID,
+        invoiceNumber: newInvoiceNumber,
+        subtotal: sub,
+        tax: tx,
+        discount: disc,
+        totalAmount: total,
+        dueDate: invoiceDueDate,
+        status: 'issued'
+      }
+    });
+  } catch (error) {
+    console.error('recreateInvoice error:', error);
+    return res.status(500).json({ success: false, message: 'Server error recreating invoice', error: error.message });
+  }
+};
+
+/**
+ * 5. getAllInvoices
+ * Lists all invoices in the system with patient and appointment metadata for accountants.
+ */
+const getAllInvoices = async (req, res) => {
+  try {
+    const query = `
+      SELECT
+        i.invoiceID,
+        i.appointmentID,
+        i.invoiceNumber,
+        i.subtotal,
+        i.tax,
+        i.discount,
+        i.totalAmount,
+        i.issueDate,
+        i.dueDate,
+        i.status,
+        a.appointmentDate,
+        a.appointmentTime,
+        a.doctorName,
+        u.name AS patientName,
+        u.email AS patientEmail,
+        p.patientCode,
+        pay.paymentMethod,
+        pay.paymentStatus
+      FROM invoice i
+      INNER JOIN appointments a ON i.appointmentID = a.appointmentID
+      INNER JOIN patient p ON i.patientID = p.patientID
+      INNER JOIN users u ON p.userID = u.userID
+      LEFT JOIN payments pay ON pay.appointmentID = a.appointmentID
+      ORDER BY i.issueDate DESC, i.invoiceID DESC
+    `;
+
+    const [rows] = await pool.query(query);
+
+    return res.json({
+      success: true,
+      invoices: rows
+    });
+  } catch (error) {
+    console.error('getAllInvoices error:', error);
+    return res.status(500).json({ success: false, message: 'Server error retrieving invoices', error: error.message });
+  }
+};
+
 module.exports = {
   collectCounterPayment,
   issueRefund,
-  getFinancialSummary
+  getFinancialSummary,
+  recreateInvoice,
+  getAllInvoices
 };

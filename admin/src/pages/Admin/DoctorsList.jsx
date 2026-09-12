@@ -1,12 +1,24 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AppContext } from "../../context/AppContext";
-import { toggleDoctorAvailability } from "../../services/api";
+import { toggleDoctorAvailability, updateDoctorProfile } from "../../services/api";
 import { assets } from "../../assets/assets";
 
 const DoctorsList = () => {
   const { doctors, setDoctors, fetchDoctors, backendUrl } = useContext(AppContext);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    fees: "",
+    speciality: "",
+    degree: "",
+    experience: "",
+    about: ""
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -35,6 +47,39 @@ const DoctorsList = () => {
     } catch (err) {
       console.error("Failed to toggle availability:", err);
       alert("Failed to toggle availability");
+    }
+  };
+
+  const handleOpenEdit = (doc) => {
+    setSelectedDoc(doc);
+    setEditForm({
+      name: doc.name || "",
+      email: doc.email || "",
+      fees: doc.fees || "",
+      speciality: doc.speciality || "",
+      degree: doc.degree || "",
+      experience: doc.experience || "5 Years",
+      about: doc.about || ""
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!selectedDoc) return;
+    setSaving(true);
+    try {
+      const res = await updateDoctorProfile(selectedDoc._id, editForm);
+      if (res.success) {
+        alert("Doctor profile updated successfully.");
+        setEditModalOpen(false);
+        fetchDoctors();
+      }
+    } catch (err) {
+      console.error("Failed to update doctor:", err);
+      alert(err.response?.data?.message || "Failed to update doctor details");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -87,31 +132,35 @@ const DoctorsList = () => {
           {doctors.map((item) => (
             <div
               key={item._id || item.doctorID}
-              className="bg-white border border-zinc-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md hover:translate-y-[-4px] transition-all duration-300 group"
+              className="bg-white border border-zinc-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md hover:translate-y-[-4px] transition-all duration-300 group flex flex-col justify-between"
             >
-              {/* Doctor Photo */}
-              <div className="relative overflow-hidden aspect-square bg-gradient-to-b from-teal-50 to-[#E0F2F1]/50 flex items-center justify-center">
-                <img
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  src={getDocImage(item)}
-                  alt={item.name}
-                />
+              <div>
+                {/* Doctor Photo */}
+                <div className="relative overflow-hidden aspect-square bg-gradient-to-b from-teal-50 to-[#E0F2F1]/50 flex items-center justify-center">
+                  <img
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    src={getDocImage(item)}
+                    alt={item.name}
+                  />
+                </div>
+
+                {/* Doctor Details */}
+                <div className="p-5 flex flex-col gap-1.5">
+                  <p className="text-lg font-bold text-gray-900 leading-tight truncate">
+                    {item.name}
+                  </p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    {item.degree} • {item.speciality}
+                  </p>
+                  <p className="text-xs font-bold text-teal-600">
+                    Fee: Rs. {Number(item.fees || 0).toFixed(2)}
+                  </p>
+                </div>
               </div>
 
-              {/* Doctor Details */}
-              <div className="p-5 flex flex-col gap-1.5">
-                <p className="text-lg font-bold text-gray-900 leading-tight truncate">
-                  {item.name}
-                </p>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  {item.degree} • {item.speciality}
-                </p>
-                <p className="text-xs font-bold text-teal-600">
-                  Fee: Rs. {Number(item.fees || 0).toFixed(2)}
-                </p>
-
-                {/* Availability Toggle */}
-                <div className="flex items-center gap-2 mt-2 pt-3 border-t border-zinc-100 select-none">
+              {/* Action Controls */}
+              <div className="px-5 pb-5 pt-3 border-t border-zinc-100 flex items-center justify-between select-none">
+                <div className="flex items-center gap-2">
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
@@ -119,19 +168,135 @@ const DoctorsList = () => {
                       onChange={() => toggleAvailability(item._id)}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                    <div className="w-8 h-4.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-primary"></div>
                   </label>
                   <span
-                    className={`text-xs font-bold transition-colors ${
+                    className={`text-[11px] font-bold transition-colors ${
                       item.available ? "text-primary" : "text-gray-400"
                     }`}
                   >
-                    {item.available ? "Available" : "Unavailable"}
+                    {item.available ? "Active" : "Off"}
                   </span>
                 </div>
+
+                <button
+                  onClick={() => handleOpenEdit(item)}
+                  className="text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                >
+                  Edit Info
+                </button>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* EDIT DOCTOR MODAL */}
+      {editModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl border border-zinc-100">
+            <div className="flex items-center justify-between pb-4 border-b border-zinc-100 mb-5">
+              <h3 className="text-xl font-bold text-gray-900">Edit Doctor Information</h3>
+              <button onClick={() => setEditModalOpen(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
+              <div>
+                <label className="font-semibold text-gray-700 block mb-1">Doctor Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full p-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                    className="w-full p-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-primary"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">Consultation Fee (Rs.) *</label>
+                  <input
+                    type="number"
+                    required
+                    value={editForm.fees}
+                    onChange={(e) => setEditForm({ ...editForm, fees: e.target.value })}
+                    className="w-full p-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">Specialization *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.speciality}
+                    onChange={(e) => setEditForm({ ...editForm, speciality: e.target.value })}
+                    className="w-full p-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-primary"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">Qualifications / Degree *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.degree}
+                    onChange={(e) => setEditForm({ ...editForm, degree: e.target.value })}
+                    className="w-full p-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-primary"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-gray-700 block mb-1">Experience</label>
+                <input
+                  type="text"
+                  value={editForm.experience}
+                  placeholder="e.g. 8 Years"
+                  onChange={(e) => setEditForm({ ...editForm, experience: e.target.value })}
+                  className="w-full p-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-primary"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-gray-700 block mb-1">Doctor Bio / About</label>
+                <textarea
+                  rows="3"
+                  value={editForm.about}
+                  onChange={(e) => setEditForm({ ...editForm, about: e.target.value })}
+                  className="w-full p-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-primary"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setEditModalOpen(false)}
+                  className="px-4 py-2 border border-zinc-200 rounded-xl text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-5 py-2 bg-primary hover:bg-[#008B8B] text-white rounded-xl font-semibold shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {saving ? "Saving..." : "Update Doctor"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

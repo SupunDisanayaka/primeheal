@@ -48,6 +48,9 @@ app.use('/api/email', require('./routes/emailRoutes'));
 app.use('/api/feedback', require('./routes/feedbackRoutes'));
 app.use('/api/receptionist', require('./routes/receptionistRoutes'));
 app.use('/api/accountant', require('./routes/accountantRoutes'));
+app.use('/api/patients', require('./routes/patientRoutes'));
+app.use('/api/complaints', require('./routes/complaintRoutes'));
+app.use('/api/reports', require('./routes/reportRoutes'));
 
 
 // Error handling middleware

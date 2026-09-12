@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Route, Routes, useLocation, Navigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Doctors from "./pages/Doctors";
 import Login from "./pages/Login";
@@ -11,6 +11,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Navbar from "./components/Navbar";
 import Appointment from "./pages/Appointment";
+import Complaints from "./pages/Complaints";
 import Footer from "./components/Footer";
 import { AppContext } from "./context/AppContext";
 
@@ -35,8 +36,9 @@ const App = () => {
         <Route path='/reset-password' element={<ResetPassword />} />
         <Route path='/about' element={<About />} />
         <Route path='/contact' element={<Contact />} />
-        <Route path='/my-profile' element={<MyProfile />} />
-        <Route path='/my-appointments' element={<MyAppointments />} />
+        <Route path='/my-profile' element={token ? <MyProfile /> : <Navigate to='/login' replace />} />
+        <Route path='/my-appointments' element={token ? <MyAppointments /> : <Navigate to='/login' replace />} />
+        <Route path='/complaints' element={<Complaints />} />
         <Route path='/appointment/:docID' element={<Appointment />} />
       </Routes>
       {!isLoginScreen && (

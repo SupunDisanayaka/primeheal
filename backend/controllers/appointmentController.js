@@ -326,12 +326,18 @@ const getMyAppointments = async (req, res) => {
           a.patientNo,
           a.docAddress,
           a.noShowRefund,
+          a.doctorNotes,
+          p.allergies AS patientAllergies,
+          p.gender AS patientGender,
+          p.dateOfBirth AS patientDob,
+          p.patientCode,
           ${getLatestPaymentFields()},
           a.createdAt,
           a.updatedAt
         FROM appointments a
         LEFT JOIN doctor d ON a.doctorID = d.doctorID
         LEFT JOIN users u ON d.userID = u.userID
+        LEFT JOIN patient p ON a.patientID = p.patientID
         WHERE a.doctorID = ?
         ORDER BY a.createdAt DESC`,
         [doctorID]
@@ -549,7 +555,7 @@ const updateAppointmentStatus = async (req, res) => {
 const rescheduleAppointment = async (req, res) => {
   const { userID, userType } = req.user;
   const { appointmentId } = req.params;
-  const { newDate, newTime } = req.body;
+  let { newDate, newTime } = req.body;
 
   if (!appointmentId || !newDate || !newTime) {
     return res.status(400).json({ success: false, message: 'Appointment ID, new date, and new time are required' });
@@ -573,13 +579,13 @@ const rescheduleAppointment = async (req, res) => {
 
     if (userType === 'patient') {
       const [patientRows] = await connection.query('SELECT patientID FROM patient WHERE userID = ?', [userID]);
-      if (patientRows.length === 0 || patientRows[0].patientID !== appointment.patientID) {
+      if (patientRows.length === 0 || Number(patientRows[0].patientID) !== Number(appointment.patientID)) {
         await connection.rollback();
         return res.status(403).json({ success: false, message: 'Unauthorized' });
       }
     } else if (userType === 'doctor') {
       const [doctorRows] = await connection.query('SELECT doctorID FROM doctor WHERE userID = ?', [userID]);
-      if (doctorRows.length === 0 || doctorRows[0].doctorID !== appointment.doctorID) {
+      if (doctorRows.length === 0 || Number(doctorRows[0].doctorID) !== Number(appointment.doctorID)) {
         await connection.rollback();
         return res.status(403).json({ success: false, message: 'Unauthorized' });
       }
@@ -657,15 +663,15 @@ const rescheduleAppointment = async (req, res) => {
       [newDate, newTime, appointmentId]
     );
 
-    await logAudit(connection, userID, `RESCHEDULE_APPOINTMENT_ID_${appointmentId}`, { ip: req.ip, headers: req.headers, socket: req.socket });
+    await logAudit(connection, userID, `RESCHEDULE_APPOINTMENT_ID_${appointmentId}`, req);
 
     await connection.commit();
 
-    res.json({ success: true, message: 'Appointment rescheduled successfully' });
+    return res.json({ success: true, message: 'Appointment rescheduled successfully' });
   } catch (error) {
     await connection.rollback();
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    console.error('Error in rescheduleAppointment:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
   } finally {
     connection.release();
   }
@@ -838,11 +844,52 @@ const logAudit = async (connection, userID, action, req) => {
   ).catch(err => console.error('Audit logging failed in appController:', err));
 };
 
+const updateDoctorNotes = async (req, res) => {
+  const { userID, userType } = req.user;
+  const { appointmentId } = req.params;
+  const { doctorNotes } = req.body;
+
+  if (!appointmentId || doctorNotes === undefined) {
+    return res.status(400).json({ success: false, message: 'Appointment ID and doctor notes are required' });
+  }
+
+  try {
+    const [apptRows] = await pool.query(
+      `SELECT a.*, d.userID AS docUserID
+       FROM appointments a
+       LEFT JOIN doctor d ON a.doctorID = d.doctorID
+       WHERE a.appointmentID = ?`,
+      [appointmentId]
+    );
+
+    if (apptRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+
+    if (userType === 'doctor' && apptRows[0].docUserID !== userID) {
+      return res.status(403).json({ success: false, message: 'Forbidden: You can only update notes for your assigned appointments' });
+    }
+
+    await pool.query('UPDATE appointments SET doctorNotes = ? WHERE appointmentID = ?', [doctorNotes, appointmentId]);
+
+    return res.json({
+      success: true,
+      message: 'Clinical consultation notes saved successfully',
+      appointmentId: Number(appointmentId),
+      doctorNotes
+    });
+  } catch (error) {
+    console.error('updateDoctorNotes error:', error);
+    return res.status(500).json({ success: false, message: 'Server error saving clinical notes', error: error.message });
+  }
+};
+
 module.exports = {
   createAppointment,
   getMyAppointments,
   cancelAppointment,
   updateAppointmentStatus,
   rescheduleAppointment,
-  downloadInvoice
+  downloadInvoice,
+  updateDoctorNotes
 };

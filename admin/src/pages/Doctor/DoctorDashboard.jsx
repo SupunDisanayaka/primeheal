@@ -1,11 +1,32 @@
-import React, { useContext } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { DoctorContext } from "../../context/DoctorContext";
 import { AppContext } from "../../context/AppContext";
 import { assets } from "../../assets/assets";
+import { getDoctorFeedbackAPI } from "../../services/api";
 
 const DoctorDashboard = () => {
   const { currentDoctorId } = useContext(DoctorContext);
   const { appointments, doctors, setAppointments, syncAppointmentStatus, currencySymbol } = useContext(AppContext);
+  const [feedbackData, setFeedbackData] = useState({ averageRating: 0, totalReviews: 0, feedback: [] });
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
+
+  useEffect(() => {
+    if (currentDoctorId) {
+      setLoadingFeedback(true);
+      getDoctorFeedbackAPI(currentDoctorId)
+        .then((res) => {
+          if (res.success) {
+            setFeedbackData({
+              averageRating: res.averageRating || 0,
+              totalReviews: res.totalReviews || 0,
+              feedback: res.feedback || []
+            });
+          }
+        })
+        .catch((err) => console.error("Error loading doctor feedback:", err))
+        .finally(() => setLoadingFeedback(false));
+    }
+  }, [currentDoctorId]);
 
   // Filter appointments specifically assigned to this logged-in doctor
   const docApts = appointments.filter((apt) => String(apt.docId) === String(currentDoctorId));
@@ -70,7 +91,7 @@ const DoctorDashboard = () => {
       </div>
 
       {/* Metrics Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* Today's Appointments Card */}
         <div className="flex items-center gap-4 bg-white p-6 rounded-2xl border border-zinc-100 shadow-xs hover:shadow-md hover:translate-y-[-2px] transition-all duration-300">
@@ -102,6 +123,22 @@ const DoctorDashboard = () => {
           <div>
             <p className="text-2xl font-bold text-gray-900">{pendingAptsCount}</p>
             <p className="text-sm font-medium text-gray-500 mt-0.5">Pending Visits</p>
+          </div>
+        </div>
+
+        {/* Patient Satisfaction & Rating Card */}
+        <div className="flex items-center gap-4 bg-white p-6 rounded-2xl border border-zinc-100 shadow-xs hover:shadow-md hover:translate-y-[-2px] transition-all duration-300">
+          <div className="p-3 bg-amber-50 rounded-xl text-amber-500">
+            <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">
+              {feedbackData.averageRating > 0 ? Number(feedbackData.averageRating).toFixed(1) : "N/A"}
+              {feedbackData.averageRating > 0 && <span className="text-sm text-gray-400 font-normal">/ 5.0</span>}
+            </p>
+            <p className="text-sm font-medium text-gray-500 mt-0.5">{feedbackData.totalReviews} Patient Reviews</p>
           </div>
         </div>
 
@@ -206,6 +243,67 @@ const DoctorDashboard = () => {
                 </table>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Patient Reviews & Ratings Panel */}
+      <div className="bg-white rounded-2xl border border-zinc-100 shadow-xs p-6">
+        <div className="flex justify-between items-center mb-5 pb-4 border-b border-zinc-100">
+          <div className="flex items-center gap-2.5">
+            <span className="p-2 bg-amber-50 text-amber-500 rounded-lg">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            </span>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Patient Reviews & Feedback</h3>
+              <p className="text-xs text-gray-400">Verified patient satisfaction ratings and clinical consultation comments.</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-xs font-bold text-gray-500 bg-zinc-100 px-3 py-1 rounded-full">
+              {feedbackData.totalReviews} Total Verified Reviews
+            </span>
+          </div>
+        </div>
+
+        {loadingFeedback ? (
+          <div className="py-8 text-center text-sm text-gray-400">Loading patient feedback...</div>
+        ) : feedbackData.feedback.length === 0 ? (
+          <div className="py-8 text-center text-sm text-gray-400">
+            No patient reviews published yet. Completed consultations will display verified reviews here once approved.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {feedbackData.feedback.map((item) => (
+              <div
+                key={item.feedbackID}
+                className="p-4 rounded-xl border border-zinc-100 bg-slate-50/40 flex flex-col gap-2 hover:bg-slate-50 transition-colors"
+              >
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold text-gray-900">{item.patientName || "Verified Patient"}</span>
+                  <div className="flex items-center gap-1 text-amber-400">
+                    {[...Array(5)].map((_, i) => (
+                      <svg
+                        key={i}
+                        className={`w-4 h-4 ${i < item.rating ? "text-amber-400 fill-amber-400" : "text-zinc-200 fill-zinc-200"}`}
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                    <span className="text-xs font-bold text-gray-700 ml-1">{item.rating}.0</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600 leading-relaxed italic">
+                  "{item.comments || "No written comments provided."}"
+                </p>
+                <p className="text-[10px] text-gray-400 mt-auto pt-1">
+                  Submitted: {item.createdAt ? String(item.createdAt).substring(0, 10) : "Recent"}
+                </p>
+              </div>
+            ))}
           </div>
         )}
       </div>

@@ -46,4 +46,6 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
-module.exports = { verifyToken };
+const { requireRole } = require('./roleGuard');
+
+module.exports = { verifyToken, requireRole };

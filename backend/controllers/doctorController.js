@@ -235,7 +235,7 @@ const getDoctorSlots = async (req, res) => {
   try {
     const { id } = req.params; // userID of doctor
     const { date: queryDate } = req.query;
-    const [docs] = await pool.query('SELECT doctorID FROM doctor WHERE userID = ?', [id]);
+    const [docs] = await pool.query('SELECT doctorID FROM doctor WHERE userID = ? OR doctorID = ?', [id, id]);
     if (docs.length === 0) {
       return res.status(404).json({ success: false, message: 'Doctor not found' });
     }

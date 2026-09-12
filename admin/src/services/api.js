@@ -76,7 +76,10 @@ const mapAppointment = (appointment) => ({
   patientAddress: appointment.patientAddress || '',
   patientNic: appointment.patientNic || '',
   docAddress: appointment.docAddress || '',
-  noShowRefund: Boolean(appointment.noShowRefund)
+  noShowRefund: Boolean(appointment.noShowRefund),
+  doctorNotes: appointment.doctorNotes || '',
+  patientAllergies: appointment.patientAllergies || '',
+  patientCode: appointment.patientCode || ''
 });
 
 export const getAdminAppointments = async () => {
@@ -116,6 +119,11 @@ export const getDoctorAppointmentsAPI = async () => {
     ...response.data,
     appointments: (response.data.appointments || []).map(mapAppointment)
   };
+};
+
+export const updateDoctorNotesAPI = async (appointmentId, doctorNotes) => {
+  const response = await api.patch(`/appointments/${appointmentId}/notes`, { doctorNotes });
+  return response.data;
 };
 
 export const addDoctorAPI = async (doctorData) => {
@@ -212,5 +220,70 @@ export const getFinancialSummaryAPI = async () => {
   return response.data;
 };
 
+export const recreateInvoiceAPI = async (invoiceData) => {
+  const response = await api.post('/accountant/recreate-invoice', invoiceData);
+  return response.data;
+};
+
+export const getAllInvoicesAPI = async () => {
+  const response = await api.get('/accountant/invoices');
+  return response.data;
+};
+
+// --- Feedback Operations ---
+export const getDoctorFeedbackAPI = async (doctorId) => {
+  const response = await api.get(`/feedback/doctor/${doctorId}`);
+  return response.data;
+};
+
+// --- Complaint Management Operations ---
+export const getAllComplaintsAdminAPI = async (params = {}) => {
+  const response = await api.get('/complaints/admin/all', { params });
+  return response.data;
+};
+
+export const updateComplaintStatusAPI = async (complaintId, payload) => {
+  const response = await api.put(`/complaints/admin/${complaintId}`, payload);
+  return response.data;
+};
+
+// --- Patient Management Operations ---
+export const getAllPatientsAPI = async (params = {}) => {
+  const response = await api.get('/patients', { params });
+  return response.data;
+};
+
+export const getPatientByIdAPI = async (id) => {
+  const response = await api.get(`/patients/${id}`);
+  return response.data;
+};
+
+export const updatePatientByStaffAPI = async (id, updateData) => {
+  const response = await api.put(`/patients/${id}`, updateData);
+  return response.data;
+};
+
+export const registerPatientIntakeAPI = async (patientData) => {
+  const response = await api.post('/patients/register', patientData);
+  return response.data;
+};
+
+// --- Reporting & Audit Operations ---
+export const getAppointmentReportAPI = async (params = {}) => {
+  const response = await api.get('/reports/appointments', { params });
+  return response.data;
+};
+
+export const getFinancialReportAPI = async (params = {}) => {
+  const response = await api.get('/reports/financial', { params });
+  return response.data;
+};
+
+export const getAuditLogsAPI = async (params = {}) => {
+  const response = await api.get('/reports/audit-logs', { params });
+  return response.data;
+};
+
 export default api;
+
 

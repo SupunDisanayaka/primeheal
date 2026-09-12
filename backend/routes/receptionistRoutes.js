@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken, requireRole } = require('../middleware/auth');
+const { verifyToken } = require('../middleware/auth');
+const { requireRole } = require('../middleware/roleGuard');
 const {
   checkInPatient,
   createWalkInAppointment,

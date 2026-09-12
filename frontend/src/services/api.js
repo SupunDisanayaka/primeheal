@@ -139,4 +139,14 @@ export const submitFeedbackAPI = async (payload) => {
   return response.data;
 };
 
+export const submitComplaintAPI = async (payload) => {
+  const response = await api.post('/complaints/submit', payload);
+  return response.data;
+};
+
+export const getMyComplaintsAPI = async () => {
+  const response = await api.get('/complaints/my');
+  return response.data;
+};
+
 export default api;

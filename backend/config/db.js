@@ -368,7 +368,40 @@ async function initializePool() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `).catch(err => console.log('Feedback table creation:', err.message));
 
-  // Auto-migrate feedback table foreign key if referencing stale singular appointment table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS complaint (
+      complaintID INT AUTO_INCREMENT PRIMARY KEY,
+      userID INT NOT NULL,
+      complaintType ENUM('service','billing','technical','staff','other') NOT NULL,
+      description TEXT NOT NULL,
+      status ENUM('open','in-progress','resolved','closed') DEFAULT 'open',
+      assignedToAdminID INT DEFAULT NULL,
+      resolution TEXT,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      resolvedAt TIMESTAMP NULL DEFAULT NULL,
+      FOREIGN KEY (userID) REFERENCES users(userID) ON DELETE CASCADE,
+      INDEX idx_complaint_user (userID),
+      INDEX idx_complaint_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `).catch(err => console.log('Complaint table creation:', err.message));
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS invoice (
+      invoiceID INT AUTO_INCREMENT PRIMARY KEY,
+      appointmentID INT NOT NULL,
+      patientID INT NOT NULL,
+      invoiceNumber VARCHAR(100) NOT NULL UNIQUE,
+      subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      tax DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      discount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      totalAmount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      issueDate DATE NOT NULL,
+      dueDate DATE NOT NULL,
+      status ENUM('issued','paid','cancelled') DEFAULT 'issued',
+      INDEX idx_inv_patient (patientID),
+      INDEX idx_inv_apt (appointmentID)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `).catch(err => console.log('Invoice table creation:', err.message));
   try {
     const [fkRows] = await pool.query(`
       SELECT CONSTRAINT_NAME, REFERENCED_TABLE_NAME

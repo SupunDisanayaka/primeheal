@@ -1,7 +1,15 @@
 import React, { useContext, useState, useEffect, useCallback } from 'react'
 import { AppContext } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
-import { cancelAppointment as cancelAppointmentRequest, getMyAppointments, createPaymentSession, downloadInvoice, verifyPaymentAPI } from '../services/api'
+import {
+  cancelAppointment as cancelAppointmentRequest,
+  getMyAppointments,
+  createPaymentSession,
+  downloadInvoice,
+  verifyPaymentAPI,
+  rescheduleAppointment,
+  getDoctorSlots
+} from '../services/api'
 import { assets } from '../assets/assets'
 import FeedbackModal from '../components/feedback/FeedbackModal'
 
@@ -30,6 +38,76 @@ const MyAppointments = () => {
   // Feedback Modal States
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
   const [feedbackApt, setFeedbackApt] = useState(null)
+
+  // Reschedule Modal States
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false)
+  const [rescheduleApt, setRescheduleApt] = useState(null)
+  const [newRescheduleDate, setNewRescheduleDate] = useState('')
+  const [newRescheduleTime, setNewRescheduleTime] = useState('')
+  const [availableSlots, setAvailableSlots] = useState([])
+  const [slotLoading, setSlotLoading] = useState(false)
+  const [rescheduling, setRescheduling] = useState(false)
+
+  const loadDoctorSlotsForDate = async (docId, selectedDate) => {
+    if (!docId) return
+    setSlotLoading(true)
+    try {
+      const data = await getDoctorSlots(docId, selectedDate)
+      if (data.success && data.slotsByDate) {
+        const dateEntry = data.slotsByDate.find(d => d.date === selectedDate)
+        if (dateEntry) {
+          setAvailableSlots(dateEntry.slots || [])
+        } else if (data.slotsByDate.length > 0) {
+          setAvailableSlots(data.slotsByDate[0].slots || [])
+        } else {
+          setAvailableSlots([])
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load doctor slots for reschedule:", err)
+      setAvailableSlots([])
+    } finally {
+      setSlotLoading(false)
+    }
+  }
+
+  const openRescheduleModal = (apt) => {
+    setRescheduleApt(apt)
+    const initDate = apt.appointmentDate ? apt.appointmentDate.split('T')[0] : new Date().toISOString().split('T')[0]
+    setNewRescheduleDate(initDate)
+    setNewRescheduleTime(apt.appointmentTime || '')
+    setRescheduleModalOpen(true)
+    const docId = apt.doctorUserId || apt.doctorId || apt.docId || apt.doctorID
+    loadDoctorSlotsForDate(docId, initDate)
+  }
+
+  const handleDateChange = (dateVal) => {
+    setNewRescheduleDate(dateVal)
+    const docId = rescheduleApt?.doctorUserId || rescheduleApt?.doctorId || rescheduleApt?.docId || rescheduleApt?.doctorID
+    loadDoctorSlotsForDate(docId, dateVal)
+  }
+
+  const handleRescheduleSubmit = async (e) => {
+    e.preventDefault()
+    if (!rescheduleApt || !newRescheduleDate || !newRescheduleTime) {
+      alert("Please select both a date and an available time slot.")
+      return
+    }
+    setRescheduling(true)
+    try {
+      const res = await rescheduleAppointment(rescheduleApt.appointmentId, newRescheduleDate, newRescheduleTime)
+      if (res.success) {
+        alert("Appointment rescheduled successfully!")
+        setRescheduleModalOpen(false)
+        loadAppointments()
+      }
+    } catch (err) {
+      console.error("Reschedule failed:", err)
+      alert(err.response?.data?.message || "Failed to reschedule appointment.")
+    } finally {
+      setRescheduling(false)
+    }
+  }
 
   const loadAppointments = useCallback(async (showLoadingSpinner = false) => {
     if (!token) {
@@ -339,6 +417,16 @@ const MyAppointments = () => {
                   </>
                 )}
 
+                {item.status !== 'Cancelled' && item.status !== 'Completed' && (
+                  <button
+                    onClick={() => openRescheduleModal(item)}
+                    disabled={payingAptId === item.appointmentId}
+                    className='w-full sm:min-w-44 text-xs text-[#187595] hover:bg-[#187595] hover:text-white py-2 border border-[#187595]/30 rounded-lg font-bold transition-all cursor-pointer'
+                  >
+                    Reschedule Slot
+                  </button>
+                )}
+
                 {item.status !== 'Cancelled' && item.status !== 'Completed' && item.status !== 'Paid' && item.paymentStatus !== 'Completed' && (
                   <>
                     <button
@@ -465,6 +553,105 @@ const MyAppointments = () => {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Reschedule Modal */}
+      {rescheduleModalOpen && rescheduleApt && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-zinc-100 animate-fade-in">
+            <div className="flex items-center justify-between pb-4 border-b border-zinc-100 mb-5">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Reschedule Appointment</h3>
+                <p className="text-xs text-gray-500 mt-0.5">With {rescheduleApt.doctorName}</p>
+              </div>
+              <button
+                onClick={() => setRescheduleModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleRescheduleSubmit} className="space-y-4 text-xs">
+              <div className="p-3.5 bg-teal-50/60 rounded-2xl border border-teal-100 text-xs">
+                <span className="text-gray-500 font-medium block">Current Booking:</span>
+                <span className="font-bold text-teal-800 text-sm">
+                  {new Date(rescheduleApt.appointmentDate).toLocaleDateString()} at {rescheduleApt.appointmentTime}
+                </span>
+              </div>
+
+              <div>
+                <label className="font-bold text-gray-700 block mb-1">Select New Date *</label>
+                <input
+                  type="date"
+                  min={new Date().toISOString().split('T')[0]}
+                  value={newRescheduleDate}
+                  onChange={(e) => handleDateChange(e.target.value)}
+                  className="w-full p-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-primary bg-white"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-gray-700 block mb-1">Select Available Time Slot *</label>
+                {slotLoading ? (
+                  <p className="text-gray-400 italic py-2">Loading slots for selected date...</p>
+                ) : availableSlots.length === 0 ? (
+                  <p className="text-amber-600 italic py-1">No predefined slots for this date. Enter time below:</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 max-h-36 overflow-y-auto p-1 mb-2">
+                    {availableSlots.map((slot, idx) => (
+                      <button
+                        type="button"
+                        key={idx}
+                        disabled={!slot.available}
+                        onClick={() => setNewRescheduleTime(slot.time)}
+                        className={`py-2 px-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                          newRescheduleTime === slot.time
+                            ? 'bg-[#00B4B4] text-white border-[#00B4B4] shadow-xs'
+                            : slot.available
+                            ? 'bg-white hover:bg-teal-50 text-gray-700 border-zinc-200'
+                            : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                        }`}
+                      >
+                        {slot.time}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[11px] text-gray-400 block mb-1">Chosen Slot Time:</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 09:30 AM"
+                    value={newRescheduleTime}
+                    onChange={(e) => setNewRescheduleTime(e.target.value)}
+                    className="w-full p-2.5 border border-zinc-200 rounded-xl text-xs focus:outline-primary bg-white font-semibold"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setRescheduleModalOpen(false)}
+                  className="px-4 py-2 border border-zinc-200 rounded-xl text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={rescheduling}
+                  className="px-5 py-2 bg-[#00B4B4] hover:bg-[#009E9E] text-white rounded-xl font-bold shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {rescheduling ? 'Saving...' : 'Confirm Reschedule'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
