@@ -13,15 +13,29 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     let token = '';
-    // Determine which token to use based on the path or just try all
-    // Since admin apps might have different contexts, they might store it as adminToken, doctorToken, etc.
-    if (localStorage.getItem('adminToken')) token = localStorage.getItem('adminToken');
-    else if (localStorage.getItem('doctorToken')) token = localStorage.getItem('doctorToken');
-    else if (localStorage.getItem('receptionistToken')) token = localStorage.getItem('receptionistToken');
-    else if (localStorage.getItem('accountantToken')) token = localStorage.getItem('accountantToken');
-    else if (localStorage.getItem('aToken')) token = localStorage.getItem('aToken');
-    else if (localStorage.getItem('dToken')) token = localStorage.getItem('dToken');
-    else if (localStorage.getItem('token')) token = localStorage.getItem('token'); // default fallback
+    
+    // If request is doctor-specific, prioritize doctorToken
+    if (config.url?.includes('/appointments/my') || config.url?.startsWith('/doctor') || config.url?.includes('/notes')) {
+      token = localStorage.getItem('doctorToken') || localStorage.getItem('adminToken') || localStorage.getItem('token');
+    } else {
+      if (localStorage.getItem('doctorToken') && !localStorage.getItem('adminToken')) {
+        token = localStorage.getItem('doctorToken');
+      } else if (localStorage.getItem('adminToken')) {
+        token = localStorage.getItem('adminToken');
+      } else if (localStorage.getItem('doctorToken')) {
+        token = localStorage.getItem('doctorToken');
+      } else if (localStorage.getItem('receptionistToken')) {
+        token = localStorage.getItem('receptionistToken');
+      } else if (localStorage.getItem('accountantToken')) {
+        token = localStorage.getItem('accountantToken');
+      } else if (localStorage.getItem('aToken')) {
+        token = localStorage.getItem('aToken');
+      } else if (localStorage.getItem('dToken')) {
+        token = localStorage.getItem('dToken');
+      } else if (localStorage.getItem('token')) {
+        token = localStorage.getItem('token');
+      }
+    }
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -55,6 +69,21 @@ const normalizeAppointmentStatus = (status) => {
   return status;
 };
 
+const formatDateStr = (dateVal) => {
+  if (!dateVal) return '';
+  if (typeof dateVal === 'string' && dateVal.includes(',')) return dateVal;
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return String(dateVal);
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  return `${day}, ${month}, ${year}`;
+};
+
 const mapAppointment = (appointment) => ({
   _id: appointment._id ?? appointment.appointmentId,
   appointmentId: appointment.appointmentId ?? appointment._id,
@@ -63,10 +92,14 @@ const mapAppointment = (appointment) => ({
   patientPhone: appointment.patientPhone || '',
   patientGender: appointment.patientGender || '',
   patientDob: appointment.patientDob || '',
-  docId: appointment.docId ?? appointment.doctorUserId ?? appointment.doctorId ?? '',
+  docId: appointment.docId ?? appointment.doctorUserId ?? appointment.doctorId ?? appointment.doctorID ?? '',
+  doctorUserId: appointment.doctorUserId ?? appointment.docId ?? '',
+  doctorTableId: appointment.doctorTableId ?? appointment.doctorID ?? '',
+  doctorID: appointment.doctorID ?? appointment.doctorTableId ?? '',
+  doctorId: appointment.doctorId ?? appointment.doctorUserId ?? '',
   doctorName: appointment.doctorName || '',
-  speciality: appointment.speciality || '',
-  slotDate: appointment.slotDate || appointment.appointmentDate || '',
+  speciality: appointment.speciality || appointment.docSpeciality || '',
+  slotDate: appointment.slotDate ? formatDateStr(appointment.slotDate) : formatDateStr(appointment.appointmentDate),
   slotTime: appointment.slotTime || appointment.appointmentTime || '',
   amount: Number(appointment.amount ?? appointment.totalCharge ?? appointment.fee ?? 0),
   status: normalizeAppointmentStatus(appointment.status),

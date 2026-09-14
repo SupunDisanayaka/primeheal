@@ -17,15 +17,18 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    if (adminToken) {
-      adminLogout();
-    } else if (doctorToken) {
-      doctorLogout();
-    } else if (receptionistToken) {
-      logoutReceptionist();
-    } else if (accountantToken) {
-      logoutAccountant();
-    }
+    if (adminToken) adminLogout();
+    if (doctorToken) doctorLogout();
+    if (receptionistToken) logoutReceptionist();
+    if (accountantToken) logoutAccountant();
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("doctorToken");
+    localStorage.removeItem("currentDoctorId");
+    localStorage.removeItem("receptionistToken");
+    localStorage.removeItem("accountantToken");
+    localStorage.removeItem("aToken");
+    localStorage.removeItem("dToken");
+    localStorage.removeItem("token");
     navigate("/login");
   };
 

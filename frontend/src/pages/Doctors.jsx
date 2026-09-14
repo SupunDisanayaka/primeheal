@@ -17,7 +17,7 @@ const Doctors = () => {
       return item.image.startsWith('http') ? item.image : `${backendUrl}${item.image}`;
     }
     const numericId = parseInt(String(item._id || item.userID || '1').replace(/\D/g, ''), 10) || 1;
-    const docKey = `doc${((numericId - 1) % 15) + 1}`;
+    const docKey = `doc${((numericId % 15) + 1)}`;
     return assets[docKey] || assets.doc1;
   };
 

@@ -14,7 +14,14 @@ const DoctorAppointments = () => {
   const [savingNotes, setSavingNotes] = useState(false);
 
   // Filter appointments specifically assigned to this logged-in doctor
-  const docApts = appointments.filter((apt) => String(apt.docId) === String(currentDoctorId));
+  const docApts = appointments.filter((apt) => 
+    !currentDoctorId ||
+    String(apt.docId) === String(currentDoctorId) ||
+    String(apt.doctorUserId) === String(currentDoctorId) ||
+    String(apt.doctorTableId) === String(currentDoctorId) ||
+    String(apt.doctorID) === String(currentDoctorId) ||
+    String(apt.doctorId) === String(currentDoctorId)
+  );
 
   const handleStatusChange = async (aptId, newStatus) => {
     try {

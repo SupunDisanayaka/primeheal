@@ -24,7 +24,11 @@ const DoctorContextProvider = ({ children }) => {
       console.log('Doctor login response:', { status: response.status, data });
 
       if (data.success && data.user?.userType === "doctor") {
-        const idVal = data.user._id || data.user.userID || data.user.doctorID || "";
+        const idVal = String(data.user._id || data.user.userID || data.user.doctorID || data.user.roleID || "");
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("receptionistToken");
+        localStorage.removeItem("accountantToken");
+        localStorage.removeItem("aToken");
         setDoctorToken(data.token);
         setCurrentDoctorId(idVal);
         localStorage.setItem("doctorToken", data.token);

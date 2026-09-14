@@ -29,7 +29,14 @@ const DoctorDashboard = () => {
   }, [currentDoctorId]);
 
   // Filter appointments specifically assigned to this logged-in doctor
-  const docApts = appointments.filter((apt) => String(apt.docId) === String(currentDoctorId));
+  const docApts = appointments.filter((apt) => 
+    !currentDoctorId ||
+    String(apt.docId) === String(currentDoctorId) ||
+    String(apt.doctorUserId) === String(currentDoctorId) ||
+    String(apt.doctorTableId) === String(currentDoctorId) ||
+    String(apt.doctorID) === String(currentDoctorId) ||
+    String(apt.doctorId) === String(currentDoctorId)
+  );
 
   // Stats Computations
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -82,7 +89,11 @@ const DoctorDashboard = () => {
         <h2 className="text-2xl font-bold text-gray-900">
           Welcome back,{" "}
           <span className="text-primary font-extrabold">
-            {doctors.find((d) => String(d._id) === String(currentDoctorId))?.name || "Doctor"}
+            {doctors.find((d) => 
+              String(d._id) === String(currentDoctorId) || 
+              String(d.userID) === String(currentDoctorId) || 
+              String(d.doctorID) === String(currentDoctorId)
+            )?.name || "Doctor"}
           </span>
         </h2>
         <p className="text-sm text-gray-500 mt-1">
@@ -187,7 +198,7 @@ const DoctorDashboard = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                           {currencySymbol}{apt.amount}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap flex flex-col gap-1 items-start">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span
                             className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold select-none ${
                               apt.status === "Completed"
@@ -198,19 +209,10 @@ const DoctorDashboard = () => {
                                 ? "bg-teal-50 text-teal-600"
                                 : apt.status === "Paid"
                                 ? "bg-indigo-50 text-indigo-600"
-                                : "bg-blue-50 text-blue-600"
+                                : "bg-amber-50 text-amber-600"
                             }`}
                           >
                             {apt.status}
-                          </span>
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold select-none ${
-                              apt.paymentStatus === "Completed"
-                                ? "bg-teal-100 text-teal-800"
-                                : "bg-amber-100 text-amber-800"
-                            }`}
-                          >
-                            {apt.paymentStatus === "Completed" ? "Paid" : "Pending"}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">

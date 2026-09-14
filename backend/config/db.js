@@ -178,6 +178,7 @@ async function initializePool() {
       patientNo VARCHAR(50) DEFAULT NULL,
       docAddress TEXT DEFAULT NULL,
       noShowRefund TINYINT(1) DEFAULT 0,
+      doctorNotes TEXT DEFAULT NULL,
       createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (patientID) REFERENCES patient(patientID) ON DELETE CASCADE,
@@ -192,6 +193,11 @@ async function initializePool() {
     ALTER TABLE appointments
     MODIFY COLUMN status ENUM('Pending', 'Paid', 'Confirmed', 'Checked In', 'Completed', 'Cancelled', 'Expired', 'No Show') DEFAULT 'Pending'
   `).catch(err => console.log('Appointments status enum alter:', err.message));
+
+  await pool.query(`
+    ALTER TABLE appointments
+    ADD COLUMN IF NOT EXISTS doctorNotes TEXT DEFAULT NULL
+  `).catch(err => console.log('Appointments doctorNotes alter:', err.message));
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS payments (

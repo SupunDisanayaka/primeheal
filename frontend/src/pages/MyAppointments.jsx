@@ -332,127 +332,246 @@ const MyAppointments = () => {
           </button>
         </div>
       ) : (
-        <div className="mt-6 flex flex-col gap-4">
-          {appointments.map((item, index) => (
-            <div className='flex flex-col sm:flex-row gap-4 sm:gap-6 py-6 px-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300' key={item.appointmentId || index}>
-              
-              <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0">
-                <img className='w-full h-full object-cover rounded-xl bg-teal-50/50 border border-gray-100' src={item.docImage || item.image || assets.profile_pic} alt={item.docName || item.name} />
-              </div>
+        <div className="mt-5 flex flex-col gap-3">
+          {appointments.map((item, index) => {
+            // 1. Match from doctors context
+            const docObj = doctors?.find((d) =>
+              (item.doctorUserId && String(d._id) === String(item.doctorUserId)) ||
+              (item.doctorUserId && String(d.userID) === String(item.doctorUserId)) ||
+              (item.doctorID && String(d.doctorID) === String(item.doctorID)) ||
+              (item.doctorTableId && String(d.doctorID) === String(item.doctorTableId)) ||
+              (item.docId && String(d._id) === String(item.docId)) ||
+              (item.doctorName && d.name && d.name.toLowerCase().trim() === item.doctorName.toLowerCase().trim()) ||
+              (item.docName && d.name && d.name.toLowerCase().trim() === item.docName.toLowerCase().trim())
+            );
 
-              <div className='flex-1 text-sm text-zinc-600 flex flex-col justify-between'>
-                <div>
-                  <h3 className='text-neutral-800 font-bold text-base leading-tight'>{item.docName || item.name}</h3>
-                  <p className='text-xs text-[#00B4B4] font-medium mt-0.5'>{item.docSpeciality || item.speciality}</p>
-                  
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    <p><span className="font-semibold text-gray-500">Date:</span> {(() => { const d = new Date(item.appointmentDate); return !item.appointmentDate || isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString(); })()}</p>
-                    <p><span className="font-semibold text-gray-500">Time:</span> {item.appointmentTime}</p>
-                    <p className="col-span-2"><span className="font-semibold text-gray-500">Hospital:</span> {item.docAddress?.line1 || 'PrimeHeal specialist center'}, {item.docAddress?.line2 || 'Colombo 03'}</p>
-                  </div>
-                </div>
+            const docDisplayName = item.doctorName || item.docName || item.name || docObj?.name || 'Doctor';
+            const cleanName = docDisplayName.replace(/^Dr\.?\s*/i, '');
+            const initials = cleanName
+              .split(' ')
+              .map((n) => n[0])
+              .filter(Boolean)
+              .slice(0, 2)
+              .join('')
+              .toUpperCase() || 'DR';
 
-                <div className="mt-4 pt-3 border-t border-gray-50 flex items-center justify-between">
-                  <div className="text-xs">
-                    <p className="text-gray-500">Patient: <span className="font-bold text-gray-700">{item.patientName}</span></p>
-                    <p className="text-gray-400">Total charge: <span className="font-bold text-teal-600">LKR {Number(item.totalCharge || item.fee).toFixed(2)}</span></p>
-                  </div>
+            // 2. Resolve image source
+            const rawImg = item.docImage || item.image || docObj?.image || docObj?.profileImage;
+            let imgSrc = null;
+            if (rawImg && typeof rawImg === 'string' && rawImg.trim() !== '') {
+              const backendUrl = import.meta.env.VITE_BACKEND_URL
+                ? import.meta.env.VITE_BACKEND_URL.replace(/\/api\/?$/, '')
+                : 'http://localhost:5000';
+              imgSrc = rawImg.startsWith('http') || rawImg.startsWith('data:') || rawImg.startsWith('blob:')
+                ? rawImg
+                : `${backendUrl}${rawImg.startsWith('/') ? '' : '/'}${rawImg}`;
+            } else {
+              const docNum = parseInt(
+                String(item.doctorUserId || docObj?._id || docObj?.userID || item.docId || item.doctorID || item.doctorTableId || '0').replace(/\D/g, ''),
+                10
+              );
+              if (docNum > 0 && assets[`doc${((docNum % 15) + 1)}`]) {
+                imgSrc = assets[`doc${((docNum % 15) + 1)}`];
+              }
+            }
+
+            // Date formatting
+            const displayDate = (() => {
+              if (item.slotDate && typeof item.slotDate === 'string' && item.slotDate.trim() !== '') {
+                return item.slotDate;
+              }
+              if (item.appointmentDate) {
+                const d = new Date(item.appointmentDate);
+                if (!isNaN(d.getTime())) {
+                  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                }
+              }
+              return 'N/A';
+            })();
+
+            const displayTime = item.appointmentTime || item.slotTime || 'Scheduled';
+            const hospitalAddress = item.docAddress?.line1 || 'PrimeHeal Specialist Center';
+            const hospitalCity = item.docAddress?.line2 || 'Colombo 03';
+
+            const isPaid = item.paymentStatus === 'Completed' || item.status === 'Paid';
+            const isCompleted = item.status === 'Completed';
+            const isCancelled = item.status === 'Cancelled';
+            const isPending = !isPaid && !isCompleted && !isCancelled;
+
+            return (
+              <div 
+                key={item.appointmentId || index}
+                className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-4 bg-white rounded-xl border border-zinc-200/80 hover:border-[#00B4B4]/40 shadow-xs hover:shadow-sm transition-all duration-200'
+              >
+                {/* Left Side: Avatar + Details */}
+                <div className='flex items-start gap-3 sm:gap-3.5 flex-1 min-w-0'>
                   
-                  <div>
-                    {item.paymentStatus === 'Completed' || item.status === 'Paid' ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                        Paid / Confirmed
-                      </span>
-                    ) : item.status === 'Cancelled' ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-100">
-                        Cancelled
-                      </span>
+                  {/* Doctor Profile Picture or No-Image Initials Avatar */}
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-teal-50/70 border border-teal-100 flex-shrink-0 flex items-center justify-center">
+                    {imgSrc ? (
+                      <img 
+                        className='w-full h-full object-cover' 
+                        src={imgSrc} 
+                        alt={docDisplayName}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-teal-50 to-cyan-100 text-[#00B4B4] font-bold select-none"><span class="text-[11px] font-extrabold tracking-wider">${initials}</span></div>`;
+                        }}
+                      />
                     ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
-                        Payment Pending
-                      </span>
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-teal-50 to-cyan-100 text-[#00B4B4] font-bold select-none">
+                        <svg className="w-5 h-5 text-[#00B4B4] mb-0.5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span className="text-[10px] font-extrabold tracking-wider">{initials}</span>
+                      </div>
                     )}
                   </div>
+
+                  {/* Middle Info Column */}
+                  <div className='flex-1 min-w-0 text-xs text-gray-600 flex flex-col gap-1'>
+                    {/* Doctor Name, Speciality & Status Badge */}
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                      <h3 className='text-gray-900 font-bold text-sm sm:text-base leading-snug truncate'>
+                        {docDisplayName}
+                      </h3>
+                      <span className='text-[11px] font-semibold text-[#00B4B4] bg-teal-50/80 px-2 py-0.5 rounded-md border border-teal-100/70'>
+                        {item.docSpeciality || item.speciality || 'General physician'}
+                      </span>
+                      {isCompleted && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70">
+                          Completed
+                        </span>
+                      )}
+                      {isCancelled && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-600 border border-rose-200/70">
+                          Cancelled
+                        </span>
+                      )}
+                      {isPaid && !isCompleted && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200/70">
+                          Paid / Confirmed
+                        </span>
+                      )}
+                      {isPending && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/70">
+                          Payment Pending
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Date, Time & Hospital in a compact row */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-500 text-[11.5px] mt-0.5">
+                      <span className="flex items-center gap-1 font-medium text-gray-700">
+                        <svg className="w-3.5 h-3.5 text-[#00B4B4] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        {displayDate}
+                      </span>
+                      <span className="flex items-center gap-1 font-medium text-gray-700">
+                        <svg className="w-3.5 h-3.5 text-[#00B4B4] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {displayTime}
+                      </span>
+                      <span className="hidden md:inline-flex items-center gap-1 text-gray-400 truncate">
+                        <span>•</span>
+                        <span className="truncate">{hospitalAddress}, {hospitalCity}</span>
+                      </span>
+                    </div>
+
+                    {/* Patient & Charge */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-gray-500 pt-1 border-t border-gray-100 mt-0.5">
+                      <span>Patient: <span className="font-semibold text-gray-800">{item.patientName || 'Self'}</span></span>
+                      <span>Total charge: <span className="font-bold text-[#00B4B4]">LKR {Number(item.totalCharge || item.fee || 0).toFixed(2)}</span></span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Side: Action Buttons Column */}
+                <div className='flex flex-wrap sm:flex-col items-stretch sm:items-end justify-center gap-1.5 w-full sm:w-[144px] flex-shrink-0 pt-2.5 sm:pt-0 border-t sm:border-t-0 sm:border-l sm:border-gray-100 sm:pl-3'>
+                  {isCancelled && (
+                    <div className='w-full sm:w-[136px] h-8 text-[11.5px] text-rose-500 bg-rose-50/60 border border-rose-100 rounded-lg font-medium flex items-center justify-center select-none'>
+                      Cancelled
+                    </div>
+                  )}
+
+                  {isCompleted && (
+                    <>
+                      <button
+                        onClick={() => openFeedbackModal(item)}
+                        className='w-full sm:w-[136px] h-8 text-[11.5px] text-amber-700 bg-amber-50/80 hover:bg-amber-100 border border-amber-200/90 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs'
+                      >
+                        <svg className="w-3.5 h-3.5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        <span>Leave Feedback</span>
+                      </button>
+                      <button 
+                        onClick={() => handleDownloadInvoice(item.appointmentId)}
+                        className='w-full sm:w-[136px] h-8 text-[11.5px] text-gray-700 hover:text-[#00B4B4] bg-white hover:bg-teal-50/50 border border-gray-200 hover:border-[#00B4B4]/50 rounded-lg font-medium transition-all cursor-pointer flex items-center justify-center gap-1.5'
+                      >
+                        <svg className="w-3.5 h-3.5 text-[#00B4B4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span>Invoice PDF</span>
+                      </button>
+                    </>
+                  )}
+
+                  {isPaid && !isCompleted && (
+                    <>
+                      <button 
+                        onClick={() => handleDownloadInvoice(item.appointmentId)}
+                        className='w-full sm:w-[136px] h-8 text-[11.5px] text-[#00B4B4] bg-teal-50/60 hover:bg-[#00B4B4] hover:text-white border border-teal-200/60 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5'
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span>Invoice PDF</span>
+                      </button>
+                      <button
+                        onClick={() => openRescheduleModal(item)}
+                        className='w-full sm:w-[136px] h-8 text-[11.5px] text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg font-medium transition-all cursor-pointer flex items-center justify-center'
+                      >
+                        Reschedule
+                      </button>
+                    </>
+                  )}
+
+                  {isPending && (
+                    <>
+                      <button
+                        onClick={() => handlePayNow(item)}
+                        disabled={payingAptId === item.appointmentId}
+                        className={`w-full sm:w-[136px] h-8 text-[11.5px] rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center shadow-xs ${
+                          payingAptId === item.appointmentId
+                            ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                            : 'bg-[#00B4B4] hover:bg-[#009E9E] text-white shadow-teal-500/10 active:scale-98'
+                        }`}
+                      >
+                        {payingAptId === item.appointmentId ? 'Processing...' : 'Pay with PayHere'}
+                      </button>
+                      <button
+                        onClick={() => openRescheduleModal(item)}
+                        disabled={payingAptId === item.appointmentId}
+                        className='w-full sm:w-[136px] h-8 text-[11.5px] text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg font-medium transition-all cursor-pointer flex items-center justify-center'
+                      >
+                        Reschedule
+                      </button>
+                      <button
+                        onClick={() => cancelAppointment(item.appointmentId)}
+                        disabled={payingAptId === item.appointmentId}
+                        className='w-full sm:w-[136px] h-8 text-[11.5px] text-gray-500 hover:text-rose-600 bg-white hover:bg-rose-50 border border-gray-200 hover:border-rose-200 rounded-lg font-medium transition-all cursor-pointer flex items-center justify-center'
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
-
-              {/* Action Buttons */}
-              <div className='flex sm:flex-col gap-2 justify-end sm:justify-center border-t sm:border-t-0 sm:border-l border-gray-100 pt-4 sm:pt-0 sm:pl-6 flex-shrink-0'>
-                {item.status === 'Cancelled' && (
-                  <button disabled className='w-full sm:min-w-44 text-xs text-red-500 py-2 border border-red-100 bg-red-50/50 rounded-lg font-bold select-none cursor-not-allowed'>
-                    Appointment Cancelled
-                  </button>
-                )}
-                
-                {item.status === 'Completed' && (
-                  <>
-                    <span className='w-full sm:min-w-44 text-xs text-center text-emerald-600 py-2 border border-emerald-100 bg-emerald-50/50 rounded-lg font-bold select-none block'>
-                      Completed
-                    </span>
-                    <button
-                      onClick={() => openFeedbackModal(item)}
-                      className='w-full sm:min-w-44 text-xs text-amber-600 hover:text-white bg-amber-50 hover:bg-amber-500 py-2 border border-amber-300 rounded-lg font-bold transition-all cursor-pointer flex items-center justify-center space-x-1.5 shadow-2xs group'
-                    >
-                      <svg className="w-3.5 h-3.5 text-amber-500 group-hover:text-white transition-colors" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                      <span>Leave Feedback</span>
-                    </button>
-                  </>
-                )}
-                
-                {(item.paymentStatus === 'Completed' || item.status === 'Paid') && (
-                  <>
-                    <button 
-                      onClick={() => handleDownloadInvoice(item.appointmentId)}
-                      className='w-full sm:min-w-44 text-xs text-[#00B4B4] hover:bg-[#00B4B4] hover:text-white py-2 border border-[#00B4B4]/30 rounded-lg font-bold transition-all cursor-pointer'
-                    >
-                      Download Invoice PDF
-                    </button>
-                    {item.status !== 'Completed' && item.status !== 'Confirmed' && (
-                      <button disabled className='w-full sm:min-w-44 text-xs text-teal-600 py-2 bg-teal-50 border border-teal-100 rounded-lg font-bold select-none cursor-not-allowed'>
-                        Paid Successful
-                      </button>
-                    )}
-                  </>
-                )}
-
-                {item.status !== 'Cancelled' && item.status !== 'Completed' && (
-                  <button
-                    onClick={() => openRescheduleModal(item)}
-                    disabled={payingAptId === item.appointmentId}
-                    className='w-full sm:min-w-44 text-xs text-[#187595] hover:bg-[#187595] hover:text-white py-2 border border-[#187595]/30 rounded-lg font-bold transition-all cursor-pointer'
-                  >
-                    Reschedule Slot
-                  </button>
-                )}
-
-                {item.status !== 'Cancelled' && item.status !== 'Completed' && item.status !== 'Paid' && item.paymentStatus !== 'Completed' && (
-                  <>
-                    <button
-                      onClick={() => handlePayNow(item)}
-                      disabled={payingAptId === item.appointmentId}
-                      className={`w-full sm:min-w-44 text-xs text-center py-2.5 rounded-lg font-bold transition-all duration-150 cursor-pointer ${
-                        payingAptId === item.appointmentId
-                          ? 'text-gray-400 bg-gray-50 border border-gray-200 cursor-not-allowed'
-                          : 'bg-[#00B4B4] hover:bg-[#009E9E] text-white shadow-sm shadow-teal-500/10'
-                      }`}
-                    >
-                      {payingAptId === item.appointmentId ? 'Processing...' : 'Pay with PayHere'}
-                    </button>
-                    <button
-                      onClick={() => cancelAppointment(item.appointmentId)}
-                      disabled={payingAptId === item.appointmentId}
-                      className='w-full sm:min-w-44 text-xs text-gray-500 hover:bg-red-500 hover:text-white hover:border-red-500 py-2 border border-gray-200 rounded-lg font-bold transition-all cursor-pointer'
-                    >
-                      Cancel Appointment
-                    </button>
-                  </>
-                )}
-              </div>
-
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

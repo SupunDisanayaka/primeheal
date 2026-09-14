@@ -19,6 +19,11 @@ const AdminContextProvider = ({ children }) => {
       console.log('Admin login response:', { status: response.status, data });
       
       if (data.success && data.user?.userType === 'admin') {
+        localStorage.removeItem("doctorToken");
+        localStorage.removeItem("currentDoctorId");
+        localStorage.removeItem("receptionistToken");
+        localStorage.removeItem("accountantToken");
+        localStorage.removeItem("dToken");
         setAdminToken(data.token);
         localStorage.setItem("adminToken", data.token);
         return true;

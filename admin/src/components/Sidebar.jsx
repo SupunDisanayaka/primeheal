@@ -193,9 +193,23 @@ const Sidebar = () => {
             >
               <img className="w-5 h-5 object-contain" src={assets.appointments_icon} alt="Appointments Icon" />
               <span className="hidden md:inline">Appointments</span>
-              {appointments.filter(a => a.docId === currentDoctorId).length > 0 && (
+              {appointments.filter(a => 
+                !currentDoctorId ||
+                String(a.docId) === String(currentDoctorId) ||
+                String(a.doctorUserId) === String(currentDoctorId) ||
+                String(a.doctorTableId) === String(currentDoctorId) ||
+                String(a.doctorID) === String(currentDoctorId) ||
+                String(a.doctorId) === String(currentDoctorId)
+              ).length > 0 && (
                 <span className="hidden md:inline-block ml-auto bg-[#f2994a] text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-xs min-w-[22px] text-center">
-                  {formatBadge(appointments.filter(a => a.docId === currentDoctorId).length)}
+                  {formatBadge(appointments.filter(a => 
+                    !currentDoctorId ||
+                    String(a.docId) === String(currentDoctorId) ||
+                    String(a.doctorUserId) === String(currentDoctorId) ||
+                    String(a.doctorTableId) === String(currentDoctorId) ||
+                    String(a.doctorID) === String(currentDoctorId) ||
+                    String(a.doctorId) === String(currentDoctorId)
+                  ).length)}
                 </span>
               )}
             </NavLink>

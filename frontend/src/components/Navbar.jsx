@@ -13,7 +13,7 @@ const Navbar = () => {
   const [showSearchModal, setShowSearchModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const { token, setToken, doctors, userData } = useContext(AppContext)
+  const { token, setToken, doctors, userData, backendUrl } = useContext(AppContext)
 
   // Get unique categories/specialties from doctors list
   const allCategories = doctors ? Array.from(new Set(doctors.map(doc => doc.speciality))) : [];
@@ -311,7 +311,7 @@ const Navbar = () => {
                             className="flex items-center gap-4 p-3 rounded-2xl bg-slate-50/50 hover:bg-[#00A7A7]/5 border border-transparent hover:border-[#00A7A7]/20 transition-all cursor-pointer group"
                           >
                             <img
-                              src={doc.image}
+                              src={doc.image ? (doc.image.startsWith('http') ? doc.image : `${backendUrl}${doc.image}`) : assets[`doc${(((doc._id || doc.userID || 0) % 15) + 1)}`]}
                               alt={doc.name}
                               className="w-12 h-12 rounded-full object-cover bg-blue-50 border border-slate-200"
                             />
