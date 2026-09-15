@@ -1,13 +1,56 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useMemo } from "react";
 import { AppContext } from "../../context/AppContext";
 import { assets } from "../../assets/assets";
-import { checkInPatientAPI, createWalkInAppointmentAPI, getReceptionistStatsAPI, updateAdminAppointmentStatus } from "../../services/api";
+import {
+  checkInPatientAPI,
+  createWalkInAppointmentAPI,
+  getReceptionistStatsAPI,
+  updateAdminAppointmentStatus,
+  getDoctorSlotsAPI
+} from "../../services/api";
+
+const CLINIC_DEFAULT_SLOTS = [
+  "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM",
+  "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
+  "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
+  "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM",
+  "04:00 PM", "04:30 PM", "05:00 PM", "05:30 PM",
+  "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM",
+  "08:00 PM", "08:30 PM"
+];
 
 const ReceptionistDashboard = () => {
-  const { appointments, setAppointments, doctors, currencySymbol, fetchAllAppointments } = useContext(AppContext);
+  const {
+    appointments,
+    setAppointments,
+    doctors,
+    currencySymbol,
+    fetchAllAppointments,
+    currentReceptionistName
+  } = useContext(AppContext);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
   const [stats, setStats] = useState({ totalApts: 0, pendingApts: 0, checkedInApts: 0, availableDocs: 0 });
+
+  // Get current date in YYYY-MM-DD
+  const getTodayISO = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  // Convert YYYY-MM-DD to DD/MM/YYYY
+  const formatToDMY = (dateStr) => {
+    if (!dateStr) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split("-");
+      return `${d}/${m}/${y}`;
+    }
+    return dateStr;
+  };
 
   // Form State for Booking
   const [patientName, setPatientName] = useState("");
@@ -15,10 +58,25 @@ const ReceptionistDashboard = () => {
   const [patientPhone, setPatientPhone] = useState("");
   const [patientGender, setPatientGender] = useState("Male");
   const [patientDob, setPatientDob] = useState("");
-  const [selectedDocId, setSelectedDocId] = useState(doctors[0]?._id || doctors[0]?.id || "");
-  const [slotDate, setSlotDate] = useState("");
+  const [patientNic, setPatientNic] = useState("");
+  const [selectedDocId, setSelectedDocId] = useState("");
+  const [slotDate, setSlotDate] = useState(getTodayISO());
   const [slotTime, setSlotTime] = useState("");
+  const [availableSlots, setAvailableSlots] = useState(CLINIC_DEFAULT_SLOTS);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
+  // 03. Boolean logic for Cash vs Card
+  // isCard === false -> Cash, isCard === true -> Card
+  const [isCard, setIsCard] = useState(false);
+
+  // Sync initial doctor selection
+  useEffect(() => {
+    if (!selectedDocId && doctors.length > 0) {
+      setSelectedDocId(doctors[0]._id || doctors[0].id);
+    }
+  }, [doctors, selectedDocId]);
+
+  // Load stats and refresh appointments on mount
   const loadStats = async () => {
     try {
       const data = await getReceptionistStatsAPI();
@@ -32,7 +90,47 @@ const ReceptionistDashboard = () => {
 
   useEffect(() => {
     loadStats();
+    if (fetchAllAppointments) {
+      fetchAllAppointments();
+    }
   }, []);
+
+  // Fetch dynamic doctor slots when doctor or date changes
+  useEffect(() => {
+    const fetchSlots = async () => {
+      const docToUse = selectedDocId || (doctors[0]?._id || doctors[0]?.id);
+      if (!docToUse || !slotDate) {
+        setAvailableSlots(CLINIC_DEFAULT_SLOTS);
+        return;
+      }
+      try {
+        setLoadingSlots(true);
+        const res = await getDoctorSlotsAPI(docToUse, slotDate);
+        if (res.success && Array.isArray(res.slotsByDate) && res.slotsByDate.length > 0) {
+          const matchingDay = res.slotsByDate.find((d) => d.date === slotDate) || res.slotsByDate[0];
+          if (matchingDay && Array.isArray(matchingDay.slots) && matchingDay.slots.length > 0) {
+            const timeList = matchingDay.slots.map((s) => s.time);
+            setAvailableSlots(timeList.length > 0 ? timeList : CLINIC_DEFAULT_SLOTS);
+            if (!slotTime || !timeList.includes(slotTime)) {
+              setSlotTime(timeList[0] || CLINIC_DEFAULT_SLOTS[0]);
+            }
+            return;
+          }
+        }
+        setAvailableSlots(CLINIC_DEFAULT_SLOTS);
+        if (!slotTime) setSlotTime(CLINIC_DEFAULT_SLOTS[0]);
+      } catch (err) {
+        setAvailableSlots(CLINIC_DEFAULT_SLOTS);
+        if (!slotTime) setSlotTime(CLINIC_DEFAULT_SLOTS[0]);
+      } finally {
+        setLoadingSlots(false);
+      }
+    };
+
+    if (showAddModal) {
+      fetchSlots();
+    }
+  }, [selectedDocId, slotDate, showAddModal, doctors]);
 
   const handleCheckIn = async (aptId) => {
     try {
@@ -47,7 +145,6 @@ const ReceptionistDashboard = () => {
       }
     } catch (err) {
       console.error("Check-in error:", err);
-      // Fallback local update
       setAppointments((prev) =>
         prev.map((apt) => (apt._id === aptId || apt.appointmentId === aptId ? { ...apt, status: "Checked In" } : apt))
       );
@@ -76,36 +173,63 @@ const ReceptionistDashboard = () => {
     }
   };
 
+  const handleComplete = async (aptId) => {
+    if (!window.confirm("Mark this appointment as complete?")) return;
+    try {
+      setLoadingAction(true);
+      const res = await updateAdminAppointmentStatus(aptId, "Completed");
+      if (res.success) {
+        alert(res.message || "Appointment marked as complete.");
+        if (fetchAllAppointments) fetchAllAppointments();
+        loadStats();
+      } else {
+        alert(res.message || "Failed to mark as complete.");
+      }
+    } catch (err) {
+      console.error("Complete error:", err);
+      alert(err.response?.data?.message || "Error marking appointment as complete.");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
 
-  const handleComplete = (aptId) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt._id === aptId || apt.appointmentId === aptId ? { ...apt, status: "Completed" } : apt))
-    );
+  const handleOpenModal = () => {
+    setSlotDate(getTodayISO());
+    setSlotTime(CLINIC_DEFAULT_SLOTS[0]);
+    setIsCard(false);
+    setShowAddModal(true);
   };
 
   const handleBookAppointment = async (e) => {
     e.preventDefault();
-    const docToUse = selectedDocId || doctors[0]?._id || doctors[0]?.id;
+    const docToUse = selectedDocId || (doctors[0]?._id || doctors[0]?.id);
     if (!patientName || !docToUse || !slotDate || !slotTime) {
-      alert("Please fill all required fields.");
+      alert("Please fill all required fields: Patient Name, Doctor, Date, and Time Slot.");
       return;
     }
 
     const doc = doctors.find((d) => String(d._id || d.id) === String(docToUse));
+    const feeAmount = doc ? (doc.fees || doc.consultationFee || 2500) : 2500;
 
     try {
       setLoadingAction(true);
+      // Boolean logic: isCard is boolean; paymentMethod is 'Card' or 'Cash'
       const payload = {
         patientName,
         patientEmail,
         patientPhone,
         patientGender,
         patientDob,
+        patientNic,
         docId: docToUse,
-        slotDate,
-        slotTime,
-        amount: doc ? (doc.fees || doc.consultationFee) : 2500
+        slotDate, // YYYY-MM-DD format from dropdown calendar
+        slotTime, // from dropdown time slots list
+        isCard: isCard,
+        isCash: !isCard,
+        paymentMethod: isCard ? "Card" : "Cash",
+        amount: feeAmount
       };
+
       const res = await createWalkInAppointmentAPI(payload);
       if (res.success) {
         alert(res.message || "Walk-in appointment created successfully!");
@@ -119,8 +243,10 @@ const ReceptionistDashboard = () => {
         setPatientPhone("");
         setPatientGender("Male");
         setPatientDob("");
-        setSlotDate("");
-        setSlotTime("");
+        setPatientNic("");
+        setSlotDate(getTodayISO());
+        setSlotTime(CLINIC_DEFAULT_SLOTS[0]);
+        setIsCard(false);
       } else {
         alert(res.message || "Failed to create walk-in appointment.");
       }
@@ -132,12 +258,17 @@ const ReceptionistDashboard = () => {
     }
   };
 
+  // Selected doctor object for modal pricing info
+  const currentSelectedDoc = useMemo(() => {
+    const docId = selectedDocId || (doctors[0]?._id || doctors[0]?.id);
+    return doctors.find((d) => String(d._id || d.id) === String(docId)) || doctors[0];
+  }, [doctors, selectedDocId]);
+
   // Metrics
   const totalApts = stats.totalApts || appointments.length;
   const pendingApts = stats.pendingApts || appointments.filter((a) => a.status === "Pending").length;
   const checkedInApts = stats.checkedInApts || appointments.filter((a) => a.status === "Checked In").length;
   const availableDocs = stats.availableDocs || doctors.filter((d) => d.available || d.isAvailable).length;
-
 
   return (
     <div className="m-5 sm:m-8 w-full max-w-6xl flex flex-col gap-6">
@@ -148,8 +279,8 @@ const ReceptionistDashboard = () => {
           <p className="text-sm text-gray-500 mt-1">Real-time patient check-ins and appointment scheduling.</p>
         </div>
         <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-primary hover:bg-[#4f5fef] text-white py-2.5 px-6 rounded-xl font-semibold shadow-md transition-all flex items-center gap-2"
+          onClick={handleOpenModal}
+          className="bg-[#187595] hover:bg-[#135c75] text-white py-2.5 px-6 rounded-xl font-semibold shadow-md transition-all duration-200 transform active:scale-98 flex items-center gap-2"
         >
           <img className="w-4 h-4 invert" src={assets.add_icon} alt="Add" />
           Book Appointment
@@ -159,7 +290,7 @@ const ReceptionistDashboard = () => {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="flex items-center gap-4 bg-white p-6 rounded-2xl border border-zinc-100 shadow-xs">
-          <div className="p-3 bg-indigo-50 text-primary rounded-xl">
+          <div className="p-3 bg-indigo-50 text-[#187595] rounded-xl">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
@@ -208,100 +339,160 @@ const ReceptionistDashboard = () => {
       </div>
 
       {/* Appointment Control Panel */}
-      <div className="bg-white border border-zinc-100 rounded-2xl shadow-xs">
-        <div className="flex items-center gap-2.5 px-6 py-5 border-b border-zinc-100">
-          <img className="w-5 h-5" src={assets.list_icon} alt="List" />
-          <h3 className="text-lg font-bold text-gray-900">Today's Appointment Log</h3>
+      <div className="bg-white border border-zinc-100 rounded-2xl shadow-xs overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100">
+          <div className="flex items-center gap-2.5">
+            <img className="w-5 h-5" src={assets.list_icon} alt="List" />
+            <h3 className="text-lg font-bold text-gray-900">Today's Appointment Log</h3>
+          </div>
+          <span className="text-xs font-semibold text-gray-400 bg-gray-50 px-2.5 py-1 rounded-md border border-gray-100">
+            {appointments.length} Total Records
+          </span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-zinc-100">
-            <thead className="bg-slate-50/50">
+            <thead className="bg-slate-50/70">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Assigned Doctor</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date & Time</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment & Status</th>
                 <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Reception Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 bg-white">
-              {appointments.map((apt) => {
-                const doc = doctors.find((d) => d._id === apt.docId) || {};
-                return (
-                  <tr key={apt._id} className="hover:bg-slate-50/20 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm font-semibold text-gray-900">{apt.patientName}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{apt.patientPhone}</p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2.5">
-                        <img className="w-8 h-8 rounded-full object-cover bg-slate-100" src={doc.image} alt={doc.name} />
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">{doc.name}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">{doc.speciality}</p>
+              {appointments.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="px-6 py-12 text-center text-gray-400 text-sm">
+                    No appointments scheduled yet today.
+                  </td>
+                </tr>
+              ) : (
+                appointments.map((apt) => {
+                  const doc =
+                    doctors.find(
+                      (d) =>
+                        String(d._id || d.id) ===
+                        String(apt.docId || apt.doctorId || apt.doctorUserId || apt.doctorTableId)
+                    ) || {};
+
+                  const doctorDisplayName = doc.name || apt.doctorName || "Doctor";
+                  const doctorSpeciality = doc.speciality || "General Practitioner";
+                  const doctorInitials = (doctorDisplayName.replace(/^Dr\.?\s*/i, "") || "DR").substring(0, 2).toUpperCase();
+
+                  const formattedDateDisplay = apt.slotDate
+                    ? formatToDMY(apt.slotDate)
+                    : "Scheduled";
+
+                  return (
+                    <tr key={apt._id || apt.appointmentId} className="hover:bg-slate-50/40 transition-colors">
+                      {/* Patient Details */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <p className="text-sm font-semibold text-gray-900">{apt.patientName}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{apt.patientPhone || apt.patientEmail || "Walk-in"}</p>
+                      </td>
+
+                      {/* Doctor Details */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2.5">
+                          {doc.image ? (
+                            <img
+                              className="w-9 h-9 rounded-full object-cover bg-slate-100 border border-zinc-200"
+                              src={doc.image}
+                              alt={doctorDisplayName}
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-teal-100 text-[#187595] flex items-center justify-center font-bold text-xs border border-teal-200">
+                              {doctorInitials}
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{doctorDisplayName}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{doctorSpeciality}</p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm text-gray-800">{apt.slotDate}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{apt.slotTime}</p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          apt.status === "Completed"
-                            ? "bg-emerald-50 text-emerald-600"
-                            : apt.status === "Cancelled"
-                            ? "bg-rose-50 text-rose-600"
-                            : apt.status === "Checked In"
-                            ? "bg-teal-50 text-teal-600"
-                            : "bg-amber-50 text-amber-600"
-                        }`}
-                      >
-                        {apt.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                      {apt.status === "Pending" ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleCheckIn(apt._id)}
-                            className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-600 rounded-lg text-xs font-bold transition-colors"
+                      </td>
+
+                      {/* Date & Time */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <p className="text-sm font-medium text-gray-800">{formattedDateDisplay}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 font-medium">{apt.slotTime || "Standard Slot"}</p>
+                      </td>
+
+                      {/* Payment & Status */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-col gap-1 items-start">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              apt.status === "Completed"
+                                ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                : apt.status === "Cancelled"
+                                ? "bg-rose-50 text-rose-600 border border-rose-200"
+                                : apt.status === "Checked In"
+                                ? "bg-teal-50 text-teal-600 border border-teal-200"
+                                : "bg-amber-50 text-amber-600 border border-amber-200"
+                            }`}
                           >
-                            Check In
-                          </button>
-                          <button
-                            onClick={() => handleCancel(apt._id)}
-                            className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors"
-                            title="Cancel Appointment"
-                          >
-                            <img className="w-4 h-4" src={assets.cancel_icon} alt="Cancel" />
-                          </button>
+                            {apt.status}
+                          </span>
+
+                          {/* Payment Method Badge */}
+                          {apt.paymentMethod && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">
+                              <span>{apt.paymentMethod.toLowerCase() === "card" ? "💳" : "💵"}</span>
+                              <span>{apt.paymentMethod}</span>
+                            </span>
+                          )}
                         </div>
-                      ) : apt.status === "Checked In" ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleComplete(apt._id)}
-                            className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-xs font-bold transition-colors"
-                          >
-                            Mark Complete
-                          </button>
-                          <button
-                            onClick={() => handleCancel(apt._id)}
-                            className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors"
-                            title="Cancel Appointment"
-                          >
-                            <img className="w-4 h-4" src={assets.cancel_icon} alt="Cancel" />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400 font-medium">No actions</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+
+                      {/* Reception Action Buttons */}
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        {apt.status === "Pending" ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleCheckIn(apt._id || apt.appointmentId)}
+                              disabled={loadingAction}
+                              className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-[#187595] rounded-lg text-xs font-bold transition-colors shadow-2xs"
+                            >
+                              Check In
+                            </button>
+                            <button
+                              onClick={() => handleCancel(apt._id || apt.appointmentId)}
+                              disabled={loadingAction}
+                              className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors text-rose-600"
+                              title="Cancel Appointment"
+                            >
+                              <img className="w-4 h-4" src={assets.cancel_icon} alt="Cancel" />
+                            </button>
+                          </div>
+                        ) : apt.status === "Checked In" ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleComplete(apt._id || apt.appointmentId)}
+                              disabled={loadingAction}
+                              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-xs font-bold transition-colors shadow-2xs"
+                            >
+                              Mark Complete
+                            </button>
+                            <button
+                              onClick={() => handleCancel(apt._id || apt.appointmentId)}
+                              disabled={loadingAction}
+                              className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors text-rose-600"
+                              title="Cancel Appointment"
+                            >
+                              <img className="w-4 h-4" src={assets.cancel_icon} alt="Cancel" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 font-medium">No actions</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -309,10 +500,13 @@ const ReceptionistDashboard = () => {
 
       {/* Book Appointment Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg border border-zinc-100 shadow-2xl p-6 sm:p-8 animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold text-gray-900">Schedule Patient Appointment</h3>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-lg border border-zinc-100 shadow-2xl p-6 sm:p-8 animate-in fade-in zoom-in duration-200 my-8">
+            <div className="flex justify-between items-center mb-5 pb-3 border-b border-zinc-100">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Schedule Patient Appointment</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Front desk walk-in scheduling & counter payment</p>
+              </div>
               <button
                 onClick={() => setShowAddModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 hover:bg-gray-100 rounded-full"
@@ -324,112 +518,195 @@ const ReceptionistDashboard = () => {
             </div>
 
             <form onSubmit={handleBookAppointment} className="flex flex-col gap-4">
+              {/* Patient Name */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Patient Name</label>
+                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Patient Name *</label>
                 <input
                   type="text"
                   placeholder="e.g. Vincent Smith"
                   value={patientName}
                   onChange={(e) => setPatientName(e.target.value)}
-                  className="border border-zinc-200 focus:border-primary outline-none rounded-xl p-3 text-sm"
+                  className="border border-zinc-200 focus:border-[#187595] focus:ring-1 focus:ring-[#187595]/20 outline-none rounded-xl p-3 text-sm"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* Email & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</label>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Email (Optional)</label>
                   <input
                     type="email"
-                    placeholder="vincent@gmail.com"
+                    placeholder="patient@example.com"
                     value={patientEmail}
                     onChange={(e) => setPatientEmail(e.target.value)}
-                    className="border border-zinc-200 focus:border-primary outline-none rounded-xl p-3 text-sm"
-                    required
+                    className="border border-zinc-200 focus:border-[#187595] focus:ring-1 focus:ring-[#187595]/20 outline-none rounded-xl p-3 text-sm"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone</label>
                   <input
                     type="text"
-                    placeholder="+1 555-0199"
+                    placeholder="077 123 4567"
                     value={patientPhone}
                     onChange={(e) => setPatientPhone(e.target.value)}
-                    className="border border-zinc-200 focus:border-primary outline-none rounded-xl p-3 text-sm"
-                    required
+                    className="border border-zinc-200 focus:border-[#187595] focus:ring-1 focus:ring-[#187595]/20 outline-none rounded-xl p-3 text-sm"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* Gender, DOB */}
+              <div className="grid grid-cols-2 gap-3.5">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Gender</label>
                   <select
                     value={patientGender}
                     onChange={(e) => setPatientGender(e.target.value)}
-                    className="border border-zinc-200 focus:border-primary outline-none rounded-xl p-3 text-sm"
+                    className="border border-zinc-200 focus:border-[#187595] outline-none rounded-xl p-3 text-sm bg-white"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">DOB</label>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Date of Birth</label>
                   <input
                     type="date"
                     value={patientDob}
                     onChange={(e) => setPatientDob(e.target.value)}
-                    className="border border-zinc-200 focus:border-primary outline-none rounded-xl p-3 text-sm"
+                    className="border border-zinc-200 focus:border-[#187595] outline-none rounded-xl p-3 text-sm bg-white"
                   />
                 </div>
               </div>
 
+              {/* Assign Doctor */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Assign Doctor</label>
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Assign Doctor *</label>
+                  {currentSelectedDoc && (
+                    <span className="text-xs font-semibold text-[#187595]">
+                      Fee: {currencySymbol} {Number(currentSelectedDoc.fees || currentSelectedDoc.consultationFee || 2500).toLocaleString()}
+                    </span>
+                  )}
+                </div>
                 <select
                   value={selectedDocId}
                   onChange={(e) => setSelectedDocId(e.target.value)}
-                  className="border border-zinc-200 focus:border-primary outline-none rounded-xl p-3 text-sm"
+                  className="border border-zinc-200 focus:border-[#187595] outline-none rounded-xl p-3 text-sm bg-white font-medium"
                   required
                 >
                   {doctors.map((doc) => (
-                    <option key={doc._id} value={doc._id}>
-                      {doc.name} ({doc.speciality})
+                    <option key={doc._id || doc.id} value={doc._id || doc.id}>
+                      {doc.name} — {doc.speciality}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* 01. Appointment Date with Dropdown Calendar and DD/MM/YYYY auto display */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Date *
+                    </label>
+                    {slotDate && (
+                      <span className="text-[11px] font-bold text-[#187595] bg-teal-50 px-2 py-0.5 rounded border border-teal-100">
+                        {formatToDMY(slotDate)}
+                      </span>
+                    )}
+                  </div>
                   <input
-                    type="text"
-                    placeholder="e.g. 25, July, 2024"
+                    type="date"
+                    min={getTodayISO()}
                     value={slotDate}
                     onChange={(e) => setSlotDate(e.target.value)}
-                    className="border border-zinc-200 focus:border-primary outline-none rounded-xl p-3 text-sm"
+                    className="border border-zinc-200 focus:border-[#187595] outline-none rounded-xl p-3 text-sm bg-white font-medium cursor-pointer"
                     required
                   />
                 </div>
+
+                {/* 02. Session Time Slot Dropdown */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Time</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 08:30 PM"
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Time Slot *
+                    </label>
+                    {loadingSlots && (
+                      <span className="text-[10px] text-gray-400 animate-pulse">Loading slots...</span>
+                    )}
+                  </div>
+                  <select
                     value={slotTime}
                     onChange={(e) => setSlotTime(e.target.value)}
-                    className="border border-zinc-200 focus:border-primary outline-none rounded-xl p-3 text-sm"
+                    className="border border-zinc-200 focus:border-[#187595] outline-none rounded-xl p-3 text-sm bg-white font-medium cursor-pointer"
                     required
-                  />
+                  >
+                    <option value="">-- Choose Time Slot --</option>
+                    {availableSlots.map((slot, idx) => (
+                      <option key={idx} value={slot}>
+                        {slot}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
+              {/* 03. Boolean logic for Cash vs Card */}
+              <div className="flex flex-col gap-1.5 pt-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Payment Method *
+                  </label>
+                  <span className="text-xs font-bold text-gray-600">
+                    Mode: {isCard ? "💳 Card" : "💵 Cash"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Cash Option: isCard = false */}
+                  <button
+                    type="button"
+                    onClick={() => setIsCard(false)}
+                    className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-semibold transition-all duration-200 ${
+                      !isCard
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-300 ring-2 ring-emerald-400/20 shadow-xs"
+                        : "bg-slate-50 text-gray-600 border-zinc-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span className="text-base">💵</span>
+                    <span>Cash</span>
+                    {!isCard && <span className="ml-1 text-emerald-600 font-bold">✓</span>}
+                  </button>
+
+                  {/* Card Option: isCard = true */}
+                  <button
+                    type="button"
+                    onClick={() => setIsCard(true)}
+                    className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-semibold transition-all duration-200 ${
+                      isCard
+                        ? "bg-indigo-50 text-[#187595] border-indigo-300 ring-2 ring-indigo-400/20 shadow-xs"
+                        : "bg-slate-50 text-gray-600 border-zinc-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span className="text-base">💳</span>
+                    <span>Card</span>
+                    {isCard && <span className="ml-1 text-[#187595] font-bold">✓</span>}
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit Action */}
               <button
                 type="submit"
-                className="bg-primary hover:bg-[#4f5fef] text-white py-3.5 rounded-xl font-bold mt-4 shadow-md transition-all"
+                disabled={loadingAction}
+                className="bg-[#187595] hover:bg-[#135c75] text-white py-3.5 rounded-xl font-bold mt-2 shadow-md transition-all duration-200 transform active:scale-98 flex items-center justify-center gap-2"
               >
-                Schedule Appointment
+                {loadingAction ? (
+                  <span>Scheduling Appointment...</span>
+                ) : (
+                  <span>Confirm Walk-In Appointment</span>
+                )}
               </button>
             </form>
           </div>

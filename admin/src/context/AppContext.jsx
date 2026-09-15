@@ -49,6 +49,36 @@ const AppContextProvider = ({ children }) => {
   const { adminToken } = useContext(AdminContext);
   const { doctorToken } = useContext(DoctorContext);
 
+  const getStoredReceptionistName = () => {
+    const stored = localStorage.getItem("currentReceptionistName");
+    if (stored) return stored;
+    const token = localStorage.getItem("receptionistToken");
+    if (token) {
+      try {
+        const base64Url = token.split(".")[1];
+        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+        const payload = JSON.parse(window.atob(base64));
+        if (payload?.name) return payload.name;
+      } catch (e) {}
+    }
+    return "";
+  };
+
+  const [receptionistToken, setReceptionistToken] = useState(
+    localStorage.getItem("receptionistToken") || ""
+  );
+  const [currentReceptionistId, setCurrentReceptionistId] = useState(
+    localStorage.getItem("currentReceptionistId") || ""
+  );
+  const [currentReceptionistName, setCurrentReceptionistName] = useState(getStoredReceptionistName);
+
+  const [accountantToken, setAccountantToken] = useState(
+    localStorage.getItem("accountantToken") || ""
+  );
+  const [currentAccountantId, setCurrentAccountantId] = useState(
+    localStorage.getItem("currentAccountantId") || ""
+  );
+
   const getFallbackAppointments = () => ([
     {
       _id: "apt1",
@@ -145,7 +175,7 @@ const AppContextProvider = ({ children }) => {
   const [adminDataError, setAdminDataError] = useState(null);
 
   const refreshAdminData = useCallback(async () => {
-    if (!adminToken && !doctorToken) {
+    if (!adminToken && !doctorToken && !receptionistToken) {
       setAppointments(getFallbackAppointments());
       setAdminDashboardStats(null);
       setAdminRecentAppointments([]);
@@ -176,6 +206,9 @@ const AppContextProvider = ({ children }) => {
         setAdminDashboardStats(dashboardResponse.stats || null);
         setAdminRecentAppointments(recentResponse.appointments || []);
         setAdminRecentTransactions(dashboardResponse.recentTransactions || []);
+      } else if (receptionistToken) {
+        const appointmentsResponse = await getAdminAppointments();
+        setAppointments(appointmentsResponse.appointments || []);
       } else if (doctorToken) {
         const appointmentsResponse = await getDoctorAppointmentsAPI();
         setAppointments(appointmentsResponse.appointments || []);
@@ -186,7 +219,7 @@ const AppContextProvider = ({ children }) => {
     } finally {
       setAdminDataLoading(false);
     }
-  }, [adminToken, doctorToken]);
+  }, [adminToken, doctorToken, receptionistToken]);
 
   const syncAppointmentStatus = useCallback(async (appointmentId, status) => {
     const response = await updateAdminAppointmentStatus(appointmentId, status);
@@ -197,7 +230,7 @@ const AppContextProvider = ({ children }) => {
   useEffect(() => {
     refreshAdminData();
 
-    if (!adminToken && !doctorToken) {
+    if (!adminToken && !doctorToken && !receptionistToken) {
       return undefined;
     }
 
@@ -292,20 +325,6 @@ const AppContextProvider = ({ children }) => {
     fetchAccountants();
   }, [fetchAccountants]);
 
-  const [receptionistToken, setReceptionistToken] = useState(
-    localStorage.getItem("receptionistToken") || ""
-  );
-  const [currentReceptionistId, setCurrentReceptionistId] = useState(
-    localStorage.getItem("currentReceptionistId") || ""
-  );
-
-  const [accountantToken, setAccountantToken] = useState(
-    localStorage.getItem("accountantToken") || ""
-  );
-  const [currentAccountantId, setCurrentAccountantId] = useState(
-    localStorage.getItem("currentAccountantId") || ""
-  );
-
   const loginReceptionist = async (email, password) => {
     try {
       const response = await fetch("http://localhost:5000/api/auth/login", {
@@ -318,8 +337,11 @@ const AppContextProvider = ({ children }) => {
       if (data.success && data.user?.userType === "receptionist") {
         setReceptionistToken(data.token);
         setCurrentReceptionistId(data.user._id);
+        const name = data.user.name || "Receptionist";
+        setCurrentReceptionistName(name);
         localStorage.setItem("receptionistToken", data.token);
         localStorage.setItem("currentReceptionistId", data.user._id);
+        localStorage.setItem("currentReceptionistName", name);
         return true;
       }
 
@@ -333,8 +355,10 @@ const AppContextProvider = ({ children }) => {
   const logoutReceptionist = () => {
     setReceptionistToken("");
     setCurrentReceptionistId("");
+    setCurrentReceptionistName("");
     localStorage.removeItem("receptionistToken");
     localStorage.removeItem("currentReceptionistId");
+    localStorage.removeItem("currentReceptionistName");
   };
 
   const loginAccountant = async (email, password) => {
@@ -395,6 +419,8 @@ const AppContextProvider = ({ children }) => {
     setReceptionistToken,
     currentReceptionistId,
     setCurrentReceptionistId,
+    currentReceptionistName,
+    setCurrentReceptionistName,
     accountantToken,
     setAccountantToken,
     currentAccountantId,
@@ -403,6 +429,7 @@ const AppContextProvider = ({ children }) => {
     logoutReceptionist,
     loginAccountant,
     logoutAccountant,
+    fetchAllAppointments: refreshAdminData,
     currencySymbol,
     toLkr,
     doctorSchedules,

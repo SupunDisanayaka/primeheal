@@ -4,7 +4,7 @@ import { assets } from "../../assets/assets";
 import { addReceptionistAPI } from "../../services/api";
 
 const Receptionist = () => {
-  const { receptionists, setReceptionists, receptionistsLoading, receptionistsError, fetchReceptionists } = useContext(AppContext);
+  const { receptionists, setReceptionists, receptionistsLoading, receptionistsError, fetchReceptionists, backendUrl } = useContext(AppContext);
   const [activeTab, setActiveTab] = useState("list"); // 'list' or 'add'
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -13,9 +13,10 @@ const Receptionist = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("Receptionist@123");
+  const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState("");
   const [shift, setShift] = useState("Morning (08:00 AM - 04:00 PM)");
-  const [deskBlock, setDeskBlock] = useState("Main Lobby, Desk A");
+  const [deskBlock, setDeskBlock] = useState("Main Lobby - Desk A");
   
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -48,18 +49,28 @@ const Receptionist = () => {
       return;
     }
 
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{8,12}$/;
+    if (!passwordRegex.test(password)) {
+      setErrorMsg("Password too easy to guess. It must be 8-12 characters long and include at least one uppercase letter, one lowercase letter, and one symbol.");
+      return;
+    }
+
     try {
-      const data = await addReceptionistAPI({
-        name,
-        email,
-        password,
-        phone,
-        shift,
-        deskBlock,
-      });
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("email", email);
+      formData.append("password", password);
+      formData.append("phone", phone);
+      formData.append("shift", shift);
+      formData.append("deskBlock", deskBlock);
+      if (recImg) {
+        formData.append("image", recImg);
+      }
+
+      const data = await addReceptionistAPI(formData);
 
       if (data.success) {
-        setSuccessMsg(`Receptionist registered successfully! The account can now sign in with ${email} and the chosen password.`);
+        setSuccessMsg(`Receptionist registered successfully! They can log in with ${email}.`);
 
         setRecImg(null);
         setName("");
@@ -67,9 +78,9 @@ const Receptionist = () => {
         setPassword("Receptionist@123");
         setPhone("");
         setShift("Morning (08:00 AM - 04:00 PM)");
-        setDeskBlock("Main Lobby, Desk A");
+        setDeskBlock("Main Lobby - Desk A");
 
-        // Refresh list from real DB
+        // Refresh list
         await fetchReceptionists();
 
         setTimeout(() => {
@@ -99,7 +110,7 @@ const Receptionist = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Receptionist Management</h2>
-          <p className="text-sm text-gray-500 mt-1">Manage front desk staff shifts, desks, and availability.</p>
+          <p className="text-sm text-gray-500 mt-1">Manage front-desk staff, assigned desks, and active status.</p>
         </div>
 
         {/* Tab Controls */}
@@ -196,7 +207,7 @@ const Receptionist = () => {
                     <div className="flex items-start gap-4">
                       <img
                         className="w-16 h-16 rounded-full object-cover bg-slate-100 border border-zinc-100"
-                        src={rec.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(rec.name)}&background=6574f0&color=fff&size=64`}
+                        src={rec.image ? (rec.image.startsWith('http') ? rec.image : `${backendUrl}${rec.image}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(rec.name)}&background=6574f0&color=fff&size=64`}
                         alt={rec.name}
                       />
                       <div className="flex-1 min-w-0">
@@ -326,14 +337,27 @@ const Receptionist = () => {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Password</label>
-                <input
-                  type="password"
-                  placeholder="Choose a secure password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl p-3 w-full text-sm text-gray-800 transition-all bg-gray-50/20"
-                  required
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Choose a secure password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl p-3 w-full text-sm text-gray-800 transition-all bg-gray-50/20 pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  >
+                    {showPassword ? (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-col gap-1.5">

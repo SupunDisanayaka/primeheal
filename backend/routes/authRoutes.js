@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { login, register, createReceptionist, createAccountant, googleLogin, requestPasswordReset, resetPassword } = require('../controllers/authController');
+const { upload } = require('../controllers/userController');
 const { verifyToken } = require('../middleware/auth');
 const { requireRole } = require('../middleware/roleGuard');
 
@@ -8,10 +9,10 @@ const { requireRole } = require('../middleware/roleGuard');
 router.post('/register', register);
 
 // POST /api/auth/register-receptionist
-router.post('/register-receptionist', verifyToken, requireRole(['admin']), createReceptionist);
+router.post('/register-receptionist', verifyToken, requireRole(['admin']), upload.single('image'), createReceptionist);
 
 // POST /api/auth/register-accountant
-router.post('/register-accountant', verifyToken, requireRole(['admin']), createAccountant);
+router.post('/register-accountant', verifyToken, requireRole(['admin']), upload.single('image'), createAccountant);
 
 // POST /api/auth/login
 router.post('/login', login);

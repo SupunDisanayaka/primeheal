@@ -120,9 +120,7 @@ const appointmentBaseQuery = `
 const getAdminAppointments = async (req, res) => {
   try {
     const query = `${appointmentBaseQuery} ORDER BY a.createdAt DESC`;
-    console.log('[ADMIN APPOINTMENTS SQL]', query);
     const [rows] = await pool.query(query);
-    console.log('[ADMIN APPOINTMENTS COUNT]', rows.length);
 
     return res.json({
       success: true,
@@ -143,7 +141,6 @@ const getAdminAppointments = async (req, res) => {
 const getAdminRecentAppointments = async (req, res) => {
   try {
     const query = `${appointmentBaseQuery} ORDER BY a.createdAt DESC LIMIT 5`;
-    console.log('[ADMIN RECENT APPOINTMENTS SQL]', query);
     const [rows] = await pool.query(query);
 
     return res.json({
@@ -184,7 +181,6 @@ const getAdminDashboard = async (req, res) => {
       FROM payments p
     `;
 
-    console.log('[ADMIN DASHBOARD SQL]', statsQuery);
     const [rows] = await pool.query(statsQuery);
     const stats = rows[0] || {};
 
@@ -310,8 +306,6 @@ const updateAppointmentStatus = async (req, res) => {
       await connection.rollback();
       return res.status(404).json({ success: false, message: 'Appointment not found' });
     }
-
-    console.log('[ADMIN UPDATE APPOINTMENT] previous status:', rows[0].status, 'next status:', dbStatus, 'appointmentId:', appointmentId);
 
     await connection.query(
       'UPDATE appointments SET status = ? WHERE appointmentID = ?',

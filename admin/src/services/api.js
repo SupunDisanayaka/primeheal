@@ -14,18 +14,20 @@ api.interceptors.request.use(
   (config) => {
     let token = '';
     
-    // If request is doctor-specific, prioritize doctorToken
+    // Role specific token prioritization
     if (config.url?.includes('/appointments/my') || config.url?.startsWith('/doctor') || config.url?.includes('/notes')) {
       token = localStorage.getItem('doctorToken') || localStorage.getItem('adminToken') || localStorage.getItem('token');
+    } else if (config.url?.startsWith('/receptionist')) {
+      token = localStorage.getItem('receptionistToken') || localStorage.getItem('adminToken') || localStorage.getItem('token');
+    } else if (config.url?.startsWith('/accountant')) {
+      token = localStorage.getItem('accountantToken') || localStorage.getItem('adminToken') || localStorage.getItem('token');
     } else {
-      if (localStorage.getItem('doctorToken') && !localStorage.getItem('adminToken')) {
-        token = localStorage.getItem('doctorToken');
-      } else if (localStorage.getItem('adminToken')) {
+      if (localStorage.getItem('adminToken')) {
         token = localStorage.getItem('adminToken');
-      } else if (localStorage.getItem('doctorToken')) {
-        token = localStorage.getItem('doctorToken');
       } else if (localStorage.getItem('receptionistToken')) {
         token = localStorage.getItem('receptionistToken');
+      } else if (localStorage.getItem('doctorToken')) {
+        token = localStorage.getItem('doctorToken');
       } else if (localStorage.getItem('accountantToken')) {
         token = localStorage.getItem('accountantToken');
       } else if (localStorage.getItem('aToken')) {
@@ -160,8 +162,13 @@ export const updateDoctorNotesAPI = async (appointmentId, doctorNotes) => {
 };
 
 export const addDoctorAPI = async (doctorData) => {
-  const headers = doctorData instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {};
-  const response = await api.post('/doctors', doctorData, { headers });
+  const config = doctorData instanceof FormData ? {
+    transformRequest: (data, headers) => {
+      delete headers['Content-Type'];
+      return data;
+    }
+  } : {};
+  const response = await api.post('/doctors', doctorData, config);
   return response.data;
 };
 
@@ -171,7 +178,13 @@ export const saveDoctorAvailabilityAPI = async (id, availabilityData) => {
 };
 
 export const addReceptionistAPI = async (receptionistData) => {
-  const response = await api.post('/auth/register-receptionist', receptionistData);
+  const config = receptionistData instanceof FormData ? {
+    transformRequest: (data, headers) => {
+      delete headers['Content-Type'];
+      return data;
+    }
+  } : {};
+  const response = await api.post('/auth/register-receptionist', receptionistData, config);
   return response.data;
 };
 
@@ -182,7 +195,13 @@ export const getReceptionistsAPI = async () => {
 
 
 export const addAccountantAPI = async (accountantData) => {
-  const response = await api.post('/auth/register-accountant', accountantData);
+  const config = accountantData instanceof FormData ? {
+    transformRequest: (data, headers) => {
+      delete headers['Content-Type'];
+      return data;
+    }
+  } : {};
+  const response = await api.post('/auth/register-accountant', accountantData, config);
   return response.data;
 };
 
@@ -209,8 +228,9 @@ export const changePasswordAPI = async (payload) => {
 
 export const uploadProfileImageAPI = async (formData) => {
   const response = await api.post('/users/profile-image', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
+    transformRequest: (data, headers) => {
+      delete headers['Content-Type'];
+      return data;
     }
   });
   return response.data;
@@ -234,6 +254,17 @@ export const createWalkInAppointmentAPI = async (walkInData) => {
 
 export const getReceptionistStatsAPI = async () => {
   const response = await api.get('/receptionist/stats');
+  return response.data;
+};
+
+export const getReceptionistAppointmentsAPI = async () => {
+  const response = await api.get('/receptionist/appointments');
+  return response.data;
+};
+
+export const getDoctorSlotsAPI = async (doctorId, date) => {
+  const url = date ? `/doctors/${doctorId}/slots?date=${date}` : `/doctors/${doctorId}/slots`;
+  const response = await api.get(url);
   return response.data;
 };
 

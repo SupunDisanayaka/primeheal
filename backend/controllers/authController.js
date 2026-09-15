@@ -258,9 +258,10 @@ const createReceptionist = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    const imagePath = req.file ? `/uploads/profile/${req.file.filename}` : null;
     const [userResult] = await connection.query(
       'INSERT INTO users (name, email, password, phone, userType, isActive, profileImage) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, email, hashedPassword, phone || null, 'receptionist', 1, null]
+      [name, email, hashedPassword, phone || null, 'receptionist', 1, imagePath]
     );
 
     const userId = userResult.insertId;
@@ -317,9 +318,10 @@ const createAccountant = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    const imagePath = req.file ? `/uploads/profile/${req.file.filename}` : null;
     const [userResult] = await connection.query(
       'INSERT INTO users (name, email, password, phone, userType, isActive, profileImage) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, email, hashedPassword, phone || null, 'accountant', 1, null]
+      [name, email, hashedPassword, phone || null, 'accountant', 1, imagePath]
     );
 
     const userId = userResult.insertId;
