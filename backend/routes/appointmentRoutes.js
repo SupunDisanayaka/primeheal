@@ -8,7 +8,8 @@ const {
   updateAppointmentStatus,
   rescheduleAppointment,
   downloadInvoice,
-  updateDoctorNotes
+  updateDoctorNotes,
+  downloadVisitPass
 } = require('../controllers/appointmentController');
 
 router.post('/create', verifyToken, createAppointment);
@@ -18,5 +19,6 @@ router.patch('/:appointmentId/status', verifyToken, updateAppointmentStatus);
 router.patch('/:appointmentId/reschedule', verifyToken, rescheduleAppointment);
 router.patch('/:appointmentId/notes', verifyToken, updateDoctorNotes);
 router.get('/:appointmentId/invoice', verifyToken, downloadInvoice);
+router.get('/:appointmentId/visit-pass', verifyToken, downloadVisitPass);
 
 module.exports = router;

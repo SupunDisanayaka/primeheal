@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
+const { sendPaymentConfirmation } = require('../services/emailService');
 
 /**
  * 1. checkInPatient
@@ -240,6 +241,12 @@ const createWalkInAppointment = async (req, res) => {
       [appointmentID, patientID, invoiceNumber, resolvedFee, resolvedFee]
     ).catch(err => console.log('Invoice generation note:', err.message));
 
+    // Send Payment Confirmation Email
+    await sendPaymentConfirmation(
+      { name: patientName, email: emailToUse },
+      { amount: resolvedFee, currency: 'LKR', method: resolvedPaymentMethod, date: normalizedDate, time: slotTime }
+    ).catch(err => console.error('Failed to send payment confirmation email:', err));
+
     // 6. Record confirmation notification
     await pool.query(
       `INSERT INTO notification (userID, appointmentID, message, notificationType, status, recipientEmail)
@@ -308,8 +315,87 @@ const getReceptionistStats = async (req, res) => {
   }
 };
 
+/**
+ * 4. collectCounterPayment
+ * Records cash/POS payment for an appointment, updates payments table and sets appointment status to 'Paid'/'Completed'.
+ */
+const collectCounterPayment = async (req, res) => {
+  try {
+    const { appointmentId, paymentMethod, amount } = req.body;
+
+    const aptID = Number(appointmentId);
+    if (!aptID || isNaN(aptID)) {
+      return res.status(400).json({ success: false, message: 'Valid appointment ID is required.' });
+    }
+
+    const [apptRows] = await pool.query(
+      'SELECT a.appointmentID, a.patientID, a.doctorID, a.status, a.fee, a.totalCharge, a.patientName, a.patientEmail, u.name, u.email FROM appointments a LEFT JOIN patient p ON a.patientID = p.patientID LEFT JOIN users u ON p.userID = u.userID WHERE a.appointmentID = ?',
+      [aptID]
+    );
+
+    if (apptRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Appointment record not found.' });
+    }
+
+    const appt = apptRows[0];
+    const finalAmount = amount ? Number(amount) : Number(appt.totalCharge || appt.fee || 0);
+    const methodToUse = paymentMethod || 'Cash';
+    const patientName = appt.patientName || appt.name || 'Patient';
+    const patientEmail = appt.patientEmail || appt.email;
+
+    // Insert or update payment record
+    const merchantOrderId = `CTR-${Date.now()}-${aptID}`;
+    const transactionId = `TXN-COUNTER-${Date.now()}`;
+
+    await pool.query(
+      `INSERT INTO payments
+        (appointmentID, patientID, doctorID, merchantOrderId, transactionId, paymentGateway, amount, currency, paymentStatus, paymentMethod, verifiedAt)
+       VALUES (?, ?, ?, ?, ?, 'Counter', ?, 'LKR', 'Completed', ?, CURRENT_TIMESTAMP)`,
+      [aptID, appt.patientID, appt.doctorID, merchantOrderId, transactionId, finalAmount, methodToUse]
+    );
+
+    // Update appointment status to 'Completed' (or 'Paid')
+    await pool.query("UPDATE appointments SET status = 'Completed' WHERE appointmentID = ?", [aptID]);
+
+    // Ensure invoice record is created / updated
+    const [existingInvoices] = await pool.query('SELECT invoiceID FROM invoice WHERE appointmentID = ?', [aptID]);
+    let generatedInvoiceNumber;
+    if (existingInvoices.length === 0) {
+      generatedInvoiceNumber = `INV-CTR-${Date.now()}`;
+      await pool.query(
+        `INSERT INTO invoice (appointmentID, patientID, invoiceNumber, subtotal, tax, discount, totalAmount, issueDate, dueDate, status)
+         VALUES (?, ?, ?, ?, 0.00, 0.00, ?, CURDATE(), CURDATE(), 'paid')`,
+        [aptID, appt.patientID, generatedInvoiceNumber, finalAmount, finalAmount]
+      );
+    } else {
+      await pool.query("UPDATE invoice SET status = 'paid', totalAmount = ? WHERE appointmentID = ?", [finalAmount, aptID]);
+    }
+
+    // Send Payment Confirmation Email
+    if (patientEmail) {
+      await sendPaymentConfirmation(
+        { name: patientName, email: patientEmail },
+        { amount: finalAmount, currency: 'LKR', method: methodToUse }
+      ).catch(err => console.error('Failed to send payment confirmation email:', err));
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Counter payment of LKR ${finalAmount.toFixed(2)} recorded successfully via ${methodToUse}. Invoice issued.`,
+      appointmentID: aptID,
+      paymentStatus: 'Completed',
+      status: 'Completed',
+      invoiceNumber: generatedInvoiceNumber
+    });
+  } catch (error) {
+    console.error('Error collecting counter payment:', error);
+    return res.status(500).json({ success: false, message: 'Server error collecting payment', error: error.message });
+  }
+};
+
 module.exports = {
   checkInPatient,
   createWalkInAppointment,
-  getReceptionistStats
+  getReceptionistStats,
+  collectCounterPayment
 };

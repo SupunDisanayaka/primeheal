@@ -10,9 +10,9 @@ const toLkr = (value) => Number((Number(value ?? 0) * USD_TO_LKR_RATE).toFixed(2
 const AppContextProvider = ({ children }) => {
   const currencySymbol = 'LKR '
 
-  const [token, setToken] = useState(localStorage.getItem('token') || false)
+  const [token, setToken] = useState(sessionStorage.getItem('token') || false)
   const [userData, setUserData] = useState(null)
-  const [profileLoading, setProfileLoading] = useState(Boolean(localStorage.getItem('token')))
+  const [profileLoading, setProfileLoading] = useState(Boolean(sessionStorage.getItem('token')))
   const [profileError, setProfileError] = useState(null)
   const [doctors, setDoctors] = useState([])
 
@@ -52,7 +52,7 @@ const AppContextProvider = ({ children }) => {
         setProfileError(error.response?.data?.message || error.message || 'Unable to load profile');
         if (error.response && error.response.status === 401) {
           setToken(false);
-          localStorage.removeItem('token');
+          sessionStorage.removeItem('token');
         }
       } finally {
         setProfileLoading(false)

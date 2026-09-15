@@ -13,7 +13,8 @@ const AccountantDashboard = () => {
   const { appointments, setAppointments, doctors, currencySymbol, fetchAllAppointments } = useContext(AppContext);
   const [activeTab, setActiveTab] = useState("ledger"); // 'ledger' | 'invoices'
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All"); // 'All', 'Paid', 'Unpaid', 'Cancelled'
+  const [statusFilter, setStatusFilter] = useState("All"); // 'All', 'Paid', 'Cancelled'
+  const [dateFilter, setDateFilter] = useState("AllTime"); // 'AllTime', 'Today', 'Last7', 'ThisMonth'
   const [financialData, setFinancialData] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
@@ -63,32 +64,7 @@ const AccountantDashboard = () => {
     loadInvoices();
   }, []);
 
-  const handleMarkPaid = async (aptId) => {
-    try {
-      setLoadingAction(true);
-      const targetApt = appointments.find((a) => a._id === aptId || a.appointmentId === aptId);
-      const res = await collectCounterPaymentAPI({
-        appointmentId: aptId,
-        paymentMethod: "Cash",
-        amount: targetApt ? (targetApt.amount || targetApt.fees) : undefined
-      });
-      if (res.success) {
-        alert(res.message || "Payment collected and invoice logged successfully.");
-        if (fetchAllAppointments) fetchAllAppointments();
-        loadFinancialSummary();
-        loadInvoices();
-      } else {
-        alert(res.message || "Collection failed.");
-      }
-    } catch (err) {
-      console.error("Mark paid error:", err);
-      setAppointments((prev) =>
-        prev.map((apt) => (apt._id === aptId || apt.appointmentId === aptId ? { ...apt, status: "Completed" } : apt))
-      );
-    } finally {
-      setLoadingAction(false);
-    }
-  };
+
 
   const handleRefund = async (aptId) => {
     if (!window.confirm("Refund this transaction? This will mark the appointment as Cancelled.")) return;
@@ -178,6 +154,9 @@ const AccountantDashboard = () => {
 
   // Filtered Appointments
   const filteredAppointments = appointments.filter((apt) => {
+    // Only show finalized payments (Paid/Completed) or Cancelled (for refunds)
+    if (apt.status === "Pending" || apt.status === "Checked In") return false;
+
     const doc = doctors.find((d) => d._id === apt.docId || d.doctorID === apt.doctorID) || {};
     const patientNameStr = apt.patientName || "";
     const patientPhoneStr = apt.patientPhone || "";
@@ -189,13 +168,32 @@ const AccountantDashboard = () => {
     let matchesStatus = true;
     if (statusFilter === "Paid") {
       matchesStatus = apt.status === "Completed" || apt.status === "Paid";
-    } else if (statusFilter === "Unpaid") {
-      matchesStatus = apt.status === "Pending" || apt.status === "Checked In";
     } else if (statusFilter === "Cancelled") {
       matchesStatus = apt.status === "Cancelled";
     }
 
-    return matchesSearch && matchesStatus;
+    let matchesDate = true;
+    if (dateFilter !== "AllTime") {
+      const aptDate = apt.slotDate || apt.appointmentDate; // e.g. YYYY-MM-DD
+      if (aptDate) {
+        const d = new Date(aptDate);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        d.setHours(0,0,0,0);
+        const diffTime = Math.abs(today - d);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (dateFilter === "Today") {
+          matchesDate = diffDays === 0;
+        } else if (dateFilter === "Last7") {
+          matchesDate = diffDays <= 7;
+        } else if (dateFilter === "ThisMonth") {
+          matchesDate = d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+        }
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   // Filtered Invoices
@@ -210,10 +208,30 @@ const AccountantDashboard = () => {
 
     let matchesStatus = true;
     if (statusFilter === "Paid") matchesStatus = inv.status === "paid";
-    else if (statusFilter === "Unpaid") matchesStatus = inv.status === "issued" || inv.status === "pending";
     else if (statusFilter === "Cancelled") matchesStatus = inv.status === "cancelled";
 
-    return matches && matchesStatus;
+    let matchesDate = true;
+    if (dateFilter !== "AllTime") {
+      const invDate = inv.issueDate;
+      if (invDate) {
+        const d = new Date(invDate);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        d.setHours(0,0,0,0);
+        const diffTime = Math.abs(today - d);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (dateFilter === "Today") {
+          matchesDate = diffDays === 0;
+        } else if (dateFilter === "Last7") {
+          matchesDate = diffDays <= 7;
+        } else if (dateFilter === "ThisMonth") {
+          matchesDate = d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+        }
+      }
+    }
+
+    return matches && matchesStatus && matchesDate;
   });
 
   return (
@@ -333,8 +351,17 @@ const AccountantDashboard = () => {
               >
                 <option value="All">All Statuses</option>
                 <option value="Paid">Paid</option>
-                <option value="Unpaid">Unpaid / Issued</option>
                 <option value="Cancelled">Cancelled</option>
+              </select>
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="border border-zinc-200 outline-none rounded-lg px-2 py-1.5 text-xs text-gray-600 bg-white cursor-pointer focus:border-primary"
+              >
+                <option value="AllTime">All Time</option>
+                <option value="Today">Today</option>
+                <option value="Last7">Last 7 Days</option>
+                <option value="ThisMonth">This Month</option>
               </select>
             </div>
           </div>
@@ -346,17 +373,19 @@ const AccountantDashboard = () => {
                 <thead className="bg-slate-50/50">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Doctor</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date & Time</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment Method</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Cashier Actions</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100 bg-white">
                   {filteredAppointments.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-10 text-center text-sm text-gray-500">
-                        No matching appointments found.
+                      <td colSpan="7" className="px-6 py-10 text-center text-sm text-gray-500">
+                        No finalized appointments found.
                       </td>
                     </tr>
                   ) : (
@@ -364,6 +393,8 @@ const AccountantDashboard = () => {
                       const aptId = apt._id || apt.appointmentId || apt.appointmentID;
                       const isPaid = apt.status === "Completed" || apt.status === "Paid";
                       const isCancelled = apt.status === "Cancelled";
+                      const doc = doctors.find((d) => d._id === apt.docId || d.doctorID === apt.doctorID) || {};
+                      const doctorName = doc.name || apt.doctorName || "Doctor";
 
                       return (
                         <tr key={aptId} className="hover:bg-slate-50/20 transition-colors">
@@ -371,12 +402,18 @@ const AccountantDashboard = () => {
                             <p className="text-sm font-semibold text-gray-900">{apt.patientName}</p>
                             <p className="text-xs text-gray-400 mt-0.5">{apt.patientPhone || apt.patientEmail || "Walk-in"}</p>
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <p className="text-sm font-medium text-gray-800">{doctorName}</p>
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                             <p className="font-medium text-gray-800">{apt.slotDate || apt.appointmentDate}</p>
                             <p className="text-xs text-gray-400">{apt.slotTime || apt.appointmentTime}</p>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                             {currencySymbol}{Number(apt.amount || apt.fees || apt.fee || 0).toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-600">
+                            {apt.paymentMethod || (isPaid ? "Online" : "-")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
@@ -393,15 +430,6 @@ const AccountantDashboard = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                             <div className="flex items-center justify-center gap-2">
-                              {!isPaid && !isCancelled && (
-                                <button
-                                  disabled={loadingAction}
-                                  onClick={() => handleMarkPaid(aptId)}
-                                  className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold transition-colors shadow-2xs"
-                                >
-                                  Collect Cash
-                                </button>
-                              )}
                               <button
                                 onClick={() => openRecreateModal(apt)}
                                 className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-primary rounded-lg text-xs font-semibold transition-colors"

@@ -1,49 +1,60 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import { AppContext } from "../../context/AppContext";
 import {
   getAppointmentReportAPI,
   getFinancialReportAPI,
-  getAuditLogsAPI
+  getAuditLogsAPI,
+  getAllPatientsAPI,
+  getReceptionistsAPI,
+  getAccountantsAPI,
+  getDoctors
 } from "../../services/api";
 
 const AdminReports = () => {
   const { doctors, currencySymbol } = useContext(AppContext);
-  const [activeTab, setActiveTab] = useState("appointments"); // 'appointments' | 'financial' | 'audit'
+  const [activeTab, setActiveTab] = useState("appointments"); // 'appointments' | 'financial' | 'audit' | 'users'
 
+  // ============================
   // Appointment Report State
+  // ============================
   const [apptFilters, setApptFilters] = useState({
     startDate: "",
     endDate: "",
     doctorId: "all",
+    speciality: "all",
     status: "all"
   });
   const [apptData, setApptData] = useState({ summary: {}, appointments: [] });
   const [loadingAppt, setLoadingAppt] = useState(false);
+  const [apptRowsPerPage, setApptRowsPerPage] = useState(10);
+  const [apptCurrentPage, setApptCurrentPage] = useState(1);
 
-  // Financial Report State
-  const [finFilters, setFinFilters] = useState({
-    startDate: "",
-    endDate: ""
-  });
-  const [finData, setFinData] = useState({ summary: {}, paymentMethods: [], doctorRevenue: [] });
-  const [loadingFin, setLoadingFin] = useState(false);
+  const uniqueSpecialities = useMemo(() => {
+    const specs = new Set();
+    doctors.forEach(d => {
+      if (d.speciality) specs.add(d.speciality);
+      if (d.specialization) specs.add(d.specialization);
+    });
+    return Array.from(specs).sort();
+  }, [doctors]);
 
-  // Audit Logs State
-  const [auditActionFilter, setAuditActionFilter] = useState("all");
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [totalLogs, setTotalLogs] = useState(0);
-  const [loadingAudit, setLoadingAudit] = useState(false);
-
-  // Load Appointments Report
-  const loadAppointmentReports = async () => {
+  const loadAppointmentReports = async (overrideFilters = null) => {
     try {
       setLoadingAppt(true);
-      const res = await getAppointmentReportAPI(apptFilters);
+      
+      // Defensively check if overrideFilters is a React synthetic event (has nativeEvent or preventDefault)
+      let filtersToUse = overrideFilters;
+      if (!filtersToUse || typeof filtersToUse.preventDefault === 'function' || filtersToUse.nativeEvent) {
+        filtersToUse = apptFilters;
+      }
+      
+      const res = await getAppointmentReportAPI(filtersToUse);
       if (res.success) {
         setApptData({
           summary: res.summary || {},
           appointments: res.appointments || []
         });
+        setApptCurrentPage(1); // Reset to first page when filtering
       }
     } catch (err) {
       console.error("Error loading appointment report:", err);
@@ -52,7 +63,64 @@ const AdminReports = () => {
     }
   };
 
-  // Load Financial Report
+  const setDatePreset = (preset) => {
+    const today = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    if (preset === 'today') {
+      // already today
+    } else if (preset === 'week') {
+      const first = today.getDate() - today.getDay();
+      start = new Date(today.setDate(first));
+      end = new Date(start);
+      end.setDate(end.getDate() + 6);
+    } else if (preset === 'month') {
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+      end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    } else if (preset === 'year') {
+      start = new Date(today.getFullYear(), 0, 1);
+      end = new Date(today.getFullYear(), 11, 31);
+    }
+
+    const startStr = start.toISOString().split('T')[0];
+    const endStr = end.toISOString().split('T')[0];
+    const newFilters = { ...apptFilters, startDate: startStr, endDate: endStr };
+    setApptFilters(newFilters);
+    loadAppointmentReports(newFilters);
+  };
+
+  const handleClearFilters = () => {
+    const emptyFilters = { startDate: "", endDate: "", doctorId: "all", speciality: "all", status: "all" };
+    setApptFilters(emptyFilters);
+    loadAppointmentReports(emptyFilters);
+  };
+
+  // Pagination Logic for Appointments
+  const filteredAppointments = useMemo(() => {
+    let result = [...apptData.appointments];
+    if (apptFilters.speciality && apptFilters.speciality !== "all") {
+      result = result.filter(a => a.specialization === apptFilters.speciality || a.speciality === apptFilters.speciality);
+    }
+    return result;
+  }, [apptData.appointments, apptFilters.speciality]);
+
+  const totalApptPages = Math.ceil(filteredAppointments.length / apptRowsPerPage) || 1;
+  const paginatedAppointments = filteredAppointments.slice(
+    (apptCurrentPage - 1) * apptRowsPerPage,
+    apptCurrentPage * apptRowsPerPage
+  );
+
+  // ============================
+  // Financial Report State
+  // ============================
+  const [finFilters, setFinFilters] = useState({
+    startDate: "",
+    endDate: ""
+  });
+  const [finData, setFinData] = useState({ summary: {}, paymentMethods: [], doctorRevenue: [] });
+  const [loadingFin, setLoadingFin] = useState(false);
+
   const loadFinancialReports = async () => {
     try {
       setLoadingFin(true);
@@ -71,7 +139,14 @@ const AdminReports = () => {
     }
   };
 
-  // Load Audit Logs
+  // ============================
+  // Audit Logs State
+  // ============================
+  const [auditActionFilter, setAuditActionFilter] = useState("all");
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [totalLogs, setTotalLogs] = useState(0);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+
   const loadAuditLogs = async () => {
     try {
       setLoadingAudit(true);
@@ -87,26 +162,124 @@ const AdminReports = () => {
     }
   };
 
+  // ============================
+  // System Users List State
+  // ============================
+  const [systemUsers, setSystemUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userRoleFilter, setUserRoleFilter] = useState("all");
+
+  const filteredSystemUsers = useMemo(() => {
+    if (userRoleFilter === "all") return systemUsers;
+    return systemUsers.filter(u => u.role.toLowerCase() === userRoleFilter.toLowerCase());
+  }, [systemUsers, userRoleFilter]);
+
+  const loadSystemUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      // We will pretend there's an endpoint or just fetch them parallelly
+      const [docRes, patRes, recRes, accRes] = await Promise.all([
+        getDoctors(),
+        getAllPatientsAPI({ limit: 1000 }),
+        getReceptionistsAPI(),
+        getAccountantsAPI()
+      ]);
+
+      const usersList = [];
+
+      // Add Admin manually since there is no admin listing API in this scope
+      usersList.push({
+        id: "admin-1",
+        name: "PrimeHeal Admin",
+        email: "admin@primeheal.com",
+        phone: "N/A",
+        role: "Admin",
+        joinedDate: "System Default"
+      });
+
+      if (docRes.success && docRes.doctors) {
+        docRes.doctors.forEach(d => {
+          usersList.push({
+            id: d._id,
+            name: d.name,
+            email: d.email,
+            phone: d.phone || "N/A",
+            role: "Doctor",
+            joinedDate: d.createdAt ? new Date(d.createdAt).toLocaleDateString() : "N/A"
+          });
+        });
+      }
+
+      if (patRes.success && patRes.patients) {
+        patRes.patients.forEach(p => {
+          usersList.push({
+            id: p._id,
+            name: p.name,
+            email: p.email,
+            phone: p.phone || "N/A",
+            role: "Patient",
+            joinedDate: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "N/A"
+          });
+        });
+      }
+
+      if (recRes.success && recRes.receptionists) {
+        recRes.receptionists.forEach(r => {
+          usersList.push({
+            id: r._id,
+            name: r.name,
+            email: r.email,
+            phone: r.phone || "N/A",
+            role: "Receptionist",
+            joinedDate: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "N/A"
+          });
+        });
+      }
+
+      if (accRes.success && accRes.accountants) {
+        accRes.accountants.forEach(a => {
+          usersList.push({
+            id: a._id,
+            name: a.name,
+            email: a.email,
+            phone: a.phone || "N/A",
+            role: "Accountant",
+            joinedDate: a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "N/A"
+          });
+        });
+      }
+
+      setSystemUsers(usersList);
+    } catch (err) {
+      console.error("Error loading system users:", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "appointments") loadAppointmentReports();
     else if (activeTab === "financial") loadFinancialReports();
     else if (activeTab === "audit") loadAuditLogs();
+    else if (activeTab === "users") loadSystemUsers();
   }, [activeTab]);
 
-  // CSV Export for Appointments Report
+  // ============================
+  // Exports
+  // ============================
   const exportAppointmentsCSV = () => {
-    if (apptData.appointments.length === 0) {
+    if (filteredAppointments.length === 0) {
       alert("No appointment data available to export.");
       return;
     }
     const headers = ["AppointmentID", "PatientName", "PatientEmail", "PatientPhone", "DoctorName", "Specialization", "Date", "Time", "Status", "PaymentStatus", "TotalFee"];
-    const rows = apptData.appointments.map(a => [
+    const rows = filteredAppointments.map(a => [
       a.appointmentID,
       `"${(a.patientName || '').replace(/"/g, '""')}"`,
       `"${(a.patientEmail || '').replace(/"/g, '""')}"`,
       `"${(a.patientPhone || '').replace(/"/g, '""')}"`,
       `"${(a.doctorName || '').replace(/"/g, '""')}"`,
-      `"${(a.specialization || '').replace(/"/g, '""')}"`,
+      `"${(a.specialization || a.speciality || '').replace(/"/g, '""')}"`,
       a.appointmentDate,
       a.appointmentTime,
       a.status,
@@ -123,7 +296,6 @@ const AdminReports = () => {
     document.body.removeChild(link);
   };
 
-  // CSV Export for Financial Report
   const exportFinancialCSV = () => {
     if (finData.doctorRevenue.length === 0) {
       alert("No financial data available to export.");
@@ -146,149 +318,294 @@ const AdminReports = () => {
     document.body.removeChild(link);
   };
 
+  const exportSystemUsersCSV = () => {
+    if (filteredSystemUsers.length === 0) {
+      alert("No users data available to export.");
+      return;
+    }
+    const headers = ["Name", "Email", "Phone", "Role", "JoinedDate"];
+    const rows = filteredSystemUsers.map(u => [
+      `"${(u.name || '').replace(/"/g, '""')}"`,
+      `"${(u.email || '').replace(/"/g, '""')}"`,
+      `"${(u.phone || '').replace(/"/g, '""')}"`,
+      u.role,
+      u.joinedDate
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `primeheal_system_users_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="m-5 sm:m-8 w-full max-w-6xl flex flex-col gap-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Hospital Analytics, Reports & Audit</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Hospital Analytics & Reports</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Clinical appointment reporting, financial ledgers, and user security audit trails.
+            Clinical reporting, users, financials, and security audits.
           </p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200 text-xs font-semibold">
+        <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200 text-xs font-semibold overflow-x-auto max-w-full">
+          <button
+            onClick={() => setActiveTab("users")}
+            className={`px-3.5 py-2 rounded-lg transition-all whitespace-nowrap ${
+              activeTab === "users" ? "bg-white text-gray-900 shadow-xs" : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            System Users
+          </button>
           <button
             onClick={() => setActiveTab("appointments")}
-            className={`px-3.5 py-2 rounded-lg transition-all ${
+            className={`px-3.5 py-2 rounded-lg transition-all whitespace-nowrap ${
               activeTab === "appointments" ? "bg-white text-gray-900 shadow-xs" : "text-gray-600 hover:text-gray-900"
             }`}
           >
-            Appointment Reports
+            Appointments
           </button>
           <button
             onClick={() => setActiveTab("financial")}
-            className={`px-3.5 py-2 rounded-lg transition-all ${
+            className={`px-3.5 py-2 rounded-lg transition-all whitespace-nowrap ${
               activeTab === "financial" ? "bg-white text-gray-900 shadow-xs" : "text-gray-600 hover:text-gray-900"
             }`}
           >
-            Financial Reports
+            Financials
           </button>
           <button
             onClick={() => setActiveTab("audit")}
-            className={`px-3.5 py-2 rounded-lg transition-all ${
+            className={`px-3.5 py-2 rounded-lg transition-all whitespace-nowrap ${
               activeTab === "audit" ? "bg-white text-gray-900 shadow-xs" : "text-gray-600 hover:text-gray-900"
             }`}
           >
-            Security Audit Trail
+            Audit Trail
           </button>
         </div>
       </div>
 
+      {/* ================= TAB 0: SYSTEM USERS REPORT ================= */}
+      {activeTab === "users" && (
+        <div className="space-y-6">
+          <div className="bg-white p-5 rounded-2xl border border-zinc-100 shadow-xs flex flex-wrap justify-between items-center gap-4">
+            <div>
+              <h3 className="text-base font-bold text-gray-900">System Users Directory</h3>
+              <p className="text-xs text-gray-500 mt-0.5">List of all active system users by role.</p>
+            </div>
+            <div className="flex gap-3 items-center">
+              <select
+                value={userRoleFilter}
+                onChange={(e) => setUserRoleFilter(e.target.value)}
+                className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-700 outline-none bg-white"
+              >
+                <option value="all">All Roles</option>
+                <option value="Admin">Admin</option>
+                <option value="Doctor">Doctor</option>
+                <option value="Patient">Patient</option>
+                <option value="Receptionist">Receptionist</option>
+                <option value="Accountant">Accountant</option>
+              </select>
+              <button
+                onClick={exportSystemUsersCSV}
+                className="px-4 py-1.5 bg-primary text-white text-xs font-bold rounded-lg shadow-xs hover:opacity-90 transition-all flex items-center gap-1.5"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export List
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white border border-zinc-100 rounded-2xl shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-zinc-100">
+                <thead className="bg-slate-50/70">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">User Name</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Contact Info</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Joined Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 bg-white">
+                  {loadingUsers ? (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-12 text-center text-sm text-gray-400">Loading system users...</td>
+                    </tr>
+                  ) : filteredSystemUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-12 text-center text-sm text-gray-400">No users found.</td>
+                    </tr>
+                  ) : (
+                    filteredSystemUsers.map((u, i) => (
+                      <tr key={u.id + i} className="hover:bg-slate-50/40">
+                        <td className="px-6 py-4 whitespace-nowrap font-semibold text-gray-900 text-sm">
+                          {u.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase border ${
+                            u.role === 'Admin' ? 'bg-red-50 text-red-600 border-red-100' :
+                            u.role === 'Doctor' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                            u.role === 'Patient' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                            'bg-amber-50 text-amber-600 border-amber-100'
+                          }`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          <p>{u.email}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{u.phone}</p>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {u.joinedDate}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ================= TAB 1: APPOINTMENTS REPORT ================= */}
       {activeTab === "appointments" && (
         <div className="space-y-6">
-          {/* Filter Bar */}
-          <div className="bg-white p-5 rounded-2xl border border-zinc-100 shadow-xs flex flex-wrap gap-4 items-end">
-            <div>
-              <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">From Date</label>
-              <input
-                type="date"
-                value={apptFilters.startDate}
-                onChange={(e) => setApptFilters({ ...apptFilters, startDate: e.target.value })}
-                className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 outline-none focus:border-primary"
-              />
+          <div className="bg-white p-5 rounded-2xl border border-zinc-100 shadow-xs flex flex-col gap-4">
+            
+            {/* Quick Presets */}
+            <div className="flex gap-2">
+              <span className="text-[11px] font-bold text-gray-400 uppercase self-center mr-2">Presets:</span>
+              <button onClick={() => setDatePreset('today')} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-gray-700 text-xs rounded-md font-semibold transition-colors">Daily</button>
+              <button onClick={() => setDatePreset('week')} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-gray-700 text-xs rounded-md font-semibold transition-colors">Weekly</button>
+              <button onClick={() => setDatePreset('month')} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-gray-700 text-xs rounded-md font-semibold transition-colors">Monthly</button>
+              <button onClick={() => setDatePreset('year')} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-gray-700 text-xs rounded-md font-semibold transition-colors">Yearly</button>
+              <button onClick={handleClearFilters} className="px-3 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs rounded-md font-semibold transition-colors ml-auto">Clear Filters</button>
             </div>
-            <div>
-              <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">To Date</label>
-              <input
-                type="date"
-                value={apptFilters.endDate}
-                onChange={(e) => setApptFilters({ ...apptFilters, endDate: e.target.value })}
-                className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 outline-none focus:border-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Doctor Consultant</label>
-              <select
-                value={apptFilters.doctorId}
-                onChange={(e) => setApptFilters({ ...apptFilters, doctorId: e.target.value })}
-                className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 outline-none focus:border-primary bg-white"
-              >
-                <option value="all">All Doctors</option>
-                {doctors.map((d) => (
-                  <option key={d._id || d.doctorID} value={d.doctorID || d._id}>
-                    {d.name} ({d.speciality || d.specialization})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Visit Status</label>
-              <select
-                value={apptFilters.status}
-                onChange={(e) => setApptFilters({ ...apptFilters, status: e.target.value })}
-                className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 outline-none focus:border-primary bg-white"
-              >
-                <option value="all">All Statuses</option>
-                <option value="Completed">Completed</option>
-                <option value="Pending">Pending / Checked In</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-            </div>
-            <div className="flex gap-2 ml-auto">
-              <button
-                onClick={loadAppointmentReports}
-                className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg shadow-xs hover:opacity-90 transition-all"
-              >
-                Filter Report
-              </button>
-              <button
-                onClick={exportAppointmentsCSV}
-                className="px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-gray-800 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
-              >
-                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Export CSV
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="px-3 py-2 bg-zinc-100 hover:bg-zinc-200 text-gray-800 text-xs font-bold rounded-lg transition-all"
-                title="Print Report"
-              >
-                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-              </button>
+
+            {/* Filter Form */}
+            <div className="flex flex-wrap gap-4 items-end">
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">From Date</label>
+                <input
+                  type="date"
+                  value={apptFilters.startDate}
+                  onChange={(e) => setApptFilters({ ...apptFilters, startDate: e.target.value })}
+                  className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">To Date</label>
+                <input
+                  type="date"
+                  value={apptFilters.endDate}
+                  onChange={(e) => setApptFilters({ ...apptFilters, endDate: e.target.value })}
+                  className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Doctor</label>
+                <select
+                  value={apptFilters.doctorId}
+                  onChange={(e) => setApptFilters({ ...apptFilters, doctorId: e.target.value })}
+                  className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 outline-none focus:border-primary bg-white"
+                >
+                  <option value="all">All Doctors</option>
+                  {doctors.map((d) => (
+                    <option key={d._id || d.doctorID} value={d.doctorID || d._id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Speciality</label>
+                <select
+                  value={apptFilters.speciality}
+                  onChange={(e) => setApptFilters({ ...apptFilters, speciality: e.target.value })}
+                  className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 outline-none focus:border-primary bg-white max-w-[150px]"
+                >
+                  <option value="all">All Specialities</option>
+                  {uniqueSpecialities.map(spec => (
+                    <option key={spec} value={spec}>{spec}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Status</label>
+                <select
+                  value={apptFilters.status}
+                  onChange={(e) => setApptFilters({ ...apptFilters, status: e.target.value })}
+                  className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 outline-none focus:border-primary bg-white"
+                >
+                  <option value="all">All</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div className="flex gap-2 ml-auto">
+                <button
+                  onClick={(e) => { e.preventDefault(); loadAppointmentReports(apptFilters); }}
+                  className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg shadow-xs hover:opacity-90 transition-all"
+                >
+                  Filter
+                </button>
+                <button
+                  onClick={exportAppointmentsCSV}
+                  className="px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-gray-800 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+                >
+                  Export CSV
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Summary KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white p-5 rounded-2xl border border-zinc-100 shadow-xs">
-              <p className="text-2xl font-bold text-gray-900">{apptData.summary?.totalCount || 0}</p>
-              <p className="text-xs font-semibold text-gray-400 uppercase mt-1">Total Appointments</p>
-            </div>
-            <div className="bg-white p-5 rounded-2xl border border-zinc-100 shadow-xs">
-              <p className="text-2xl font-bold text-emerald-600">{apptData.summary?.completedCount || 0}</p>
-              <p className="text-xs font-semibold text-gray-400 uppercase mt-1">Completed Visits</p>
-            </div>
-            <div className="bg-white p-5 rounded-2xl border border-zinc-100 shadow-xs">
-              <p className="text-2xl font-bold text-amber-600">{apptData.summary?.pendingCount || 0}</p>
-              <p className="text-xs font-semibold text-gray-400 uppercase mt-1">Pending / Checked In</p>
-            </div>
-            <div className="bg-white p-5 rounded-2xl border border-zinc-100 shadow-xs">
-              <p className="text-2xl font-bold text-primary">
-                {currencySymbol}{Number(apptData.summary?.totalCharges || 0).toFixed(2)}
-              </p>
-              <p className="text-xs font-semibold text-gray-400 uppercase mt-1">Fee Volume</p>
-            </div>
-          </div>
-
-          {/* Appointments Table */}
           <div className="bg-white border border-zinc-100 rounded-2xl shadow-xs overflow-hidden">
+            {/* Pagination Controls Header */}
+            <div className="flex items-center justify-between px-6 py-3 bg-zinc-50 border-b border-zinc-100">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 font-semibold">Rows per page:</span>
+                <select 
+                  value={apptRowsPerPage} 
+                  onChange={(e) => { setApptRowsPerPage(Number(e.target.value)); setApptCurrentPage(1); }}
+                  className="text-xs border border-zinc-200 rounded px-2 py-1 bg-white"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-gray-500 font-semibold">
+                  Page {apptCurrentPage} of {totalApptPages}
+                </span>
+                <div className="flex gap-1">
+                  <button 
+                    disabled={apptCurrentPage === 1}
+                    onClick={() => setApptCurrentPage(prev => Math.max(1, prev - 1))}
+                    className="p-1 rounded hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+                  </button>
+                  <button 
+                    disabled={apptCurrentPage === totalApptPages}
+                    onClick={() => setApptCurrentPage(prev => Math.min(totalApptPages, prev + 1))}
+                    className="p-1 rounded hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-zinc-100">
                 <thead className="bg-slate-50/70">
@@ -305,12 +622,12 @@ const AdminReports = () => {
                     <tr>
                       <td colSpan="5" className="px-6 py-12 text-center text-sm text-gray-400">Loading appointment report...</td>
                     </tr>
-                  ) : apptData.appointments.length === 0 ? (
+                  ) : paginatedAppointments.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-sm text-gray-400">No appointments found matching selected filters.</td>
+                      <td colSpan="5" className="px-6 py-12 text-center text-sm text-gray-400">No appointments found.</td>
                     </tr>
                   ) : (
-                    apptData.appointments.map((a) => (
+                    paginatedAppointments.map((a) => (
                       <tr key={a.appointmentID} className="hover:bg-slate-50/40">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <p className="text-sm font-bold text-gray-900">{a.patientName}</p>
@@ -318,7 +635,7 @@ const AdminReports = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <p className="text-sm font-semibold text-gray-900">{a.doctorName}</p>
-                          <p className="text-xs text-gray-400">{a.specialization}</p>
+                          <p className="text-xs text-gray-400">{a.specialization || a.speciality}</p>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-700">
                           <p className="font-semibold">{a.appointmentDate}</p>
@@ -353,7 +670,6 @@ const AdminReports = () => {
       {/* ================= TAB 2: FINANCIAL REPORT ================= */}
       {activeTab === "financial" && (
         <div className="space-y-6">
-          {/* Financial Filter Bar */}
           <div className="bg-white p-5 rounded-2xl border border-zinc-100 shadow-xs flex flex-wrap gap-4 items-end">
             <div>
               <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">From Date</label>
@@ -378,184 +694,114 @@ const AdminReports = () => {
                 onClick={loadFinancialReports}
                 className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg shadow-xs hover:opacity-90 transition-all"
               >
-                Refresh Financials
+                Refresh
               </button>
               <button
                 onClick={exportFinancialCSV}
-                className="px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-gray-800 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+                className="px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-gray-800 text-xs font-bold rounded-lg transition-all"
               >
-                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Export Doctor Earnings CSV
+                Export CSV
               </button>
             </div>
           </div>
 
-          {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {currencySymbol}{Number(finData.summary?.totalCollected || 0).toFixed(2)}
-                  </p>
-                  <p className="text-xs font-semibold text-gray-400 uppercase">Realized Revenue</p>
-                </div>
-              </div>
+              <p className="text-2xl font-bold text-gray-900">
+                {currencySymbol}{Number(finData.summary?.totalCollected || 0).toFixed(2)}
+              </p>
+              <p className="text-xs font-semibold text-gray-400 uppercase">Realized Revenue</p>
             </div>
-
             <div className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {currencySymbol}{Number(finData.summary?.pendingReceivables || 0).toFixed(2)}
-                  </p>
-                  <p className="text-xs font-semibold text-gray-400 uppercase">Outstanding Receivables</p>
-                </div>
-              </div>
+              <p className="text-2xl font-bold text-gray-900">
+                {currencySymbol}{Number(finData.summary?.pendingReceivables || 0).toFixed(2)}
+              </p>
+              <p className="text-xs font-semibold text-gray-400 uppercase">Outstanding</p>
             </div>
-
             <div className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {currencySymbol}{Number(finData.summary?.cancelledVolume || 0).toFixed(2)}
-                  </p>
-                  <p className="text-xs font-semibold text-gray-400 uppercase">Cancelled / Uncollected</p>
-                </div>
-              </div>
+              <p className="text-2xl font-bold text-gray-900">
+                {currencySymbol}{Number(finData.summary?.cancelledVolume || 0).toFixed(2)}
+              </p>
+              <p className="text-xs font-semibold text-gray-400 uppercase">Cancelled</p>
             </div>
           </div>
 
-          {/* Doctor Earnings Breakdown Table */}
           <div className="bg-white border border-zinc-100 rounded-2xl shadow-xs p-6">
-            <h3 className="text-base font-bold text-gray-900 mb-4">Doctor Performance & Revenue Generation</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-zinc-100">
-                <thead className="bg-slate-50/70">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Consultant Doctor</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Specialization</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Visits Handled</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Revenue Realized</th>
+            <h3 className="text-base font-bold text-gray-900 mb-4">Doctor Performance</h3>
+            <table className="min-w-full divide-y divide-zinc-100">
+              <thead className="bg-slate-50/70">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Consultant Doctor</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Specialization</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Visits Handled</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Revenue</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 bg-white text-sm">
+                {finData.doctorRevenue.map((doc, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/40">
+                    <td className="px-6 py-4 font-bold text-gray-900">{doc.doctorName}</td>
+                    <td className="px-6 py-4 text-gray-600">{doc.specialization}</td>
+                    <td className="px-6 py-4 font-semibold text-gray-800">{doc.totalAppointments}</td>
+                    <td className="px-6 py-4 text-right font-extrabold text-primary">
+                      {currencySymbol}{Number(doc.revenueGenerated || 0).toFixed(2)}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100 bg-white text-sm">
-                  {finData.doctorRevenue.map((doc, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/40">
-                      <td className="px-6 py-4 font-bold text-gray-900">{doc.doctorName}</td>
-                      <td className="px-6 py-4 text-gray-600">{doc.specialization}</td>
-                      <td className="px-6 py-4 font-semibold text-gray-800">{doc.totalAppointments}</td>
-                      <td className="px-6 py-4 text-right font-extrabold text-primary">
-                        {currencySymbol}{Number(doc.revenueGenerated || 0).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* ================= TAB 3: SECURITY & AUDIT TRAIL ================= */}
+      {/* ================= TAB 3: AUDIT TRAIL ================= */}
       {activeTab === "audit" && (
         <div className="space-y-6">
-          {/* Audit Controls */}
-          <div className="bg-white p-5 rounded-2xl border border-zinc-100 shadow-xs flex flex-wrap justify-between items-center gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-zinc-100 shadow-xs flex justify-between items-center">
             <div>
-              <h3 className="text-base font-bold text-gray-900">User Activity & Security Audit Logs</h3>
-              <p className="text-xs text-gray-400">Total recorded audit events: {totalLogs}</p>
+              <h3 className="text-base font-bold text-gray-900">Audit Logs</h3>
+              <p className="text-xs text-gray-400">Total events: {totalLogs}</p>
             </div>
-
             <div className="flex gap-3">
               <select
                 value={auditActionFilter}
                 onChange={(e) => setAuditActionFilter(e.target.value)}
-                className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 outline-none focus:border-primary bg-white cursor-pointer"
+                className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 outline-none bg-white"
               >
-                <option value="all">All Audit Actions</option>
+                <option value="all">All Actions</option>
                 <option value="login">Logins</option>
-                <option value="register">Registrations</option>
                 <option value="appointment">Appointments</option>
-                <option value="payment">Payments</option>
-                <option value="update">Updates</option>
               </select>
-
               <button
                 onClick={loadAuditLogs}
-                className="px-4 py-1.5 bg-primary text-white text-xs font-bold rounded-lg shadow-xs hover:opacity-90"
+                className="px-4 py-1.5 bg-primary text-white text-xs font-bold rounded-lg shadow-xs"
               >
-                Refresh Logs
+                Refresh
               </button>
             </div>
           </div>
 
-          {/* Audit Table */}
           <div className="bg-white border border-zinc-100 rounded-2xl shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-zinc-100">
-                <thead className="bg-slate-50/70">
-                  <tr>
-                    <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase">Timestamp</th>
-                    <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase">Actor</th>
-                    <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase">Action Performed</th>
-                    <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase">IP Address</th>
-                    <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase">Client Agent</th>
+            <table className="min-w-full divide-y divide-zinc-100">
+              <thead className="bg-slate-50/70">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Timestamp</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Actor</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Action</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">IP Address</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 bg-white">
+                {auditLogs.map((log) => (
+                  <tr key={log.logID} className="hover:bg-slate-50/40 text-xs">
+                    <td className="px-6 py-3 text-gray-500 font-mono">{String(log.createdAt).substring(0, 19)}</td>
+                    <td className="px-6 py-3 font-bold text-gray-900">{log.actorName}</td>
+                    <td className="px-6 py-3"><span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded">{log.action}</span></td>
+                    <td className="px-6 py-3 font-mono text-gray-600">{log.ipAddress}</td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100 bg-white">
-                  {loadingAudit ? (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-sm text-gray-400">Loading audit trail...</td>
-                    </tr>
-                  ) : auditLogs.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-sm text-gray-400">No audit activity matching filter.</td>
-                    </tr>
-                  ) : (
-                    auditLogs.map((log) => (
-                      <tr key={log.logID} className="hover:bg-slate-50/40 text-xs">
-                        <td className="px-6 py-3.5 whitespace-nowrap text-gray-500 font-mono">
-                          {log.createdAt ? String(log.createdAt).replace("T", " ").substring(0, 19) : "N/A"}
-                        </td>
-                        <td className="px-6 py-3.5 whitespace-nowrap">
-                          <p className="font-bold text-gray-900">{log.actorName || "System / Guest"}</p>
-                          <p className="text-[10px] text-gray-400">{log.actorEmail || ""}</p>
-                        </td>
-                        <td className="px-6 py-3.5">
-                          <span className="font-semibold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md">
-                            {log.action}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3.5 whitespace-nowrap font-mono text-gray-600">
-                          {log.ipAddress || "localhost"}
-                        </td>
-                        <td className="px-6 py-3.5 max-w-xs truncate text-gray-400" title={log.userAgent}>
-                          {log.userAgent || "Browser Client"}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

@@ -16,26 +16,26 @@ api.interceptors.request.use(
     
     // Role specific token prioritization
     if (config.url?.includes('/appointments/my') || config.url?.startsWith('/doctor') || config.url?.includes('/notes')) {
-      token = localStorage.getItem('doctorToken') || localStorage.getItem('adminToken') || localStorage.getItem('token');
+      token = sessionStorage.getItem('doctorToken') || sessionStorage.getItem('adminToken') || sessionStorage.getItem('token');
     } else if (config.url?.startsWith('/receptionist')) {
-      token = localStorage.getItem('receptionistToken') || localStorage.getItem('adminToken') || localStorage.getItem('token');
+      token = sessionStorage.getItem('receptionistToken') || sessionStorage.getItem('adminToken') || sessionStorage.getItem('token');
     } else if (config.url?.startsWith('/accountant')) {
-      token = localStorage.getItem('accountantToken') || localStorage.getItem('adminToken') || localStorage.getItem('token');
+      token = sessionStorage.getItem('accountantToken') || sessionStorage.getItem('adminToken') || sessionStorage.getItem('token');
     } else {
-      if (localStorage.getItem('adminToken')) {
-        token = localStorage.getItem('adminToken');
-      } else if (localStorage.getItem('receptionistToken')) {
-        token = localStorage.getItem('receptionistToken');
-      } else if (localStorage.getItem('doctorToken')) {
-        token = localStorage.getItem('doctorToken');
-      } else if (localStorage.getItem('accountantToken')) {
-        token = localStorage.getItem('accountantToken');
-      } else if (localStorage.getItem('aToken')) {
-        token = localStorage.getItem('aToken');
-      } else if (localStorage.getItem('dToken')) {
-        token = localStorage.getItem('dToken');
-      } else if (localStorage.getItem('token')) {
-        token = localStorage.getItem('token');
+      if (sessionStorage.getItem('adminToken')) {
+        token = sessionStorage.getItem('adminToken');
+      } else if (sessionStorage.getItem('receptionistToken')) {
+        token = sessionStorage.getItem('receptionistToken');
+      } else if (sessionStorage.getItem('doctorToken')) {
+        token = sessionStorage.getItem('doctorToken');
+      } else if (sessionStorage.getItem('accountantToken')) {
+        token = sessionStorage.getItem('accountantToken');
+      } else if (sessionStorage.getItem('aToken')) {
+        token = sessionStorage.getItem('aToken');
+      } else if (sessionStorage.getItem('dToken')) {
+        token = sessionStorage.getItem('dToken');
+      } else if (sessionStorage.getItem('token')) {
+        token = sessionStorage.getItem('token');
       }
     }
 
@@ -110,6 +110,8 @@ const mapAppointment = (appointment) => ({
   updatedAt: appointment.updatedAt ? new Date(appointment.updatedAt) : new Date(),
   patientAddress: appointment.patientAddress || '',
   patientNic: appointment.patientNic || '',
+  paymentStatus: appointment.paymentStatus || '',
+  paymentMethod: appointment.paymentMethod || '',
   docAddress: appointment.docAddress || '',
   noShowRefund: Boolean(appointment.noShowRefund),
   doctorNotes: appointment.doctorNotes || '',
@@ -145,6 +147,11 @@ export const getAdminStats = async () => {
 
 export const updateAdminAppointmentStatus = async (appointmentId, status) => {
   const response = await api.patch(`/appointments/${appointmentId}/status`, { status });
+  return response.data;
+};
+
+export const rescheduleAppointment = async (appointmentId, newDate, newTime) => {
+  const response = await api.patch(`/appointments/${appointmentId}/reschedule`, { newDate, newTime });
   return response.data;
 };
 
@@ -270,7 +277,7 @@ export const getDoctorSlotsAPI = async (doctorId, date) => {
 
 // --- Accountant Operations ---
 export const collectCounterPaymentAPI = async (paymentData) => {
-  const response = await api.post('/accountant/collect-payment', paymentData);
+  const response = await api.post('/receptionist/collect-payment', paymentData);
   return response.data;
 };
 
@@ -348,6 +355,10 @@ export const getAuditLogsAPI = async (params = {}) => {
   return response.data;
 };
 
+export const downloadVisitPassAPI = async (appointmentId) => {
+  const response = await api.get(`/appointments/${appointmentId}/visit-pass`, { responseType: 'blob' });
+  return response.data;
+};
+
+
 export default api;
-
-

@@ -11,7 +11,7 @@ const TopDoctors = () => {
 
   React.useEffect(() => {
     // Get appointments from local storage
-    const storedApts = JSON.parse(localStorage.getItem('appointments')) || [];
+    const storedApts = JSON.parse(sessionStorage.getItem('appointments')) || [];
     
     // Count appointments per doctor ID
     const appointmentCounts = {};
@@ -69,7 +69,7 @@ const TopDoctors = () => {
 
             {/* Main Portrait Image of Doctor */}
             <img
-              src={item.image ? (item.image.startsWith('http') ? item.image : `${backendUrl}${item.image}`) : assets[`doc${(((item._id || item.userID || 0) % 15) + 1)}`]}
+              src={item.image ? (item.image.startsWith('http') ? item.image : `${backendUrl}${item.image}`) : assets[`doc${((parseInt(String(item._id || item.userID || 0).replace(/\\D/g, '')) || 0) % 15) + 1}`]}
               alt={item.name}
               className='absolute inset-x-0 bottom-0 w-full h-[85%] object-contain object-bottom pointer-events-none group-hover:scale-105 transition-transform duration-500 z-0'
             />
@@ -91,7 +91,7 @@ const TopDoctors = () => {
                 {/* Left: Avatar and Handle */}
                 <div className='flex items-center gap-2 min-w-0'>
                   <img
-                    src={item.image ? (item.image.startsWith('http') ? item.image : `${backendUrl}${item.image}`) : assets[`doc${(((item._id || item.userID || 0) % 15) + 1)}`]}
+                    src={item.image ? (item.image.startsWith('http') ? item.image : `${backendUrl}${item.image}`) : assets[`doc${((parseInt(String(item._id || item.userID || 0).replace(/\\D/g, '')) || 0) % 15) + 1}`]}
                     alt="avatar"
                     className='w-8 h-8 rounded-full border border-white/50 object-cover bg-white/70 flex-shrink-0'
                   />

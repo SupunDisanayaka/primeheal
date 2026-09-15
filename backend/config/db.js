@@ -55,14 +55,14 @@ async function initializePool() {
   await pool.query(`
     ALTER TABLE users
     MODIFY COLUMN userType ENUM('patient','doctor','receptionist','accountant','admin','superadmin','labstaff') NOT NULL
-  `).catch(err => console.log('Enum userType alter:', err.message));
+  `).catch(err => {});
 
   await pool.query(`
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS tokenVersion INT DEFAULT 1,
     ADD COLUMN IF NOT EXISTS isActive TINYINT(1) DEFAULT 1,
     ADD COLUMN IF NOT EXISTS profileImage VARCHAR(255) DEFAULT NULL
-  `).catch(err => console.log('Users alter columns:', err.message));
+  `).catch(err => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS admin (
@@ -98,12 +98,12 @@ async function initializePool() {
     ADD COLUMN IF NOT EXISTS address TEXT DEFAULT NULL,
     ADD COLUMN IF NOT EXISTS emergencyContact VARCHAR(50) DEFAULT NULL,
     ADD COLUMN IF NOT EXISTS allergies TEXT DEFAULT NULL
-  `).catch(err => console.log('Patient table alter:', err.message));
+  `).catch(err => {});
 
   await pool.query(`
     ALTER TABLE patient
     ADD UNIQUE INDEX IF NOT EXISTS uq_patient_nic (nic)
-  `).catch(err => console.log('Patient NIC index alter:', err.message));
+  `).catch(err => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS doctor (
@@ -129,7 +129,7 @@ async function initializePool() {
     ADD COLUMN IF NOT EXISTS experience VARCHAR(100) DEFAULT '5 Years',
     ADD COLUMN IF NOT EXISTS addressLine1 VARCHAR(255) DEFAULT 'PrimeHeal Clinic',
     ADD COLUMN IF NOT EXISTS addressLine2 VARCHAR(255) DEFAULT 'Colombo 03'
-  `).catch(err => console.log('Doctor table alter:', err.message));
+  `).catch(err => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS receptionist (
@@ -193,12 +193,12 @@ async function initializePool() {
   await pool.query(`
     ALTER TABLE appointments
     MODIFY COLUMN status ENUM('Pending', 'Paid', 'Confirmed', 'Checked In', 'Completed', 'Cancelled', 'Expired', 'No Show') DEFAULT 'Pending'
-  `).catch(err => console.log('Appointments status enum alter:', err.message));
+  `).catch(err => {});
 
   await pool.query(`
     ALTER TABLE appointments
     ADD COLUMN IF NOT EXISTS doctorNotes TEXT DEFAULT NULL
-  `).catch(err => console.log('Appointments doctorNotes alter:', err.message));
+  `).catch(err => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS payments (
@@ -235,7 +235,7 @@ async function initializePool() {
   await pool.query(`
     ALTER TABLE payments
     MODIFY COLUMN paymentStatus ENUM('Pending','Completed','Failed','Cancelled','Refunded') DEFAULT 'Pending'
-  `).catch(err => console.log('Payments status enum alter:', err.message));
+  `).catch(err => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS queue_tokens (
@@ -251,7 +251,7 @@ async function initializePool() {
       INDEX idx_queueDate (queueDate),
       INDEX idx_tokenStatus (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `).catch(err => console.log('Queue tokens table creation:', err.message));
+  `).catch(err => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS doctor_payouts (
@@ -266,7 +266,7 @@ async function initializePool() {
       FOREIGN KEY (doctorID) REFERENCES doctor(doctorID) ON DELETE CASCADE,
       INDEX idx_doctorPayout (doctorID, month, year)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `).catch(err => console.log('Doctor payouts table creation:', err.message));
+  `).catch(err => {});
 
 
   await pool.query(`
@@ -349,11 +349,11 @@ async function initializePool() {
       INDEX idx_user_notifications (userID, status),
       INDEX idx_notificationDate (notificationDate)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `).catch(err => console.log('Notification table creation:', err.message));
+  `).catch(err => {});
 
   await pool.query(`
     ALTER TABLE notification MODIFY COLUMN userID INT NULL
-  `).catch(err => console.log('Notification table userID null alter:', err.message));
+  `).catch(err => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS feedback (
@@ -373,7 +373,7 @@ async function initializePool() {
       INDEX idx_feedback_patient (patientID),
       INDEX idx_feedback_appointment (appointmentID)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `).catch(err => console.log('Feedback table creation:', err.message));
+  `).catch(err => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS complaint (
@@ -390,7 +390,7 @@ async function initializePool() {
       INDEX idx_complaint_user (userID),
       INDEX idx_complaint_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `).catch(err => console.log('Complaint table creation:', err.message));
+  `).catch(err => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS invoice (
@@ -408,7 +408,7 @@ async function initializePool() {
       INDEX idx_inv_patient (patientID),
       INDEX idx_inv_apt (appointmentID)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `).catch(err => console.log('Invoice table creation:', err.message));
+  `).catch(err => {});
   try {
     const [fkRows] = await pool.query(`
       SELECT CONSTRAINT_NAME, REFERENCED_TABLE_NAME
@@ -423,7 +423,6 @@ async function initializePool() {
       console.log(`Migrated feedback foreign key ${constraintName} to reference appointments(appointmentID)`);
     }
   } catch (err) {
-    console.log('Feedback FK check migration notice:', err.message);
   }
 
 

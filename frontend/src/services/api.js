@@ -12,7 +12,7 @@ const api = axios.create({
 // Add a request interceptor to include the auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token') || localStorage.getItem('adminToken') || localStorage.getItem('doctorToken') || localStorage.getItem('receptionistToken') || localStorage.getItem('accountantToken');
+    const token = sessionStorage.getItem('token') || sessionStorage.getItem('adminToken') || sessionStorage.getItem('doctorToken') || sessionStorage.getItem('receptionistToken') || sessionStorage.getItem('accountantToken');
     if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;

@@ -63,7 +63,7 @@ const Login = () => {
           const data = await loginWithGoogle(response.access_token)
 
           if (data.success) {
-            localStorage.setItem('token', data.token)
+            sessionStorage.setItem('token', data.token)
             setToken(data.token)
             navigate('/')
           } else {
@@ -87,7 +87,7 @@ const Login = () => {
       if (state === 'Login') {
         const data = await loginUser(email, password)
         if (data.success) {
-          localStorage.setItem('token', data.token)
+          sessionStorage.setItem('token', data.token)
           setToken(data.token)
           navigate('/')
         }
@@ -138,7 +138,7 @@ const Login = () => {
         })
 
         if (data.success) {
-          localStorage.setItem('token', data.token)
+          sessionStorage.setItem('token', data.token)
           setToken(data.token)
           navigate('/')
         }

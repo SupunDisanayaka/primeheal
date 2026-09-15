@@ -4,11 +4,11 @@ export const DoctorContext = createContext();
 
 const DoctorContextProvider = ({ children }) => {
   const [doctorToken, setDoctorToken] = useState(
-    localStorage.getItem("doctorToken") || ""
+    sessionStorage.getItem("doctorToken") || ""
   );
   
   const [currentDoctorId, setCurrentDoctorId] = useState(
-    localStorage.getItem("currentDoctorId") || ""
+    sessionStorage.getItem("currentDoctorId") || ""
   );
 
   const login = async (email, password) => {
@@ -25,14 +25,14 @@ const DoctorContextProvider = ({ children }) => {
 
       if (data.success && data.user?.userType === "doctor") {
         const idVal = String(data.user._id || data.user.userID || data.user.doctorID || data.user.roleID || "");
-        localStorage.removeItem("adminToken");
-        localStorage.removeItem("receptionistToken");
-        localStorage.removeItem("accountantToken");
-        localStorage.removeItem("aToken");
+        sessionStorage.removeItem("adminToken");
+        sessionStorage.removeItem("receptionistToken");
+        sessionStorage.removeItem("accountantToken");
+        sessionStorage.removeItem("aToken");
         setDoctorToken(data.token);
         setCurrentDoctorId(idVal);
-        localStorage.setItem("doctorToken", data.token);
-        localStorage.setItem("currentDoctorId", idVal);
+        sessionStorage.setItem("doctorToken", data.token);
+        sessionStorage.setItem("currentDoctorId", idVal);
         return true;
       }
       
@@ -47,8 +47,8 @@ const DoctorContextProvider = ({ children }) => {
   const logout = () => {
     setDoctorToken("");
     setCurrentDoctorId("");
-    localStorage.removeItem("doctorToken");
-    localStorage.removeItem("currentDoctorId");
+    sessionStorage.removeItem("doctorToken");
+    sessionStorage.removeItem("currentDoctorId");
   };
 
   const value = {

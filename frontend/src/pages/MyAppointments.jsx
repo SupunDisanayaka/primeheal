@@ -541,17 +541,23 @@ const MyAppointments = () => {
 
                   {isPending && (
                     <>
-                      <button
-                        onClick={() => handlePayNow(item)}
-                        disabled={payingAptId === item.appointmentId}
-                        className={`w-full sm:w-[136px] h-8 text-[11.5px] rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center shadow-xs ${
-                          payingAptId === item.appointmentId
-                            ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
-                            : 'bg-[#00B4B4] hover:bg-[#009E9E] text-white shadow-teal-500/10 active:scale-98'
-                        }`}
-                      >
-                        {payingAptId === item.appointmentId ? 'Processing...' : 'Pay with PayHere'}
-                      </button>
+                      {item.paymentPreference === 'counter' ? (
+                        <div className="w-full sm:w-[136px] h-8 text-[10px] text-amber-600 bg-amber-50 border border-amber-200/60 rounded-lg font-bold flex items-center justify-center text-center leading-tight shadow-xs px-1">
+                          Pay at Front Desk
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handlePayNow(item)}
+                          disabled={payingAptId === item.appointmentId}
+                          className={`w-full sm:w-[136px] h-8 text-[11.5px] rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center shadow-xs ${
+                            payingAptId === item.appointmentId
+                              ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                              : 'bg-[#00B4B4] hover:bg-[#009E9E] text-white shadow-teal-500/10 active:scale-98'
+                          }`}
+                        >
+                          {payingAptId === item.appointmentId ? 'Processing...' : 'Pay with PayHere'}
+                        </button>
+                      )}
                       <button
                         onClick={() => openRescheduleModal(item)}
                         disabled={payingAptId === item.appointmentId}

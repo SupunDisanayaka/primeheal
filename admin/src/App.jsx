@@ -37,6 +37,21 @@ const App = () => {
   const { doctorToken } = useContext(DoctorContext);
   const { receptionistToken, accountantToken } = useContext(AppContext);
 
+  // Set document title dynamically based on active portal
+  React.useEffect(() => {
+    if (adminToken) {
+      document.title = "Admin Portal - PrimeHeal";
+    } else if (doctorToken) {
+      document.title = "Doctor Portal - PrimeHeal";
+    } else if (receptionistToken) {
+      document.title = "Receptionist Portal - PrimeHeal";
+    } else if (accountantToken) {
+      document.title = "Accountant Portal - PrimeHeal";
+    } else {
+      document.title = "PrimeHeal Panel";
+    }
+  }, [adminToken, doctorToken, receptionistToken, accountantToken]);
+
   // Auth Guard: If no user is signed in, force rendering the Login panel
   if (!adminToken && !doctorToken && !receptionistToken && !accountantToken) {
     return <Login />;

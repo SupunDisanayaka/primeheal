@@ -145,7 +145,7 @@ const Navbar = () => {
                 <div
                   onClick={() => {
                     setToken(false);
-                    localStorage.removeItem('token');
+                    sessionStorage.removeItem('token');
                   }}
                   className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:text-rose-600 hover:bg-rose-50/80 transition-all cursor-pointer group/logout"
                 >

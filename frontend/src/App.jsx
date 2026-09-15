@@ -20,6 +20,15 @@ const App = () => {
   const { token } = useContext(AppContext);
   const location = useLocation();
 
+  // Set document title dynamically based on login state
+  React.useEffect(() => {
+    if (token) {
+      document.title = "Patient Portal - PrimeHeal";
+    } else {
+      document.title = "PrimeHeal";
+    }
+  }, [token]);
+
   // Determine if we should display the clean, fullscreen login layout
   const isLoginScreen = (location.pathname === '/' && !token) || location.pathname === '/login';
   const isHome = location.pathname === '/' && token;

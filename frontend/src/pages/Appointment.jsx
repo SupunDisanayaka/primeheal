@@ -35,7 +35,8 @@ const Appointment = () => {
     nic: '',
     email: userData?.email || '',
     address: '',
-    noShowRefund: false
+    noShowRefund: false,
+    paymentPreference: 'online' // online vs counter
   })
 
   useEffect(() => {
@@ -134,6 +135,7 @@ const Appointment = () => {
         patientNo: patientNo,
         docAddress: JSON.stringify(docInfo.address),
         noShowRefund: formData.noShowRefund,
+        paymentPreference: formData.paymentPreference, // Can be sent for tracking if needed
         currency: 'LKR'
       };
 
@@ -172,9 +174,9 @@ const Appointment = () => {
       };
 
       // Save to local storage
-      const currentApts = JSON.parse(localStorage.getItem('appointments')) || [];
+      const currentApts = JSON.parse(sessionStorage.getItem('appointments')) || [];
       currentApts.unshift(newAppointment);
-      localStorage.setItem('appointments', JSON.stringify(currentApts));
+      sessionStorage.setItem('appointments', JSON.stringify(currentApts));
 
       setShowBookingModal(false);
       navigate('/my-appointments');
@@ -259,7 +261,7 @@ const Appointment = () => {
 
             {/* Main Portrait Image of Doctor */}
             <img
-              src={docInfo.image ? (docInfo.image.startsWith('http') ? docInfo.image : `${backendUrl}${docInfo.image}`) : assets[`doc${(((docInfo._id || docInfo.userID || 0) % 15) + 1)}`]}
+              src={docInfo.image ? (docInfo.image.startsWith('http') ? docInfo.image : `${backendUrl}${docInfo.image}`) : assets[`doc${((parseInt(String(docInfo._id || docInfo.userID || 0).replace(/\\D/g, '')) || 0) % 15) + 1}`]}
               alt={docInfo.name}
               className='absolute inset-x-0 bottom-0 w-full h-[85%] object-contain object-bottom pointer-events-none z-0'
             />
@@ -281,7 +283,7 @@ const Appointment = () => {
                 {/* Left: Avatar and Handle */}
                 <div className='flex items-center gap-2 min-w-0'>
                   <img
-                    src={docInfo.image ? (docInfo.image.startsWith('http') ? docInfo.image : `${backendUrl}${docInfo.image}`) : assets[`doc${(((docInfo._id || docInfo.userID || 0) % 15) + 1)}`]}
+                    src={docInfo.image ? (docInfo.image.startsWith('http') ? docInfo.image : `${backendUrl}${docInfo.image}`) : assets[`doc${((parseInt(String(docInfo._id || docInfo.userID || 0).replace(/\\D/g, '')) || 0) % 15) + 1}`]}
                     alt="avatar"
                     className='w-8 h-8 rounded-full border border-white/50 object-cover bg-white/70 flex-shrink-0'
                   />
@@ -547,13 +549,32 @@ const Appointment = () => {
                 </div>
               </div>
 
-              {/* Fees Summary */}
-              <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between text-sm">
-                <span className="font-medium text-gray-500">Total Booking Cost:</span>
-                <span className="font-bold text-gray-800 text-teal-600">
-                  LKR {Number(docInfo.fees).toFixed(2)}
-                  {formData.noShowRefund && <span className="text-xs font-semibold text-[#00A7A7] ml-1.5">+ 275 LKR</span>}
-                </span>
+              {/* Fees Summary & Payment Preference */}
+              <div className="flex flex-col gap-4">
+                <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex flex-col gap-3">
+                  <div className="flex items-center justify-between text-sm pb-3 border-b border-gray-200">
+                    <span className="font-medium text-gray-500">Total Booking Cost:</span>
+                    <span className="font-bold text-gray-800 text-teal-600 text-lg">
+                      LKR {Number(docInfo.fees).toFixed(2)}
+                      {formData.noShowRefund && <span className="text-xs font-semibold text-[#00A7A7] ml-1.5">+ 275 LKR</span>}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Payment Preference</span>
+                    <div className="flex gap-3">
+                      <label className={`flex-1 flex flex-col items-center justify-center p-3 rounded-xl border cursor-pointer transition-all ${formData.paymentPreference === 'online' ? 'bg-teal-50 border-teal-500 shadow-sm' : 'bg-white border-gray-200 hover:border-teal-300'}`}>
+                        <input type="radio" name="paymentPref" className="hidden" checked={formData.paymentPreference === 'online'} onChange={() => setFormData({...formData, paymentPreference: 'online'})} />
+                        <svg className={`w-6 h-6 mb-1 ${formData.paymentPreference === 'online' ? 'text-teal-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                        <span className={`text-sm font-bold ${formData.paymentPreference === 'online' ? 'text-teal-800' : 'text-gray-600'}`}>Pay Now (Online)</span>
+                      </label>
+                      <label className={`flex-1 flex flex-col items-center justify-center p-3 rounded-xl border cursor-pointer transition-all ${formData.paymentPreference === 'counter' ? 'bg-teal-50 border-teal-500 shadow-sm' : 'bg-white border-gray-200 hover:border-teal-300'}`}>
+                        <input type="radio" name="paymentPref" className="hidden" checked={formData.paymentPreference === 'counter'} onChange={() => setFormData({...formData, paymentPreference: 'counter'})} />
+                        <svg className={`w-6 h-6 mb-1 ${formData.paymentPreference === 'counter' ? 'text-teal-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        <span className={`text-sm font-bold ${formData.paymentPreference === 'counter' ? 'text-teal-800' : 'text-gray-600'}`}>Pay at Front Desk</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Action Buttons */}

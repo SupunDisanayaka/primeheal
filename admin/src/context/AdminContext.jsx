@@ -4,7 +4,7 @@ export const AdminContext = createContext();
 
 const AdminContextProvider = ({ children }) => {
   const [adminToken, setAdminToken] = useState(
-    localStorage.getItem("adminToken") || ""
+    sessionStorage.getItem("adminToken") || ""
   );
 
   const login = async (email, password) => {
@@ -19,13 +19,13 @@ const AdminContextProvider = ({ children }) => {
       console.log('Admin login response:', { status: response.status, data });
       
       if (data.success && data.user?.userType === 'admin') {
-        localStorage.removeItem("doctorToken");
-        localStorage.removeItem("currentDoctorId");
-        localStorage.removeItem("receptionistToken");
-        localStorage.removeItem("accountantToken");
-        localStorage.removeItem("dToken");
+        sessionStorage.removeItem("doctorToken");
+        sessionStorage.removeItem("currentDoctorId");
+        sessionStorage.removeItem("receptionistToken");
+        sessionStorage.removeItem("accountantToken");
+        sessionStorage.removeItem("dToken");
         setAdminToken(data.token);
-        localStorage.setItem("adminToken", data.token);
+        sessionStorage.setItem("adminToken", data.token);
         return true;
       }
       console.log('Admin login failed:', data);
@@ -38,7 +38,7 @@ const AdminContextProvider = ({ children }) => {
 
   const logout = () => {
     setAdminToken("");
-    localStorage.removeItem("adminToken");
+    sessionStorage.removeItem("adminToken");
   };
 
   const value = {

@@ -6,7 +6,10 @@ import {
   createWalkInAppointmentAPI,
   getReceptionistStatsAPI,
   updateAdminAppointmentStatus,
-  getDoctorSlotsAPI
+  getDoctorSlotsAPI,
+  collectCounterPaymentAPI,
+  rescheduleAppointment,
+  downloadVisitPassAPI
 } from "../../services/api";
 
 const CLINIC_DEFAULT_SLOTS = [
@@ -68,6 +71,19 @@ const ReceptionistDashboard = () => {
   // 03. Boolean logic for Cash vs Card
   // isCard === false -> Cash, isCard === true -> Card
   const [isCard, setIsCard] = useState(false);
+
+  // Payment Modal States
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentApt, setPaymentApt] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState("Cash");
+
+  // Reschedule Modal States
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  const [rescheduleApt, setRescheduleApt] = useState(null);
+  const [newRescheduleDate, setNewRescheduleDate] = useState("");
+  const [newRescheduleTime, setNewRescheduleTime] = useState("");
+  const [availableRescheduleSlots, setAvailableRescheduleSlots] = useState([]);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
 
   // Sync initial doctor selection
   useEffect(() => {
@@ -148,6 +164,120 @@ const ReceptionistDashboard = () => {
       setAppointments((prev) =>
         prev.map((apt) => (apt._id === aptId || apt.appointmentId === aptId ? { ...apt, status: "Checked In" } : apt))
       );
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  const handlePrintVisitPass = async (apt, doctorDisplayName, formattedDateDisplay) => {
+    try {
+      setLoadingAction(true);
+      const appointmentId = apt._id || apt.appointmentId || apt.appointmentID;
+      
+      const blob = await downloadVisitPassAPI(appointmentId);
+      
+      // Create object URL for the blob
+      const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      
+      // Create hidden link and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `VisitPass_${apt.patientName.replace(/\s+/g, '_')}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("Visit Pass downloaded successfully");
+    } catch (error) {
+      console.error("Error downloading visit pass:", error);
+      toast.error(error.response?.data?.message || "Failed to generate Visit Pass");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  const openPaymentModal = (apt) => {
+    setPaymentApt(apt);
+    setPaymentMethod("Cash");
+    setShowPaymentModal(true);
+  };
+
+  const handleCollectPayment = async (e) => {
+    e.preventDefault();
+    if (!paymentApt) return;
+    try {
+      setLoadingAction(true);
+      const res = await collectCounterPaymentAPI({
+        appointmentId: paymentApt._id || paymentApt.appointmentId,
+        paymentMethod: paymentMethod,
+        amount: paymentApt.amount
+      });
+      if (res.success) {
+        alert(res.message || "Payment collected successfully.");
+        if (fetchAllAppointments) fetchAllAppointments();
+        loadStats();
+        setShowPaymentModal(false);
+      } else {
+        alert(res.message || "Failed to collect payment.");
+      }
+    } catch (err) {
+      console.error("Payment error:", err);
+      alert(err.response?.data?.message || "Error processing payment.");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  const openRescheduleModal = (apt) => {
+    setRescheduleApt(apt);
+    setNewRescheduleDate(getTodayISO());
+    setNewRescheduleTime("");
+    setRescheduleModalOpen(true);
+    fetchRescheduleSlots(apt.docId || apt.doctorId || apt.doctorUserId, getTodayISO());
+  };
+
+  const fetchRescheduleSlots = async (docId, date) => {
+    if (!docId || !date) {
+      setAvailableRescheduleSlots([]);
+      return;
+    }
+    try {
+      setRescheduleLoading(true);
+      const res = await getDoctorSlotsAPI(docId, date);
+      if (res.success && res.slotsByDate) {
+        const matchingDay = res.slotsByDate.find(d => d.date === date) || res.slotsByDate[0];
+        if (matchingDay && matchingDay.slots) {
+          setAvailableRescheduleSlots(matchingDay.slots.map(s => s.time));
+        } else {
+          setAvailableRescheduleSlots([]);
+        }
+      }
+    } catch (e) {
+      setAvailableRescheduleSlots([]);
+    } finally {
+      setRescheduleLoading(false);
+    }
+  };
+
+  const handleRescheduleSubmit = async (e) => {
+    e.preventDefault();
+    if (!rescheduleApt || !newRescheduleDate || !newRescheduleTime) return;
+    try {
+      setLoadingAction(true);
+      const aptId = rescheduleApt._id || rescheduleApt.appointmentId;
+      const res = await rescheduleAppointment(aptId, newRescheduleDate, newRescheduleTime);
+      if (res.success) {
+        alert("Appointment rescheduled successfully!");
+        setRescheduleModalOpen(false);
+        if (fetchAllAppointments) fetchAllAppointments();
+        loadStats();
+      }
+    } catch (err) {
+      console.error("Reschedule error:", err);
+      alert(err.response?.data?.message || "Failed to reschedule appointment.");
     } finally {
       setLoadingAction(false);
     }
@@ -450,39 +580,79 @@ const ReceptionistDashboard = () => {
                       {/* Reception Action Buttons */}
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         {apt.status === "Pending" ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleCheckIn(apt._id || apt.appointmentId)}
-                              disabled={loadingAction}
-                              className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-[#187595] rounded-lg text-xs font-bold transition-colors shadow-2xs"
-                            >
-                              Check In
-                            </button>
-                            <button
-                              onClick={() => handleCancel(apt._id || apt.appointmentId)}
-                              disabled={loadingAction}
-                              className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors text-rose-600"
-                              title="Cancel Appointment"
-                            >
-                              <img className="w-4 h-4" src={assets.cancel_icon} alt="Cancel" />
-                            </button>
+                          <div className="flex flex-col gap-2 items-center justify-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleCheckIn(apt._id || apt.appointmentId)}
+                                disabled={loadingAction}
+                                className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-[#187595] rounded-lg text-xs font-bold transition-colors shadow-2xs w-[80px]"
+                              >
+                                Check In
+                              </button>
+                              <button
+                                onClick={() => openPaymentModal(apt)}
+                                disabled={loadingAction}
+                                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-xs font-bold transition-colors shadow-2xs w-[80px]"
+                              >
+                                Collect $
+                              </button>
+                            </div>
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => openRescheduleModal(apt)}
+                                disabled={loadingAction}
+                                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-xs font-bold transition-colors shadow-2xs w-[80px]"
+                              >
+                                Reschedule
+                              </button>
+                              <button
+                                onClick={() => handleCancel(apt._id || apt.appointmentId)}
+                                disabled={loadingAction}
+                                className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors text-rose-600"
+                                title="Cancel Appointment"
+                              >
+                                <img className="w-4 h-4" src={assets.cancel_icon} alt="Cancel" />
+                              </button>
+                            </div>
                           </div>
                         ) : apt.status === "Checked In" ? (
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex flex-col gap-2 items-center justify-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleComplete(apt._id || apt.appointmentId)}
+                                disabled={loadingAction}
+                                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-xs font-bold transition-colors shadow-2xs w-[80px]"
+                              >
+                                Complete
+                              </button>
+                              <button
+                                onClick={() => handleCancel(apt._id || apt.appointmentId)}
+                                disabled={loadingAction}
+                                className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors text-rose-600"
+                                title="Cancel Appointment"
+                              >
+                                <img className="w-4 h-4" src={assets.cancel_icon} alt="Cancel" />
+                              </button>
+                            </div>
+                            {(apt.paymentMethod || apt.status === "Paid" || apt.status === "Checked In") && (
+                              <button
+                                onClick={() => handlePrintVisitPass(apt, doctorDisplayName, formattedDateDisplay)}
+                                disabled={loadingAction}
+                                className="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-bold transition-colors border border-amber-200/60 shadow-2xs w-full max-w-[170px]"
+                              >
+                                Print Visit Pass
+                              </button>
+                            )}
+                          </div>
+                        ) : apt.status === "Completed" ? (
+                          <div className="flex flex-col gap-2 items-center justify-center">
+                            <span className="text-xs text-emerald-600 font-medium">Completed</span>
                             <button
-                              onClick={() => handleComplete(apt._id || apt.appointmentId)}
+                              onClick={() => handlePrintVisitPass(apt, doctorDisplayName, formattedDateDisplay)}
                               disabled={loadingAction}
-                              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-xs font-bold transition-colors shadow-2xs"
+                              className="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-bold transition-colors border border-amber-200/60 shadow-2xs w-full max-w-[170px]"
                             >
-                              Mark Complete
-                            </button>
-                            <button
-                              onClick={() => handleCancel(apt._id || apt.appointmentId)}
-                              disabled={loadingAction}
-                              className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors text-rose-600"
-                              title="Cancel Appointment"
-                            >
-                              <img className="w-4 h-4" src={assets.cancel_icon} alt="Cancel" />
+                              Print Visit Pass
                             </button>
                           </div>
                         ) : (
@@ -708,6 +878,136 @@ const ReceptionistDashboard = () => {
                   <span>Confirm Walk-In Appointment</span>
                 )}
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Collect Payment Modal */}
+      {showPaymentModal && paymentApt && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm border border-zinc-100 shadow-2xl p-6 animate-in fade-in zoom-in duration-200">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Collect Payment</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Patient: <span className="font-semibold">{paymentApt.patientName}</span><br />
+              Amount Due: <span className="font-bold text-emerald-600">{currencySymbol} {Number(paymentApt.amount || paymentApt.fee || paymentApt.totalCharge || 0).toLocaleString()}</span>
+            </p>
+            <form onSubmit={handleCollectPayment} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Payment Method</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="border border-zinc-200 focus:border-[#187595] outline-none rounded-xl p-3 text-sm bg-white"
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="Card">Card</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-end gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loadingAction}
+                  className="px-5 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md"
+                >
+                  {loadingAction ? "Processing..." : "Confirm Payment"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reschedule Modal */}
+      {rescheduleModalOpen && rescheduleApt && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-zinc-100 animate-fade-in">
+            <div className="flex items-center justify-between pb-4 border-b border-zinc-100 mb-5">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Reschedule Appointment</h3>
+                <p className="text-xs text-gray-500 mt-0.5">With {rescheduleApt.doctorName}</p>
+              </div>
+              <button
+                onClick={() => setRescheduleModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleRescheduleSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-gray-700 block mb-1">Select New Date *</label>
+                <input
+                  type="date"
+                  min={getTodayISO()}
+                  value={newRescheduleDate}
+                  onChange={(e) => {
+                    setNewRescheduleDate(e.target.value);
+                    fetchRescheduleSlots(rescheduleApt.docId || rescheduleApt.doctorId || rescheduleApt.doctorUserId, e.target.value);
+                  }}
+                  className="w-full p-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-primary bg-white"
+                  required
+                />
+              </div>
+              <div>
+                <label className="font-bold text-gray-700 block mb-1">Select Available Time Slot *</label>
+                {rescheduleLoading ? (
+                  <p className="text-gray-400 italic py-2">Loading slots for selected date...</p>
+                ) : availableRescheduleSlots.length === 0 ? (
+                  <p className="text-amber-600 italic py-1">No predefined slots for this date. Enter time below:</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 max-h-36 overflow-y-auto p-1 mb-2">
+                    {availableRescheduleSlots.map((slot, idx) => (
+                      <button
+                        type="button"
+                        key={idx}
+                        onClick={() => setNewRescheduleTime(slot)}
+                        className={`py-2 px-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                          newRescheduleTime === slot
+                            ? 'bg-[#187595] text-white border-[#187595] shadow-xs'
+                            : 'bg-white hover:bg-teal-50 text-gray-700 border-zinc-200'
+                        }`}
+                      >
+                        {slot}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div>
+                  <label className="text-[11px] text-gray-400 block mb-1">Chosen Slot Time:</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 09:30 AM"
+                    value={newRescheduleTime}
+                    onChange={(e) => setNewRescheduleTime(e.target.value)}
+                    className="w-full p-2.5 border border-zinc-200 rounded-xl text-xs focus:outline-primary bg-white font-semibold"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setRescheduleModalOpen(false)}
+                  className="px-4 py-2 border border-zinc-200 rounded-xl text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loadingAction}
+                  className="px-5 py-2 bg-[#187595] hover:bg-[#135c75] text-white rounded-xl font-bold shadow-xs cursor-pointer"
+                >
+                  {loadingAction ? 'Saving...' : 'Confirm Reschedule'}
+                </button>
+              </div>
             </form>
           </div>
         </div>

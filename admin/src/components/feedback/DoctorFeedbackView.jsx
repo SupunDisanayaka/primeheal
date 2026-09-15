@@ -10,13 +10,13 @@ const DoctorFeedbackView = ({ doctorId: propDoctorId = null }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Resolve doctor ID from prop, context, or localStorage
+  // Resolve doctor ID from prop, context, or sessionStorage
   const resolvedDoctorId =
     propDoctorId ||
     doctorContext?.currentDoctorId ||
-    localStorage.getItem('currentDoctorId') ||
-    localStorage.getItem('doctorId') ||
-    localStorage.getItem('userID');
+    sessionStorage.getItem('currentDoctorId') ||
+    sessionStorage.getItem('doctorId') ||
+    sessionStorage.getItem('userID');
 
   const fetchDoctorFeedback = useCallback(async () => {
     if (!resolvedDoctorId) {
@@ -33,7 +33,7 @@ const DoctorFeedbackView = ({ doctorId: propDoctorId = null }) => {
       const baseUrl = rawBackendUrl.endsWith('/api') ? rawBackendUrl : `${rawBackendUrl}/api`;
       const endpoint = `${baseUrl}/feedback/doctor/${resolvedDoctorId}`;
 
-      const token = doctorContext?.doctorToken || localStorage.getItem('doctorToken') || localStorage.getItem('token');
+      const token = doctorContext?.doctorToken || sessionStorage.getItem('doctorToken') || sessionStorage.getItem('token');
       const response = await axios.get(endpoint, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });

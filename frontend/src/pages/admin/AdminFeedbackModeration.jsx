@@ -18,7 +18,7 @@ const AdminFeedbackModeration = () => {
       const baseUrl = rawBackendUrl.endsWith('/api') ? rawBackendUrl : `${rawBackendUrl}/api`;
       const endpoint = `${baseUrl}/feedback/all`;
 
-      const token = appContext?.token || localStorage.getItem('adminToken') || localStorage.getItem('token');
+      const token = appContext?.token || sessionStorage.getItem('adminToken') || sessionStorage.getItem('token');
       const response = await axios.get(endpoint, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
@@ -48,7 +48,7 @@ const AdminFeedbackModeration = () => {
       const baseUrl = rawBackendUrl.endsWith('/api') ? rawBackendUrl : `${rawBackendUrl}/api`;
       const endpoint = `${baseUrl}/feedback/approve/${feedbackID}`;
 
-      const token = appContext?.token || localStorage.getItem('adminToken') || localStorage.getItem('token');
+      const token = appContext?.token || sessionStorage.getItem('adminToken') || sessionStorage.getItem('token');
       const response = await axios.put(
         endpoint,
         { isApproved: 1 },
@@ -82,7 +82,7 @@ const AdminFeedbackModeration = () => {
       const baseUrl = rawBackendUrl.endsWith('/api') ? rawBackendUrl : `${rawBackendUrl}/api`;
       const endpoint = `${baseUrl}/feedback/visibility/${feedbackID}`;
 
-      const token = appContext?.token || localStorage.getItem('adminToken') || localStorage.getItem('token');
+      const token = appContext?.token || sessionStorage.getItem('adminToken') || sessionStorage.getItem('token');
       const response = await axios.put(
         endpoint,
         { isVisible: newVisibility },

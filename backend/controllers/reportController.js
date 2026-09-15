@@ -22,7 +22,6 @@ const getAppointmentReports = async (req, res) => {
         a.appointmentDate,
         a.appointmentTime,
         a.status,
-        a.paymentStatus,
         a.totalCharge,
         a.doctorNotes,
         a.createdAt
@@ -103,8 +102,8 @@ const getFinancialReports = async (req, res) => {
     // Revenue from completed or paid appointments
     const [revSummary] = await pool.query(
       `SELECT 
-        COALESCE(SUM(CASE WHEN a.status IN ('Completed', 'Paid') OR a.paymentStatus = 'Completed' THEN a.totalCharge ELSE 0 END), 0.00) AS totalCollected,
-        COALESCE(SUM(CASE WHEN a.status NOT IN ('Completed', 'Cancelled') AND (a.paymentStatus IS NULL OR a.paymentStatus != 'Completed') THEN a.totalCharge ELSE 0 END), 0.00) AS pendingReceivables,
+        COALESCE(SUM(CASE WHEN a.status IN ('Completed', 'Paid') THEN a.totalCharge ELSE 0 END), 0.00) AS totalCollected,
+        COALESCE(SUM(CASE WHEN a.status NOT IN ('Completed', 'Cancelled') THEN a.totalCharge ELSE 0 END), 0.00) AS pendingReceivables,
         COALESCE(SUM(CASE WHEN a.status = 'Cancelled' THEN a.totalCharge ELSE 0 END), 0.00) AS cancelledVolume,
         COUNT(a.appointmentID) AS totalTransactions
        FROM appointments a
@@ -131,7 +130,7 @@ const getFinancialReports = async (req, res) => {
         du.name AS doctorName,
         d.specialization,
         COUNT(a.appointmentID) AS totalAppointments,
-        COALESCE(SUM(CASE WHEN a.status IN ('Completed', 'Paid') OR a.paymentStatus = 'Completed' THEN a.totalCharge ELSE 0 END), 0.00) AS revenueGenerated
+        COALESCE(SUM(CASE WHEN a.status IN ('Completed', 'Paid') THEN a.totalCharge ELSE 0 END), 0.00) AS revenueGenerated
        FROM doctor d
        JOIN users du ON d.userID = du.userID
        LEFT JOIN appointments a ON d.doctorID = a.doctorID ${dateFilter}

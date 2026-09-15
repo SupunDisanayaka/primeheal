@@ -22,16 +22,16 @@ const Navbar = () => {
     if (doctorToken) doctorLogout();
     if (receptionistToken) logoutReceptionist();
     if (accountantToken) logoutAccountant();
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("doctorToken");
-    localStorage.removeItem("currentDoctorId");
-    localStorage.removeItem("receptionistToken");
-    localStorage.removeItem("currentReceptionistId");
-    localStorage.removeItem("currentReceptionistName");
-    localStorage.removeItem("accountantToken");
-    localStorage.removeItem("aToken");
-    localStorage.removeItem("dToken");
-    localStorage.removeItem("token");
+    sessionStorage.removeItem("adminToken");
+    sessionStorage.removeItem("doctorToken");
+    sessionStorage.removeItem("currentDoctorId");
+    sessionStorage.removeItem("receptionistToken");
+    sessionStorage.removeItem("currentReceptionistId");
+    sessionStorage.removeItem("currentReceptionistName");
+    sessionStorage.removeItem("accountantToken");
+    sessionStorage.removeItem("aToken");
+    sessionStorage.removeItem("dToken");
+    sessionStorage.removeItem("token");
     navigate("/login");
   };
 

@@ -55,7 +55,7 @@ const FeedbackModal = ({
     setMessage('');
 
     try {
-      const token = propToken || localStorage.getItem('token');
+      const token = propToken || sessionStorage.getItem('token');
       const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api';
       const baseUrl = rawBackendUrl.endsWith('/api') ? rawBackendUrl : `${rawBackendUrl}/api`;
       const endpoint = `${baseUrl}/feedback/submit`;

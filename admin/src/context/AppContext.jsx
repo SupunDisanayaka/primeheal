@@ -50,9 +50,9 @@ const AppContextProvider = ({ children }) => {
   const { doctorToken } = useContext(DoctorContext);
 
   const getStoredReceptionistName = () => {
-    const stored = localStorage.getItem("currentReceptionistName");
+    const stored = sessionStorage.getItem("currentReceptionistName");
     if (stored) return stored;
-    const token = localStorage.getItem("receptionistToken");
+    const token = sessionStorage.getItem("receptionistToken");
     if (token) {
       try {
         const base64Url = token.split(".")[1];
@@ -65,18 +65,18 @@ const AppContextProvider = ({ children }) => {
   };
 
   const [receptionistToken, setReceptionistToken] = useState(
-    localStorage.getItem("receptionistToken") || ""
+    sessionStorage.getItem("receptionistToken") || ""
   );
   const [currentReceptionistId, setCurrentReceptionistId] = useState(
-    localStorage.getItem("currentReceptionistId") || ""
+    sessionStorage.getItem("currentReceptionistId") || ""
   );
   const [currentReceptionistName, setCurrentReceptionistName] = useState(getStoredReceptionistName);
 
   const [accountantToken, setAccountantToken] = useState(
-    localStorage.getItem("accountantToken") || ""
+    sessionStorage.getItem("accountantToken") || ""
   );
   const [currentAccountantId, setCurrentAccountantId] = useState(
-    localStorage.getItem("currentAccountantId") || ""
+    sessionStorage.getItem("currentAccountantId") || ""
   );
 
   const getFallbackAppointments = () => ([
@@ -339,9 +339,9 @@ const AppContextProvider = ({ children }) => {
         setCurrentReceptionistId(data.user._id);
         const name = data.user.name || "Receptionist";
         setCurrentReceptionistName(name);
-        localStorage.setItem("receptionistToken", data.token);
-        localStorage.setItem("currentReceptionistId", data.user._id);
-        localStorage.setItem("currentReceptionistName", name);
+        sessionStorage.setItem("receptionistToken", data.token);
+        sessionStorage.setItem("currentReceptionistId", data.user._id);
+        sessionStorage.setItem("currentReceptionistName", name);
         return true;
       }
 
@@ -356,9 +356,9 @@ const AppContextProvider = ({ children }) => {
     setReceptionistToken("");
     setCurrentReceptionistId("");
     setCurrentReceptionistName("");
-    localStorage.removeItem("receptionistToken");
-    localStorage.removeItem("currentReceptionistId");
-    localStorage.removeItem("currentReceptionistName");
+    sessionStorage.removeItem("receptionistToken");
+    sessionStorage.removeItem("currentReceptionistId");
+    sessionStorage.removeItem("currentReceptionistName");
   };
 
   const loginAccountant = async (email, password) => {
@@ -373,8 +373,8 @@ const AppContextProvider = ({ children }) => {
       if (data.success && data.user?.userType === "accountant") {
         setAccountantToken(data.token);
         setCurrentAccountantId(data.user._id);
-        localStorage.setItem("accountantToken", data.token);
-        localStorage.setItem("currentAccountantId", data.user._id);
+        sessionStorage.setItem("accountantToken", data.token);
+        sessionStorage.setItem("currentAccountantId", data.user._id);
         return true;
       }
 
@@ -388,8 +388,8 @@ const AppContextProvider = ({ children }) => {
   const logoutAccountant = () => {
     setAccountantToken("");
     setCurrentAccountantId("");
-    localStorage.removeItem("accountantToken");
-    localStorage.removeItem("currentAccountantId");
+    sessionStorage.removeItem("accountantToken");
+    sessionStorage.removeItem("currentAccountantId");
   };
 
   const value = {

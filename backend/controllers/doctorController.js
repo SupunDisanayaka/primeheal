@@ -6,7 +6,7 @@ const pool = require('../config/db');
 const getAllDoctors = async (req, res) => {
   try {
     const query = `
-      SELECT u.userID as _id, u.name, u.email, u.profileImage as image,
+      SELECT u.userID as _id, u.name, u.email, u.profileImage as image, u.createdAt,
              d.doctorID, d.specialization as speciality, d.licenseNumber, d.qualifications as degree, 
              d.bio as about, d.consultationFee as fees, d.averageRating, d.totalPatients, d.isAvailable as available,
              d.experience, d.addressLine1, d.addressLine2

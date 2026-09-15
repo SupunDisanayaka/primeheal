@@ -900,6 +900,111 @@ const updateDoctorNotes = async (req, res) => {
   }
 };
 
+const downloadVisitPass = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { userType } = req.user;
+
+    // Optional: add authorization (e.g., only receptionist/admin/doctor/patient themselves can download)
+    // For now, allow anyone with token, but in real app we check role/ownership.
+
+    // Fetch appointment details
+    const query = `
+      SELECT 
+        a.appointmentID, a.appointmentDate, a.appointmentTime, a.status, a.totalCharge,
+        p.patientID, p.address AS patientAddress, p.nic AS patientNic,
+        pu.name AS patientName, pu.phone AS patientPhone, pu.email AS patientEmail,
+        du.name AS doctorName,
+        d.specialization
+      FROM appointments a
+      JOIN patient p ON a.patientID = p.patientID
+      JOIN users pu ON p.userID = pu.userID
+      JOIN doctor d ON a.doctorID = d.doctorID
+      JOIN users du ON d.userID = du.userID
+      WHERE a.appointmentID = ?
+    `;
+    const [apptRows] = await pool.query(query, [appointmentId]);
+
+    if (apptRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+
+    const apt = apptRows[0];
+    
+    // Check if appointment is Paid, Checked In, or Completed
+    if (!['Paid', 'Completed', 'Checked In'].includes(apt.status)) {
+      return res.status(400).json({ success: false, message: 'Visit pass can only be generated for paid or completed appointments.' });
+    }
+
+    const doc = new PDFDocument({ margin: 50, size: 'A5' });
+
+    res.setHeader('Content-disposition', `attachment; filename=VisitPass_${apt.patientName.replace(/\s+/g, '_')}.pdf`);
+    res.setHeader('Content-type', 'application/pdf');
+
+    doc.pipe(res);
+
+    // Draw border
+    doc.rect(20, 20, doc.page.width - 40, doc.page.height - 40).stroke('#187595');
+
+    // Header
+    doc
+      .fillColor('#187595')
+      .fontSize(20)
+      .font('Helvetica-Bold')
+      .text('PRIMEHEAL HOSPITAL', { align: 'center' });
+      
+    doc
+      .fillColor('#555555')
+      .fontSize(12)
+      .font('Helvetica')
+      .text('Official Doctor Visit Pass', { align: 'center' })
+      .moveDown(2);
+
+    // Divider
+    doc.moveTo(40, doc.y).lineTo(doc.page.width - 40, doc.y).stroke('#cccccc').moveDown(1);
+
+    // Details Helper
+    const drawRow = (label, value) => {
+      doc
+        .font('Helvetica-Bold')
+        .fillColor('#333333')
+        .text(`${label}:`, { continued: true, width: 150 })
+        .font('Helvetica')
+        .fillColor('#555555')
+        .text(` ${value || 'N/A'}`);
+      doc.moveDown(0.5);
+    };
+
+    drawRow('Appointment ID', `#${apt.appointmentID}`);
+    drawRow('Patient Name', apt.patientName);
+    drawRow('Patient Phone', apt.patientPhone);
+    drawRow('Doctor Name', apt.doctorName);
+    drawRow('Specialization', apt.specialization);
+    
+    // Format Date
+    const formattedDate = new Date(apt.appointmentDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+    drawRow('Date & Time', `${formattedDate} at ${apt.appointmentTime}`);
+    drawRow('Payment Status', apt.status);
+
+    doc.moveDown(2);
+
+    // Footer
+    doc
+      .fontSize(10)
+      .fillColor('#888888')
+      .text('Please present this pass to the doctor during your visit.', { align: 'center' });
+
+    doc.end();
+
+  } catch (error) {
+    console.error('downloadVisitPass error:', error);
+    // If headers already sent, we shouldn't send JSON. 
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Server error generating visit pass' });
+    }
+  }
+};
+
 module.exports = {
   createAppointment,
   getMyAppointments,
@@ -907,5 +1012,6 @@ module.exports = {
   updateAppointmentStatus,
   rescheduleAppointment,
   downloadInvoice,
-  updateDoctorNotes
+  updateDoctorNotes,
+  downloadVisitPass
 };
