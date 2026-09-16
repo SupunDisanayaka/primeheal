@@ -112,6 +112,7 @@ const mapAppointment = (appointment) => ({
   patientNic: appointment.patientNic || '',
   paymentStatus: appointment.paymentStatus || '',
   paymentMethod: appointment.paymentMethod || '',
+  paymentGateway: appointment.paymentGateway || null,
   docAddress: appointment.docAddress || '',
   noShowRefund: Boolean(appointment.noShowRefund),
   doctorNotes: appointment.doctorNotes || '',
@@ -359,6 +360,5 @@ export const downloadVisitPassAPI = async (appointmentId) => {
   const response = await api.get(`/appointments/${appointmentId}/visit-pass`, { responseType: 'blob' });
   return response.data;
 };
-
 
 export default api;

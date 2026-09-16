@@ -35,6 +35,7 @@ const ReceptionistDashboard = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
   const [stats, setStats] = useState({ totalApts: 0, pendingApts: 0, checkedInApts: 0, availableDocs: 0 });
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Get current date in YYYY-MM-DD
   const getTodayISO = () => {
@@ -56,6 +57,7 @@ const ReceptionistDashboard = () => {
   };
 
   // Form State for Booking
+  const [patientTitle, setPatientTitle] = useState("Mr.");
   const [patientName, setPatientName] = useState("");
   const [patientEmail, setPatientEmail] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
@@ -65,7 +67,7 @@ const ReceptionistDashboard = () => {
   const [selectedDocId, setSelectedDocId] = useState("");
   const [slotDate, setSlotDate] = useState(getTodayISO());
   const [slotTime, setSlotTime] = useState("");
-  const [availableSlots, setAvailableSlots] = useState(CLINIC_DEFAULT_SLOTS);
+  const [availableSlots, setAvailableSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   // 03. Boolean logic for Cash vs Card
@@ -76,6 +78,11 @@ const ReceptionistDashboard = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentApt, setPaymentApt] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("Cash");
+
+  // Cancel Modal States
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelApt, setCancelApt] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
 
   // Reschedule Modal States
   const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
@@ -113,10 +120,10 @@ const ReceptionistDashboard = () => {
 
   // Fetch dynamic doctor slots when doctor or date changes
   useEffect(() => {
-    const fetchSlots = async () => {
+      const fetchSlots = async () => {
       const docToUse = selectedDocId || (doctors[0]?._id || doctors[0]?.id);
       if (!docToUse || !slotDate) {
-        setAvailableSlots(CLINIC_DEFAULT_SLOTS);
+        setAvailableSlots([]);
         return;
       }
       try {
@@ -125,19 +132,42 @@ const ReceptionistDashboard = () => {
         if (res.success && Array.isArray(res.slotsByDate) && res.slotsByDate.length > 0) {
           const matchingDay = res.slotsByDate.find((d) => d.date === slotDate) || res.slotsByDate[0];
           if (matchingDay && Array.isArray(matchingDay.slots) && matchingDay.slots.length > 0) {
-            const timeList = matchingDay.slots.map((s) => s.time);
-            setAvailableSlots(timeList.length > 0 ? timeList : CLINIC_DEFAULT_SLOTS);
+            const isTimeInPast = (timeStr, selectedDateStr) => {
+              const today = new Date();
+              const yyyy = today.getFullYear();
+              const mm = String(today.getMonth() + 1).padStart(2, "0");
+              const dd = String(today.getDate()).padStart(2, "0");
+              const todayStr = `${yyyy}-${mm}-${dd}`;
+              if (selectedDateStr !== todayStr) return false;
+              
+              const [time, modifier] = timeStr.split(" ");
+              let [hours, minutes] = time.split(":").map(Number);
+              if (modifier === "PM" && hours < 12) hours += 12;
+              if (modifier === "AM" && hours === 12) hours = 0;
+              
+              const currentHours = today.getHours();
+              const currentMinutes = today.getMinutes();
+              if (hours < currentHours) return true;
+              if (hours === currentHours && minutes <= currentMinutes) return true;
+              return false;
+            };
+
+            const timeList = matchingDay.slots
+              .filter(s => s.available && !isTimeInPast(s.time, slotDate))
+              .map((s) => s.time);
+              
+            setAvailableSlots(timeList);
             if (!slotTime || !timeList.includes(slotTime)) {
-              setSlotTime(timeList[0] || CLINIC_DEFAULT_SLOTS[0]);
+              setSlotTime(timeList.length > 0 ? timeList[0] : "");
             }
             return;
           }
         }
-        setAvailableSlots(CLINIC_DEFAULT_SLOTS);
-        if (!slotTime) setSlotTime(CLINIC_DEFAULT_SLOTS[0]);
+        setAvailableSlots([]);
+        setSlotTime("");
       } catch (err) {
-        setAvailableSlots(CLINIC_DEFAULT_SLOTS);
-        if (!slotTime) setSlotTime(CLINIC_DEFAULT_SLOTS[0]);
+        setAvailableSlots([]);
+        setSlotTime("");
       } finally {
         setLoadingSlots(false);
       }
@@ -250,7 +280,7 @@ const ReceptionistDashboard = () => {
       if (res.success && res.slotsByDate) {
         const matchingDay = res.slotsByDate.find(d => d.date === date) || res.slotsByDate[0];
         if (matchingDay && matchingDay.slots) {
-          setAvailableRescheduleSlots(matchingDay.slots.map(s => s.time));
+          setAvailableRescheduleSlots(matchingDay.slots.filter(s => s.available).map(s => s.time));
         } else {
           setAvailableRescheduleSlots([]);
         }
@@ -283,21 +313,29 @@ const ReceptionistDashboard = () => {
     }
   };
 
-  const handleCancel = async (aptId) => {
-    if (!window.confirm("Cancel this appointment?")) return;
+  const openCancelModal = (apt) => {
+    setCancelApt(apt);
+    setCancelReason("");
+    setShowCancelModal(true);
+  };
+
+  const confirmCancelAppointment = async () => {
+    if (!cancelApt) return;
     try {
       setLoadingAction(true);
-      const res = await updateAdminAppointmentStatus(aptId, "Cancelled");
+      const res = await updateAdminAppointmentStatus(cancelApt._id || cancelApt.appointmentId, "Cancelled");
       if (res.success) {
         alert("Appointment cancelled successfully.");
         if (fetchAllAppointments) fetchAllAppointments();
         loadStats();
+        setShowCancelModal(false);
       }
     } catch (err) {
       console.error("Cancel error:", err);
       setAppointments((prev) =>
-        prev.map((apt) => (apt._id === aptId || apt.appointmentId === aptId ? { ...apt, status: "Cancelled" } : apt))
+        prev.map((apt) => (apt._id === (cancelApt._id || cancelApt.appointmentId) || apt.appointmentId === (cancelApt._id || cancelApt.appointmentId) ? { ...apt, status: "Cancelled" } : apt))
       );
+      setShowCancelModal(false);
     } finally {
       setLoadingAction(false);
     }
@@ -345,7 +383,7 @@ const ReceptionistDashboard = () => {
       setLoadingAction(true);
       // Boolean logic: isCard is boolean; paymentMethod is 'Card' or 'Cash'
       const payload = {
-        patientName,
+        patientName: `${patientTitle} ${patientName}`,
         patientEmail,
         patientPhone,
         patientGender,
@@ -368,6 +406,7 @@ const ReceptionistDashboard = () => {
         setShowAddModal(false);
 
         // Reset Form
+        setPatientTitle("Mr.");
         setPatientName("");
         setPatientEmail("");
         setPatientPhone("");
@@ -400,8 +439,16 @@ const ReceptionistDashboard = () => {
   const checkedInApts = stats.checkedInApts || appointments.filter((a) => a.status === "Checked In").length;
   const availableDocs = stats.availableDocs || doctors.filter((d) => d.available || d.isAvailable).length;
 
+  const filteredAppointments = appointments.filter((apt) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    const aptIdStr = String(apt._id || apt.appointmentId || apt.appointmentID || "");
+    const nameStr = (apt.patientName || "").toLowerCase();
+    return aptIdStr.includes(term) || nameStr.includes(term);
+  });
+
   return (
-    <div className="m-5 sm:m-8 w-full max-w-6xl flex flex-col gap-6">
+    <div className="m-5 sm:m-8 w-full max-w-[100%] flex flex-col gap-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -470,36 +517,47 @@ const ReceptionistDashboard = () => {
 
       {/* Appointment Control Panel */}
       <div className="bg-white border border-zinc-100 rounded-2xl shadow-xs overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 py-5 border-b border-zinc-100 gap-4">
           <div className="flex items-center gap-2.5">
             <img className="w-5 h-5" src={assets.list_icon} alt="List" />
             <h3 className="text-lg font-bold text-gray-900">Today's Appointment Log</h3>
           </div>
-          <span className="text-xs font-semibold text-gray-400 bg-gray-50 px-2.5 py-1 rounded-md border border-gray-100">
-            {appointments.length} Total Records
-          </span>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <input
+              type="text"
+              placeholder="Search ID or Name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:w-64 border border-zinc-200 focus:border-[#187595] outline-none rounded-xl px-3 py-2 text-sm bg-white"
+            />
+            <span className="text-xs font-semibold text-gray-400 bg-gray-50 px-2.5 py-1 rounded-md border border-gray-100 whitespace-nowrap">
+              {filteredAppointments.length} Total Records
+            </span>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-zinc-100">
             <thead className="bg-slate-50/70">
               <tr>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Apt ID</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Assigned Doctor</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date & Time</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Booking Source</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment & Status</th>
                 <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Reception Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 bg-white">
-              {appointments.length === 0 ? (
+              {filteredAppointments.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-gray-400 text-sm">
+                  <td colSpan="7" className="px-6 py-12 text-center text-gray-400 text-sm">
                     No appointments scheduled yet today.
                   </td>
                 </tr>
               ) : (
-                appointments.map((apt) => {
+                filteredAppointments.map((apt) => {
                   const doc =
                     doctors.find(
                       (d) =>
@@ -517,6 +575,10 @@ const ReceptionistDashboard = () => {
 
                   return (
                     <tr key={apt._id || apt.appointmentId} className="hover:bg-slate-50/40 transition-colors">
+                      {/* Apt ID */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-700">
+                        #{apt._id || apt.appointmentId || apt.appointmentID}
+                      </td>
                       {/* Patient Details */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <p className="text-sm font-semibold text-gray-900">{apt.patientName}</p>
@@ -526,17 +588,9 @@ const ReceptionistDashboard = () => {
                       {/* Doctor Details */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2.5">
-                          {doc.image ? (
-                            <img
-                              className="w-9 h-9 rounded-full object-cover bg-slate-100 border border-zinc-200"
-                              src={doc.image}
-                              alt={doctorDisplayName}
-                            />
-                          ) : (
-                            <div className="w-9 h-9 rounded-full bg-teal-100 text-[#187595] flex items-center justify-center font-bold text-xs border border-teal-200">
-                              {doctorInitials}
-                            </div>
-                          )}
+                          <div className="w-9 h-9 rounded-full bg-[#187595]/10 text-[#187595] flex items-center justify-center font-extrabold text-[12px] border border-teal-200 shrink-0">
+                            {doctorInitials}
+                          </div>
                           <div>
                             <p className="text-sm font-semibold text-gray-900">{doctorDisplayName}</p>
                             <p className="text-xs text-gray-400 mt-0.5">{doctorSpeciality}</p>
@@ -550,18 +604,25 @@ const ReceptionistDashboard = () => {
                         <p className="text-xs text-gray-400 mt-0.5 font-medium">{apt.slotTime || "Standard Slot"}</p>
                       </td>
 
+                      {/* Booking Source */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-[#187595] text-white">
+                          {apt.paymentGateway !== 'Counter' ? 'Web Portal' : 'Front Desk'}
+                        </span>
+                      </td>
+
                       {/* Payment & Status */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex flex-col gap-1 items-start">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none text-white uppercase ${
                               apt.status === "Completed"
-                                ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                ? "bg-emerald-600"
                                 : apt.status === "Cancelled"
-                                ? "bg-rose-50 text-rose-600 border border-rose-200"
+                                ? "bg-rose-600"
                                 : apt.status === "Checked In"
-                                ? "bg-teal-50 text-teal-600 border border-teal-200"
-                                : "bg-amber-50 text-amber-600 border border-amber-200"
+                                ? "bg-teal-600"
+                                : "bg-amber-500"
                             }`}
                           >
                             {apt.status}
@@ -569,9 +630,8 @@ const ReceptionistDashboard = () => {
 
                           {/* Payment Method Badge */}
                           {apt.paymentMethod && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">
-                              <span>{apt.paymentMethod.toLowerCase() === "card" ? "💳" : "💵"}</span>
-                              <span>{apt.paymentMethod}</span>
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-slate-500 text-white uppercase">
+                              {apt.paymentMethod}
                             </span>
                           )}
                         </div>
@@ -580,40 +640,31 @@ const ReceptionistDashboard = () => {
                       {/* Reception Action Buttons */}
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         {apt.status === "Pending" ? (
-                          <div className="flex flex-col gap-2 items-center justify-center">
-                            <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="flex flex-col gap-1.5">
                               <button
                                 onClick={() => handleCheckIn(apt._id || apt.appointmentId)}
                                 disabled={loadingAction}
-                                className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-[#187595] rounded-lg text-xs font-bold transition-colors shadow-2xs w-[80px]"
+                                className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-teal-600 hover:bg-teal-700 text-white transition-colors w-[90px] uppercase"
                               >
                                 Check In
                               </button>
                               <button
-                                onClick={() => openPaymentModal(apt)}
-                                disabled={loadingAction}
-                                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-xs font-bold transition-colors shadow-2xs w-[80px]"
-                              >
-                                Collect $
-                              </button>
-                            </div>
-                            <div className="flex items-center justify-center gap-2">
-                              <button
                                 onClick={() => openRescheduleModal(apt)}
                                 disabled={loadingAction}
-                                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-xs font-bold transition-colors shadow-2xs w-[80px]"
+                                className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-indigo-600 hover:bg-indigo-700 text-white transition-colors w-[90px] uppercase"
                               >
                                 Reschedule
                               </button>
-                              <button
-                                onClick={() => handleCancel(apt._id || apt.appointmentId)}
-                                disabled={loadingAction}
-                                className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors text-rose-600"
-                                title="Cancel Appointment"
-                              >
-                                <img className="w-4 h-4" src={assets.cancel_icon} alt="Cancel" />
-                              </button>
                             </div>
+                            <button
+                              onClick={() => openCancelModal(apt)}
+                              disabled={loadingAction}
+                              className="inline-flex items-center justify-center p-1.5 rounded-md bg-rose-600 hover:bg-rose-700 transition-colors text-white shrink-0 self-center"
+                              title="Cancel Appointment"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
                           </div>
                         ) : apt.status === "Checked In" ? (
                           <div className="flex flex-col gap-2 items-center justify-center">
@@ -621,24 +672,24 @@ const ReceptionistDashboard = () => {
                               <button
                                 onClick={() => handleComplete(apt._id || apt.appointmentId)}
                                 disabled={loadingAction}
-                                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-xs font-bold transition-colors shadow-2xs w-[80px]"
+                                className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-emerald-600 hover:bg-emerald-700 text-white transition-colors w-[90px] uppercase"
                               >
                                 Complete
                               </button>
                               <button
                                 onClick={() => handleCancel(apt._id || apt.appointmentId)}
                                 disabled={loadingAction}
-                                className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors text-rose-600"
+                                className="inline-flex items-center justify-center p-1.5 rounded-md bg-rose-600 hover:bg-rose-700 transition-colors text-white shrink-0 self-center"
                                 title="Cancel Appointment"
                               >
-                                <img className="w-4 h-4" src={assets.cancel_icon} alt="Cancel" />
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                               </button>
                             </div>
                             {(apt.paymentMethod || apt.status === "Paid" || apt.status === "Checked In") && (
                               <button
                                 onClick={() => handlePrintVisitPass(apt, doctorDisplayName, formattedDateDisplay)}
                                 disabled={loadingAction}
-                                className="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-bold transition-colors border border-amber-200/60 shadow-2xs w-full max-w-[170px]"
+                                className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-amber-500 hover:bg-amber-600 text-white transition-colors w-full max-w-[140px] uppercase mt-1"
                               >
                                 Print Visit Pass
                               </button>
@@ -646,11 +697,11 @@ const ReceptionistDashboard = () => {
                           </div>
                         ) : apt.status === "Completed" ? (
                           <div className="flex flex-col gap-2 items-center justify-center">
-                            <span className="text-xs text-emerald-600 font-medium">Completed</span>
+                            <span className="text-[11px] font-bold tracking-wider text-emerald-600 uppercase">Completed</span>
                             <button
                               onClick={() => handlePrintVisitPass(apt, doctorDisplayName, formattedDateDisplay)}
                               disabled={loadingAction}
-                              className="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-bold transition-colors border border-amber-200/60 shadow-2xs w-full max-w-[170px]"
+                              className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-amber-500 hover:bg-amber-600 text-white transition-colors w-full max-w-[140px] uppercase"
                             >
                               Print Visit Pass
                             </button>
@@ -691,14 +742,26 @@ const ReceptionistDashboard = () => {
               {/* Patient Name */}
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Patient Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Vincent Smith"
-                  value={patientName}
-                  onChange={(e) => setPatientName(e.target.value)}
-                  className="border border-zinc-200 focus:border-[#187595] focus:ring-1 focus:ring-[#187595]/20 outline-none rounded-xl p-3 text-sm"
-                  required
-                />
+                <div className="flex gap-2">
+                  <select
+                    value={patientTitle}
+                    onChange={(e) => setPatientTitle(e.target.value)}
+                    className="border border-zinc-200 focus:border-[#187595] outline-none rounded-xl p-3 text-sm bg-white w-24 shrink-0"
+                  >
+                    <option value="Mr.">Mr.</option>
+                    <option value="Mrs.">Mrs.</option>
+                    <option value="Miss.">Miss.</option>
+                    <option value="Rev.">Rev.</option>
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="e.g. Vincent Smith"
+                    value={patientName}
+                    onChange={(e) => setPatientName(e.target.value)}
+                    className="border border-zinc-200 focus:border-[#187595] focus:ring-1 focus:ring-[#187595]/20 outline-none rounded-xl p-3 text-sm flex-1"
+                    required
+                  />
+                </div>
               </div>
 
               {/* Email & Phone */}
@@ -714,13 +777,14 @@ const ReceptionistDashboard = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone</label>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone *</label>
                   <input
                     type="text"
                     placeholder="077 123 4567"
                     value={patientPhone}
                     onChange={(e) => setPatientPhone(e.target.value)}
                     className="border border-zinc-200 focus:border-[#187595] focus:ring-1 focus:ring-[#187595]/20 outline-none rounded-xl p-3 text-sm"
+                    required
                   />
                 </div>
               </div>
@@ -728,11 +792,12 @@ const ReceptionistDashboard = () => {
               {/* Gender, DOB */}
               <div className="grid grid-cols-2 gap-3.5">
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Gender</label>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Gender *</label>
                   <select
                     value={patientGender}
                     onChange={(e) => setPatientGender(e.target.value)}
                     className="border border-zinc-200 focus:border-[#187595] outline-none rounded-xl p-3 text-sm bg-white"
+                    required
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -740,12 +805,13 @@ const ReceptionistDashboard = () => {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Date of Birth</label>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Date of Birth *</label>
                   <input
                     type="date"
                     value={patientDob}
                     onChange={(e) => setPatientDob(e.target.value)}
                     className="border border-zinc-200 focus:border-[#187595] outline-none rounded-xl p-3 text-sm bg-white"
+                    required
                   />
                 </div>
               </div>
@@ -810,10 +876,17 @@ const ReceptionistDashboard = () => {
                   <select
                     value={slotTime}
                     onChange={(e) => setSlotTime(e.target.value)}
-                    className="border border-zinc-200 focus:border-[#187595] outline-none rounded-xl p-3 text-sm bg-white font-medium cursor-pointer"
+                    className="border border-zinc-200 focus:border-[#187595] outline-none rounded-xl p-3 text-sm bg-white font-medium cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
                     required
+                    disabled={availableSlots.length === 0 || loadingSlots}
                   >
-                    <option value="">-- Choose Time Slot --</option>
+                    <option value="">
+                      {loadingSlots 
+                        ? "-- Loading Slots --" 
+                        : availableSlots.length === 0 
+                          ? "-- No Slots Available --" 
+                          : "-- Choose Time Slot --"}
+                    </option>
                     {availableSlots.map((slot, idx) => (
                       <option key={idx} value={slot}>
                         {slot}
@@ -830,40 +903,33 @@ const ReceptionistDashboard = () => {
                     Payment Method *
                   </label>
                   <span className="text-xs font-bold text-gray-600">
-                    Mode: {isCard ? "💳 Card" : "💵 Cash"}
+                    Mode: {isCard ? "Card" : "Cash"}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Cash Option: isCard = false */}
-                  <button
-                    type="button"
-                    onClick={() => setIsCard(false)}
-                    className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-semibold transition-all duration-200 ${
-                      !isCard
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-300 ring-2 ring-emerald-400/20 shadow-xs"
-                        : "bg-slate-50 text-gray-600 border-zinc-200 hover:bg-slate-100"
-                    }`}
-                  >
-                    <span className="text-base">💵</span>
-                    <span>Cash</span>
-                    {!isCard && <span className="ml-1 text-emerald-600 font-bold">✓</span>}
-                  </button>
+                <select
+                  value={isCard ? "Card" : "Cash"}
+                  onChange={(e) => setIsCard(e.target.value === "Card")}
+                  className="border border-zinc-200 focus:border-[#187595] outline-none rounded-xl p-3 text-sm bg-white font-medium cursor-pointer"
+                >
+                  <option value="Cash">Cash Payment</option>
+                  <option value="Card">Card Payment</option>
+                </select>
 
-                  {/* Card Option: isCard = true */}
-                  <button
-                    type="button"
-                    onClick={() => setIsCard(true)}
-                    className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-semibold transition-all duration-200 ${
-                      isCard
-                        ? "bg-indigo-50 text-[#187595] border-indigo-300 ring-2 ring-indigo-400/20 shadow-xs"
-                        : "bg-slate-50 text-gray-600 border-zinc-200 hover:bg-slate-100"
-                    }`}
-                  >
-                    <span className="text-base">💳</span>
-                    <span>Card</span>
-                    {isCard && <span className="ml-1 text-[#187595] font-bold">✓</span>}
-                  </button>
-                </div>
+                {!isCard && (
+                  <div className="mt-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between animate-fadeIn">
+                    <span className="text-sm font-medium text-emerald-800">Amount to collect:</span>
+                    <span className="text-lg font-bold text-emerald-600">{currencySymbol} {Number(currentSelectedDoc ? (currentSelectedDoc.fees || currentSelectedDoc.consultationFee || 2500) : 2500).toLocaleString()}</span>
+                  </div>
+                )}
+                {isCard && (
+                  <div className="mt-2 p-3 bg-indigo-50 rounded-xl border border-indigo-200 flex flex-col items-center justify-center gap-2 animate-fadeIn">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm font-medium text-indigo-800">Waiting for POS Terminal...</span>
+                    </div>
+                    <span className="text-xs text-indigo-600/70">Please swipe or insert the patient's card.</span>
+                  </div>
+                )}
               </div>
 
               {/* Submit Action */}
@@ -883,8 +949,53 @@ const ReceptionistDashboard = () => {
         </div>
       )}
 
-      {/* Collect Payment Modal */}
-      {showPaymentModal && paymentApt && (
+        {/* Cancel Appointment Modal */}
+        {showCancelModal && cancelApt && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm border border-zinc-100 shadow-2xl p-6 animate-in fade-in zoom-in duration-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Cancel Appointment</h3>
+              <div className="text-sm text-gray-600 mb-4 space-y-1">
+                <p>Booking Name: <span className="font-semibold">{cancelApt.patientName}</span></p>
+                <p>Date: <span className="font-semibold">{cancelApt.slotDate ? formatToDMY(cancelApt.slotDate) : "Scheduled"}</span></p>
+                <p>Time: <span className="font-semibold">{cancelApt.slotTime || "Standard Slot"}</span></p>
+                <p>Doctor: <span className="font-semibold">{cancelApt.doctorName || "Doctor"}</span></p>
+              </div>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Reason</label>
+                  <select
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    className="border border-zinc-200 focus:border-[#187595] outline-none rounded-xl p-3 text-sm bg-white"
+                  >
+                    <option value="" disabled>Select a reason...</option>
+                    <option value="Patient requested">Patient requested</option>
+                    <option value="Doctor unavailable">Doctor unavailable</option>
+                    <option value="No show">No show</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div className="flex items-center justify-end gap-3 mt-2">
+                  <button
+                    onClick={() => setShowCancelModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmCancelAppointment}
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-xl"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Collect Payment Modal */}
+        {showPaymentModal && paymentApt && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm border border-zinc-100 shadow-2xl p-6 animate-in fade-in zoom-in duration-200">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Collect Payment</h3>

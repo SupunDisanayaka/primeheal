@@ -246,7 +246,7 @@ const Sidebar = () => {
               }
             >
               <img className="w-5 h-5 object-contain" src={assets.home_icon} alt="Dashboard Icon" />
-              <span className="hidden md:inline">Dashboard</span>
+              <span className="hidden md:inline">Appointments</span>
             </NavLink>
 
             <NavLink

@@ -524,9 +524,9 @@ const updateAppointmentStatus = async (req, res) => {
       }
 
       if (status === 'Completed') {
-        if (currentStatus !== 'Confirmed' && currentStatus !== 'Paid') {
+        if (currentStatus !== 'Confirmed' && currentStatus !== 'Paid' && currentStatus !== 'Checked In') {
           await connection.rollback();
-          return res.status(409).json({ success: false, message: 'Only paid or confirmed appointments can be completed' });
+          return res.status(409).json({ success: false, message: 'Only checked in, paid or confirmed appointments can be completed' });
         }
       } else {
         await connection.rollback();
@@ -913,7 +913,7 @@ const downloadVisitPass = async (req, res) => {
       SELECT 
         a.appointmentID, a.appointmentDate, a.appointmentTime, a.status, a.totalCharge,
         p.patientID, p.address AS patientAddress, p.nic AS patientNic,
-        pu.name AS patientName, pu.phone AS patientPhone, pu.email AS patientEmail,
+        a.patientName AS patientName, a.patientPhone AS patientPhone, a.patientEmail AS patientEmail,
         du.name AS doctorName,
         d.specialization
       FROM appointments a

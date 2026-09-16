@@ -249,7 +249,10 @@ const getDoctorSlots = async (req, res) => {
     for (let i = 0; i < 7; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
-      const formattedDate = date.toISOString().split('T')[0];
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
       const dayName = weekdays[date.getDay()];
 
       // Get availability for this date
@@ -290,7 +293,7 @@ const getDoctorSlots = async (req, res) => {
           const hh = Math.floor(min / 60);
           const mm = min % 60;
           const ampm = hh >= 12 ? 'PM' : 'AM';
-          const displayH = hh % 12 === 0 ? 12 : hh % 12;
+          const displayH = String(hh % 12 === 0 ? 12 : hh % 12).padStart(2, '0');
           const displayM = String(mm).padStart(2, '0');
           const timeStr = `${displayH}:${displayM} ${ampm}`;
 

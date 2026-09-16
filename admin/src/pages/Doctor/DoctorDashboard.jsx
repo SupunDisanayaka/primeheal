@@ -83,7 +83,7 @@ const DoctorDashboard = () => {
   };
 
   return (
-    <div className="m-5 sm:m-8 flex flex-col gap-6 w-full max-w-6xl">
+    <div className="m-5 sm:m-8 flex flex-col gap-6 w-full max-w-[100%]">
       {/* Welcome Title */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900">
@@ -199,15 +199,16 @@ const DoctorDashboard = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold select-none ${apt.status === "Completed"
-                                ? "bg-emerald-50 text-emerald-600"
+                            className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none text-white uppercase ${
+                              apt.status === "Completed"
+                                ? "bg-emerald-600"
                                 : apt.status === "Cancelled"
-                                ? "bg-rose-50 text-rose-600"
+                                ? "bg-rose-600"
                                 : apt.status === "Checked In" || apt.status === "Confirmed"
-                                ? "bg-teal-50 text-teal-600"
+                                ? "bg-teal-600"
                                 : apt.status === "Paid"
-                                ? "bg-indigo-50 text-indigo-600"
-                                : "bg-amber-50 text-amber-600"
+                                ? "bg-indigo-600"
+                                : "bg-amber-500"
                             }`}
                           >
                             {apt.status}
@@ -215,24 +216,26 @@ const DoctorDashboard = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                           {apt.status === "Pending" || apt.status === "Checked In" ? (
-                            <div className="flex items-center justify-center gap-3">
+                            <div className="flex items-center justify-center gap-2">
                               {/* Complete Action */}
                               <button
                                 onClick={() => handleComplete(apt._id)}
-                                className="p-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-full transition-colors"
+                                className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-emerald-600 hover:bg-emerald-700 text-white transition-colors uppercase cursor-pointer"
                                 title="Mark as Completed"
                               >
-                                <img className="w-5 h-5 object-contain" src={assets.tick_icon} alt="Tick" />
+                                Complete
                               </button>
                               {/* Cancel Action */}
                               <button
                                 onClick={() => handleCancel(apt._id)}
-                                className="p-1.5 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors"
+                                className="inline-flex items-center justify-center p-1.5 rounded-md bg-rose-600 hover:bg-rose-700 transition-colors text-white cursor-pointer"
                                 title="Cancel Booking"
                               >
-                                <img className="w-5 h-5 object-contain" src={assets.cancel_icon} alt="Cancel" />
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                               </button>
                             </div>
+                          ) : apt.status === "Completed" ? (
+                            <span className="text-[11px] font-bold tracking-wider text-emerald-600 uppercase">Completed</span>
                           ) : (
                             <span className="text-xs text-gray-400 font-medium">No actions</span>
                           )}

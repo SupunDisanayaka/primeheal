@@ -342,7 +342,7 @@ const AdminReports = () => {
   };
 
   return (
-    <div className="m-5 sm:m-8 w-full max-w-6xl flex flex-col gap-6">
+    <div className="m-5 sm:m-8 w-full max-w-[100%] flex flex-col gap-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -487,7 +487,7 @@ const AdminReports = () => {
               <button onClick={() => setDatePreset('week')} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-gray-700 text-xs rounded-md font-semibold transition-colors">Weekly</button>
               <button onClick={() => setDatePreset('month')} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-gray-700 text-xs rounded-md font-semibold transition-colors">Monthly</button>
               <button onClick={() => setDatePreset('year')} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-gray-700 text-xs rounded-md font-semibold transition-colors">Yearly</button>
-              <button onClick={handleClearFilters} className="px-3 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs rounded-md font-semibold transition-colors ml-auto">Clear Filters</button>
+              <button onClick={handleClearFilters} className="inline-flex items-center justify-center px-3 py-1.5 rounded-md text-[11px] font-bold tracking-wider select-none bg-rose-600 hover:bg-rose-700 text-white transition-colors uppercase ml-auto">Clear Filters</button>
             </div>
 
             {/* Filter Form */}
@@ -554,13 +554,13 @@ const AdminReports = () => {
               <div className="flex gap-2 ml-auto">
                 <button
                   onClick={(e) => { e.preventDefault(); loadAppointmentReports(apptFilters); }}
-                  className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg shadow-xs hover:opacity-90 transition-all"
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-bold tracking-wider select-none bg-emerald-600 hover:bg-emerald-700 text-white transition-colors uppercase shadow-sm"
                 >
                   Filter
                 </button>
                 <button
                   onClick={exportAppointmentsCSV}
-                  className="px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-gray-800 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-bold tracking-wider select-none bg-[#187595] hover:bg-[#135c75] text-white transition-colors uppercase gap-1.5 shadow-sm"
                 >
                   Export CSV
                 </button>
@@ -646,12 +646,12 @@ const AdminReports = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none text-white uppercase min-w-[90px] ${
                               a.status === "Completed"
-                                ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                                ? "bg-emerald-600"
                                 : a.status === "Cancelled"
-                                ? "bg-rose-50 text-rose-600 border border-rose-100"
-                                : "bg-amber-50 text-amber-600 border border-amber-100"
+                                ? "bg-rose-600"
+                                : "bg-amber-500"
                             }`}
                           >
                             {a.status}
@@ -698,7 +698,7 @@ const AdminReports = () => {
               </button>
               <button
                 onClick={exportFinancialCSV}
-                className="px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-gray-800 text-xs font-bold rounded-lg transition-all"
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-bold tracking-wider select-none bg-[#187595] hover:bg-[#135c75] text-white transition-colors uppercase gap-1.5 shadow-sm"
               >
                 Export CSV
               </button>

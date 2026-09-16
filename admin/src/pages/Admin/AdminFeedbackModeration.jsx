@@ -145,7 +145,7 @@ const AdminFeedbackModeration = () => {
   const approvedCount = feedbackList.filter((f) => f.isApproved === 1).length;
 
   return (
-    <div className="m-5 sm:m-8 w-full max-w-7xl space-y-6">
+    <div className="m-5 sm:m-8 w-full max-w-[100%] space-y-6">
       {/* Header & Stats Bar */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
@@ -280,11 +280,11 @@ const AdminFeedbackModeration = () => {
                       {/* Approved Status */}
                       <td className="px-5 py-4 whitespace-nowrap text-center">
                         {item.isApproved === 1 ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-emerald-600 text-white uppercase">
                             Approved
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-amber-500 text-white uppercase">
                             Pending
                           </span>
                         )}
@@ -293,11 +293,11 @@ const AdminFeedbackModeration = () => {
                       {/* Visibility Status */}
                       <td className="px-5 py-4 whitespace-nowrap text-center">
                         {isVisible ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-teal-600 text-white uppercase">
                             Visible
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-slate-500 text-white uppercase">
                             Hidden
                           </span>
                         )}
@@ -311,7 +311,7 @@ const AdminFeedbackModeration = () => {
                             <button
                               onClick={() => handleApprove(item.feedbackID)}
                               disabled={actionLoadingId === item.feedbackID}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs rounded-lg transition shadow-2xs disabled:opacity-50 flex items-center space-x-1 cursor-pointer"
+                              className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-emerald-600 hover:bg-emerald-700 text-white transition-colors uppercase cursor-pointer"
                               title="Approve feedback entry"
                             >
                               <span>Approve</span>

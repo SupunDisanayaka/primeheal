@@ -11,7 +11,7 @@ const USD_TO_LKR_RATE = 300;
 const toLkr = (value) => Number((Number(value ?? 0) * USD_TO_LKR_RATE).toFixed(2));
 
 const AppContextProvider = ({ children }) => {
-  const currencySymbol = "$";
+  const currencySymbol = "LKR ";
 
   // Rich list of doctors with professional Unsplash avatars to ensure premium aesthetics
   const [doctors, setDoctors] = useState([
@@ -24,7 +24,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "4 Years",
       about: "Dr. Richard James is dedicated to providing comprehensive medical care, with a strong focus on preventive health, early diagnosis, and personalized wellness plans tailored to each individual.",
-      fees: 50,
+      fees: 4800,
       available: true,
       address: {
         line1: "17th Cross, Richmond",
@@ -40,7 +40,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS, MD",
       experience: "3 Years",
       about: "Dr. Emily Larson focuses on women's healthcare, offering exceptional prenatal care, gynecological evaluations, and supportive consultations across all stages of life.",
-      fees: 60,
+      fees: 4200,
       available: true,
       address: {
         line1: "27th Cross, Richmond",
@@ -56,7 +56,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "1 Year",
       about: "Dr. Sarah Patel provides comprehensive skin diagnostics, dermatological procedures, and aesthetic plans, prioritizing clinical safety and radiant skin health.",
-      fees: 30,
+      fees: 4200,
       available: true,
       address: {
         line1: "37th Cross, Richmond",
@@ -72,7 +72,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS, DCH",
       experience: "2 Years",
       about: "Dr. Christopher Lee is highly committed to pediatric care, offering friendly childhood evaluations, immunizations, and developmental tracking in a welcoming environment.",
-      fees: 40,
+      fees: 4700,
       available: true,
       address: {
         line1: "47th Cross, Richmond",
@@ -88,7 +88,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS, DM",
       experience: "4 Years",
       about: "Dr. Jennifer Garcia specializes in complex neurological diagnostics, stroke preventions, headache managements, and cutting-edge therapeutics.",
-      fees: 50,
+      fees: 4800,
       available: false,
       address: {
         line1: "57th Cross, Richmond",
@@ -104,7 +104,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "4 Years",
       about: "Dr. Andrew Williams focuses on digestive disorders, liver health management, endoscopies, and promoting optimal digestive well-being.",
-      fees: 50,
+      fees: 4500,
       available: true,
       address: {
         line1: "67th Cross, Richmond",
@@ -120,7 +120,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "4 Years",
       about: "Dr. Christopher Davis has a strong commitment to delivering comprehensive medical care, focusing on preventive medicine, early diagnosis, and effective treatment strategies.",
-      fees: 50,
+      fees: 4300,
       available: true,
       address: {
         line1: "17th Cross, Richmond",
@@ -136,7 +136,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "3 Years",
       about: "Dr. Timothy White is dedicated to women's healthcare, offering exceptional prenatal care, gynecological evaluations, and supportive consultations across all stages of life.",
-      fees: 60,
+      fees: 4100,
       available: true,
       address: {
         line1: "27th Cross, Richmond",
@@ -152,7 +152,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "1 Year",
       about: "Dr. Ava Mitchell provides comprehensive skin diagnostics, dermatological procedures, and aesthetic plans, prioritizing clinical safety and radiant skin health.",
-      fees: 30,
+      fees: 4700,
       available: true,
       address: {
         line1: "37th Cross, Richmond",
@@ -168,7 +168,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "2 Years",
       about: "Dr. Jeffrey King is highly committed to pediatric care, offering friendly childhood evaluations, immunizations, and developmental tracking in a welcoming environment.",
-      fees: 40,
+      fees: 4100,
       available: true,
       address: {
         line1: "47th Cross, Richmond",
@@ -184,7 +184,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "4 Years",
       about: "Dr. Zoe Kelly specializes in complex neurological diagnostics, stroke preventions, headache managements, and cutting-edge therapeutics.",
-      fees: 50,
+      fees: 4200,
       available: true,
       address: {
         line1: "57th Cross, Richmond",
@@ -200,7 +200,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "4 Years",
       about: "Dr. Patrick Harris is dedicated to providing comprehensive gastroenterological care and rehabilitation plans, prioritizing clinical safety and healthy recovery.",
-      fees: 50,
+      fees: 4600,
       available: true,
       address: {
         line1: "57th Cross, Richmond",
@@ -216,7 +216,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "4 Years",
       about: "Dr. Chloe Evans has a strong commitment to delivering comprehensive medical care, focusing on preventive medicine, early diagnosis, and effective treatment strategies.",
-      fees: 50,
+      fees: 5000,
       available: true,
       address: {
         line1: "17th Cross, Richmond",
@@ -232,7 +232,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "3 Years",
       about: "Dr. Ryan Martinez focuses on women's healthcare, offering exceptional prenatal care, gynecological evaluations, and supportive consultations.",
-      fees: 60,
+      fees: 4200,
       available: true,
       address: {
         line1: "27th Cross, Richmond",
@@ -248,7 +248,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "1 Year",
       about: "Dr. Amelia Hill provides comprehensive skin diagnostics, dermatological procedures, and aesthetic plans, prioritizing clinical safety and skin health.",
-      fees: 30,
+      fees: 4100,
       available: true,
       address: {
         line1: "37th Cross, Richmond",
@@ -288,6 +288,23 @@ const AppContextProvider = ({ children }) => {
     return "";
   };
 
+  const getStoredAccountantName = () => {
+    const stored = sessionStorage.getItem("currentAccountantName");
+    if (stored) return stored;
+    const token = sessionStorage.getItem("accountantToken");
+    if (token) {
+      try {
+        const base64Url = token.split(".")[1];
+        if (base64Url) {
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const payload = JSON.parse(window.atob(base64));
+          if (payload?.name) return payload.name;
+        }
+      } catch (e) { }
+    }
+    return sessionStorage.getItem("accountantToken") ? "Accountant" : "";
+  };
+
   const [receptionistToken, setReceptionistToken] = useState(
     sessionStorage.getItem("receptionistToken") || ""
   );
@@ -302,6 +319,7 @@ const AppContextProvider = ({ children }) => {
   const [currentAccountantId, setCurrentAccountantId] = useState(
     sessionStorage.getItem("currentAccountantId") || ""
   );
+  const [currentAccountantName, setCurrentAccountantName] = useState(getStoredAccountantName);
 
   const getFallbackAppointments = () => ([
     {
@@ -453,6 +471,7 @@ const AppContextProvider = ({ children }) => {
 
   useEffect(() => {
     refreshAdminData();
+    fetchDoctors();
 
     if (!adminToken && !doctorToken && !receptionistToken) {
       return undefined;
@@ -543,19 +562,60 @@ const AppContextProvider = ({ children }) => {
     }
   ]);
 
-  const [receptionistToken, setReceptionistToken] = useState(
-    localStorage.getItem("receptionistToken") || ""
-  );
-  const [currentReceptionistId, setCurrentReceptionistId] = useState(
-    localStorage.getItem("currentReceptionistId") || ""
-  );
+  const [receptionistsLoading, setReceptionistsLoading] = useState(false);
+  const [receptionistsError, setReceptionistsError] = useState(null);
 
-  const [accountantToken, setAccountantToken] = useState(
-    localStorage.getItem("accountantToken") || ""
-  );
-  const [currentAccountantId, setCurrentAccountantId] = useState(
-    localStorage.getItem("currentAccountantId") || ""
-  );
+  const fetchReceptionists = async () => {
+    setReceptionistsLoading(true);
+    setReceptionistsError(null);
+    try {
+      const data = await getReceptionistsAPI();
+      if (data && data.receptionists) {
+        setReceptionists(data.receptionists);
+      } else if (data && Array.isArray(data)) {
+        setReceptionists(data);
+      }
+    } catch (error) {
+      console.error("Error fetching receptionists:", error);
+      setReceptionistsError(error.response?.data?.message || error.message || "Failed to fetch receptionists");
+    } finally {
+      setReceptionistsLoading(false);
+    }
+  };
+
+  const [accountantsLoading, setAccountantsLoading] = useState(false);
+  const [accountantsError, setAccountantsError] = useState(null);
+
+  const fetchAccountants = async () => {
+    setAccountantsLoading(true);
+    setAccountantsError(null);
+    try {
+      const data = await getAccountantsAPI();
+      if (data && data.accountants) {
+        setAccountants(data.accountants);
+      } else if (data && Array.isArray(data)) {
+        setAccountants(data);
+      }
+    } catch (error) {
+      console.error("Error fetching accountants:", error);
+      setAccountantsError(error.response?.data?.message || error.message || "Failed to fetch accountants");
+    } finally {
+      setAccountantsLoading(false);
+    }
+  };
+
+  const fetchDoctors = async () => {
+    try {
+      const data = await getDoctors();
+      if (data && data.doctors) {
+        setDoctors(data.doctors);
+      } else if (data && Array.isArray(data)) {
+        setDoctors(data);
+      }
+    } catch (error) {
+      console.error("Error fetching doctors:", error);
+    }
+  };
 
   const loginReceptionist = async (email, password) => {
     try {
@@ -605,8 +665,11 @@ const AppContextProvider = ({ children }) => {
       if (data.success && data.user?.userType === "accountant") {
         setAccountantToken(data.token);
         setCurrentAccountantId(data.user._id);
+        const accName = data.user.name || "Accountant";
+        setCurrentAccountantName(accName);
         sessionStorage.setItem("accountantToken", data.token);
         sessionStorage.setItem("currentAccountantId", data.user._id);
+        sessionStorage.setItem("currentAccountantName", accName);
         return true;
       }
 
@@ -620,8 +683,10 @@ const AppContextProvider = ({ children }) => {
   const logoutAccountant = () => {
     setAccountantToken("");
     setCurrentAccountantId("");
+    setCurrentAccountantName("");
     sessionStorage.removeItem("accountantToken");
     sessionStorage.removeItem("currentAccountantId");
+    sessionStorage.removeItem("currentAccountantName");
   };
 
   const value = {
@@ -657,6 +722,7 @@ const AppContextProvider = ({ children }) => {
     setAccountantToken,
     currentAccountantId,
     setCurrentAccountantId,
+    currentAccountantName,
     loginReceptionist,
     logoutReceptionist,
     loginAccountant,

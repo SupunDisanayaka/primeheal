@@ -264,23 +264,6 @@ const Login = () => {
                 </div>
               )}
 
-              {/* Password */}
-              <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200 flex items-center justify-between">
-                <div className="flex-1">
-                  <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                    Mobile number / email ID
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter mobile number or email"
-                    className="w-full border-none bg-transparent p-0 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-0 mt-0.5"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-              )}
-
               {/* Password (Login or Sign Up Step 1) */}
               {(state === 'Login' || (state === 'Sign Up' && signUpStep === 1)) && (
                 <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200 flex items-center justify-between">

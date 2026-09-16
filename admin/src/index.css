@@ -18,4 +18,29 @@
 .sidebar-link-active img {
   filter: brightness(0) saturate(100%) invert(35%) sepia(87%) saturate(545%) hue-rotate(151deg) brightness(91%) contrast(85%);
   opacity: 1;
+}/* Typewriter animation */
+.typewriter-container {
+  display: inline-flex;
+  align-items: center;
+}
+
+.typewriter-text {
+  overflow: hidden;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+  border-right: 2px solid #00A7A7;
+  animation: typing 5s steps(30, end) forwards, blink-caret .75s step-end 7 forwards;
+  font-family: 'Google Sans', 'Product Sans', 'Plus Jakarta Sans', 'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  max-width: max-content;
+}
+
+@keyframes typing {
+  from { width: 0; max-width: 0; }
+  to { width: 100%; max-width: 600px; }
+}
+
+@keyframes blink-caret {
+  from, to { border-color: transparent; }
+  50% { border-color: #00A7A7; }
 }

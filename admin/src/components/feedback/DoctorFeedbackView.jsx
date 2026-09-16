@@ -93,7 +93,7 @@ const DoctorFeedbackView = ({ doctorId: propDoctorId = null }) => {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+    <div className="w-full max-w-[100%] mx-auto p-4 sm:p-6 space-y-6">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 pb-4">
         <div>

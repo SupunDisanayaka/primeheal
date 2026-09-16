@@ -77,7 +77,7 @@ const DoctorAppointments = () => {
   };
 
   return (
-    <div className="m-5 sm:m-8 w-full max-w-6xl">
+    <div className="m-5 sm:m-8 w-full max-w-[100%]">
       <h2 className="text-xl font-bold text-gray-900 mb-6">Your Appointments</h2>
 
       <div className="bg-white rounded-2xl border border-zinc-100 shadow-xs overflow-hidden">
@@ -126,16 +126,16 @@ const DoctorAppointments = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold select-none ${
+                            className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none text-white uppercase ${
                               apt.status === "Completed"
-                                ? "bg-emerald-50 text-emerald-600"
+                                ? "bg-emerald-600"
                                 : apt.status === "Cancelled"
-                                ? "bg-rose-50 text-rose-600"
+                                ? "bg-rose-600"
                                 : apt.status === "Checked In" || apt.status === "Confirmed"
-                                ? "bg-teal-50 text-teal-600"
+                                ? "bg-teal-600"
                                 : apt.status === "Paid"
-                                ? "bg-indigo-50 text-indigo-600"
-                                : "bg-amber-50 text-amber-600"
+                                ? "bg-indigo-600"
+                                : "bg-amber-500"
                             }`}
                           >
                             {apt.status}
@@ -146,28 +146,24 @@ const DoctorAppointments = () => {
                             <button
                               type="button"
                               onClick={() => handleOpenNotes(apt)}
-                              className="px-2.5 py-1 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors cursor-pointer"
+                              className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-teal-600 hover:bg-teal-700 text-white transition-colors uppercase cursor-pointer"
                             >
                               {apt.doctorNotes ? 'View Notes' : '+ Add Notes'}
                             </button>
 
-                            {apt.status === "Completed" || apt.status === "Cancelled" ? (
-                              <span className="text-xs text-gray-400 font-semibold select-none">No Action</span>
+                            {apt.status === "Completed" ? (
+                              <span className="text-[11px] font-bold tracking-wider text-emerald-600 uppercase select-none">Completed</span>
+                            ) : apt.status === "Cancelled" ? (
+                              <span className="text-[11px] font-bold tracking-wider text-rose-600 uppercase select-none">Cancelled</span>
                             ) : apt.status === "Pending" ? (
-                              <span className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1 text-center font-semibold select-none">Awaiting Payment</span>
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-amber-500 text-white uppercase">Awaiting Payment</span>
                             ) : (
-                              <select
-                                value={apt.status === "Completed" ? "Completed" : apt.status}
-                                onChange={(e) => handleStatusChange(apt._id, e.target.value)}
-                                className={`border outline-none rounded-lg px-2 py-1 text-xs font-bold bg-white cursor-pointer transition-all ${
-                                  apt.status === "Completed"
-                                    ? "border-emerald-200 text-emerald-600 focus:border-emerald-400"
-                                    : "border-indigo-200 text-indigo-600 focus:border-indigo-400"
-                                }`}
+                              <button
+                                onClick={() => handleStatusChange(apt._id, "Completed")}
+                                className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-emerald-600 hover:bg-emerald-700 text-white transition-colors uppercase cursor-pointer"
                               >
-                                <option value={apt.status} disabled className="font-semibold">{apt.status}</option>
-                                <option value="Completed" className="text-emerald-600 font-semibold">Completed</option>
-                              </select>
+                                Complete
+                              </button>
                             )}
                           </div>
                         </td>

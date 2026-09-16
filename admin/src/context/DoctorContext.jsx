@@ -3,6 +3,23 @@ import React, { createContext, useState } from "react";
 export const DoctorContext = createContext();
 
 const DoctorContextProvider = ({ children }) => {
+  const getStoredDoctorName = () => {
+    const stored = sessionStorage.getItem("currentDoctorName");
+    if (stored) return stored;
+    const token = sessionStorage.getItem("doctorToken") || sessionStorage.getItem("dToken");
+    if (token) {
+      try {
+        const base64Url = token.split(".")[1];
+        if (base64Url) {
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const payload = JSON.parse(window.atob(base64));
+          if (payload?.name) return payload.name;
+        }
+      } catch (e) { }
+    }
+    return sessionStorage.getItem("doctorToken") ? "Doctor" : "";
+  };
+
   const [doctorToken, setDoctorToken] = useState(
     sessionStorage.getItem("doctorToken") || ""
   );
@@ -10,6 +27,8 @@ const DoctorContextProvider = ({ children }) => {
   const [currentDoctorId, setCurrentDoctorId] = useState(
     sessionStorage.getItem("currentDoctorId") || ""
   );
+  
+  const [currentDoctorName, setCurrentDoctorName] = useState(getStoredDoctorName);
 
   const login = async (email, password) => {
     try {
@@ -31,8 +50,11 @@ const DoctorContextProvider = ({ children }) => {
         sessionStorage.removeItem("aToken");
         setDoctorToken(data.token);
         setCurrentDoctorId(idVal);
+        const docName = data.user.name || "Doctor";
+        setCurrentDoctorName(docName);
         sessionStorage.setItem("doctorToken", data.token);
         sessionStorage.setItem("currentDoctorId", idVal);
+        sessionStorage.setItem("currentDoctorName", docName);
         return true;
       }
       
@@ -47,8 +69,10 @@ const DoctorContextProvider = ({ children }) => {
   const logout = () => {
     setDoctorToken("");
     setCurrentDoctorId("");
+    setCurrentDoctorName("");
     sessionStorage.removeItem("doctorToken");
     sessionStorage.removeItem("currentDoctorId");
+    sessionStorage.removeItem("currentDoctorName");
   };
 
   const value = {
@@ -56,6 +80,7 @@ const DoctorContextProvider = ({ children }) => {
     setDoctorToken,
     currentDoctorId,
     setCurrentDoctorId,
+    currentDoctorName,
     login,
     logout
   };

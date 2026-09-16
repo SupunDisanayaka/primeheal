@@ -176,7 +176,7 @@ const PatientDirectory = () => {
   };
 
   return (
-    <div className="m-5 sm:m-8 w-full max-w-6xl">
+    <div className="m-5 sm:m-8 w-full max-w-[100%]">
       {/* Toast Notification */}
       {message.text && (
         <div
@@ -279,7 +279,7 @@ const PatientDirectory = () => {
                       <p className="text-xs text-gray-400 capitalize">{p.gender || 'Not specified'}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-[#187595] text-white uppercase">
                         {p.totalAppointments || 0} visits
                       </span>
                     </td>
@@ -292,13 +292,13 @@ const PatientDirectory = () => {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handleOpenView(p.patientID)}
-                          className="px-3 py-1.5 text-xs font-semibold text-teal-600 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors cursor-pointer"
+                          className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-emerald-600 hover:bg-emerald-700 text-white transition-colors uppercase min-w-[90px]"
                         >
                           View Records
                         </button>
                         <button
                           onClick={() => handleOpenEdit(p.patientID)}
-                          className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
+                          className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-amber-500 hover:bg-amber-600 text-white transition-colors uppercase min-w-[90px]"
                         >
                           Edit Data
                         </button>

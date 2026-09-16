@@ -33,6 +33,7 @@ const mapAppointmentRow = (row) => ({
   paymentAmount: row.paymentAmount,
   paymentCurrency: row.paymentCurrency,
   paymentMethod: row.paymentMethod,
+  paymentGateway: row.paymentGateway,
   receiptUrl: row.receiptUrl,
   paymentDate: row.paymentDate
 });
@@ -73,6 +74,11 @@ const getLatestPaymentFields = () => `
    WHERE p.appointmentID = a.appointmentID
    ORDER BY p.paymentID DESC
    LIMIT 1) AS paymentMethod,
+  (SELECT p.paymentGateway
+   FROM payments p
+   WHERE p.appointmentID = a.appointmentID
+   ORDER BY p.paymentID DESC
+   LIMIT 1) AS paymentGateway,
   (SELECT p.receiptUrl
    FROM payments p
    WHERE p.appointmentID = a.appointmentID

@@ -3,9 +3,27 @@ import React, { createContext, useState } from "react";
 export const AdminContext = createContext();
 
 const AdminContextProvider = ({ children }) => {
+  const getStoredAdminName = () => {
+    const stored = sessionStorage.getItem("currentAdminName");
+    if (stored) return stored;
+    const token = sessionStorage.getItem("adminToken") || sessionStorage.getItem("aToken");
+    if (token) {
+      try {
+        const base64Url = token.split(".")[1];
+        if (base64Url) {
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const payload = JSON.parse(window.atob(base64));
+          if (payload?.name) return payload.name;
+        }
+      } catch (e) { }
+    }
+    return sessionStorage.getItem("adminToken") ? "Administrator" : "";
+  };
+
   const [adminToken, setAdminToken] = useState(
     sessionStorage.getItem("adminToken") || ""
   );
+  const [currentAdminName, setCurrentAdminName] = useState(getStoredAdminName);
 
   const login = async (email, password) => {
     try {
@@ -25,7 +43,10 @@ const AdminContextProvider = ({ children }) => {
         sessionStorage.removeItem("accountantToken");
         sessionStorage.removeItem("dToken");
         setAdminToken(data.token);
+        const name = data.user?.name || "Administrator";
+        setCurrentAdminName(name);
         sessionStorage.setItem("adminToken", data.token);
+        sessionStorage.setItem("currentAdminName", name);
         return true;
       }
       console.log('Admin login failed:', data);
@@ -38,12 +59,15 @@ const AdminContextProvider = ({ children }) => {
 
   const logout = () => {
     setAdminToken("");
+    setCurrentAdminName("");
     sessionStorage.removeItem("adminToken");
+    sessionStorage.removeItem("currentAdminName");
   };
 
   const value = {
     adminToken,
     setAdminToken,
+    currentAdminName,
     login,
     logout
   };

@@ -42,8 +42,8 @@ const DoctorProfile = () => {
       setLoading(true);
       try {
         const res = await getUserProfile();
-        if (res.success && res.user) {
-          const u = res.user;
+        if (res.success && (res.profile || res.user)) {
+          const u = res.profile || res.user;
           const formatted = {
             _id: u.userID || u._id,
             userID: u.userID || u._id,
@@ -322,10 +322,10 @@ const DoctorProfile = () => {
                     </>
                   ) : (
                     <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                      className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none text-white uppercase ${
                         docInfo.available
-                          ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                          : "bg-amber-50 text-amber-600 border border-amber-100"
+                          ? "bg-emerald-600"
+                          : "bg-amber-500"
                       }`}
                     >
                       {docInfo.available ? "Active & Accepting Patients" : "Away / Unscheduled"}

@@ -6,14 +6,15 @@ import { AppContext } from "../context/AppContext";
 import { useNavigate } from "react-router-dom";
 
 const Navbar = () => {
-  const { adminToken, logout: adminLogout } = useContext(AdminContext);
-  const { doctorToken, logout: doctorLogout } = useContext(DoctorContext);
+  const { adminToken, logout: adminLogout, currentAdminName } = useContext(AdminContext);
+  const { doctorToken, logout: doctorLogout, currentDoctorName } = useContext(DoctorContext);
   const {
     receptionistToken,
     logoutReceptionist,
     currentReceptionistName,
     accountantToken,
-    logoutAccountant
+    logoutAccountant,
+    currentAccountantName
   } = useContext(AppContext);
   const navigate = useNavigate();
 
@@ -35,28 +36,56 @@ const Navbar = () => {
     navigate("/login");
   };
 
+  // Helper to extract name directly from JWT payload as an extra fallback
+  const parseNameFromToken = (token) => {
+    if (!token) return "";
+    try {
+      const base64Url = token.split(".")[1];
+      if (!base64Url) return "";
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const payload = JSON.parse(window.atob(base64));
+      return payload?.name || "";
+    } catch (e) {
+      return "";
+    }
+  };
+
+  const getResolvedUserName = () => {
+    if (adminToken) {
+      return currentAdminName || parseNameFromToken(adminToken) || sessionStorage.getItem("currentAdminName") || "Administrator";
+    }
+    if (doctorToken) {
+      return currentDoctorName || parseNameFromToken(doctorToken) || sessionStorage.getItem("currentDoctorName") || "Doctor";
+    }
+    if (receptionistToken) {
+      return currentReceptionistName || parseNameFromToken(receptionistToken) || sessionStorage.getItem("currentReceptionistName") || "Receptionist";
+    }
+    if (accountantToken) {
+      return currentAccountantName || parseNameFromToken(accountantToken) || sessionStorage.getItem("currentAccountantName") || "Accountant";
+    }
+    return "";
+  };
+
+  const activeUserName = getResolvedUserName();
+
   return (
     <div className="flex justify-between items-center px-4 sm:px-10 py-3.5 border-b border-zinc-100 bg-white/75 backdrop-blur-md sticky top-0 z-50 shadow-xs transition-all duration-300">
-      <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-        {/* Role Badge */}
-        <span className="border px-2.5 py-1 text-xs font-semibold rounded-full bg-teal-50/30 text-[#187595] border-teal-100 shadow-2xs select-none">
-          {adminToken
-            ? "Admin Panel"
-            : doctorToken
-            ? "Doctor Portal"
-            : receptionistToken
-            ? "Receptionist Portal"
-            : accountantToken
-            ? "Accountant Portal"
-            : ""}
-        </span>
-
-        {/* User Name side the Receptionist Portal label */}
-        {receptionistToken && currentReceptionistName && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-gray-700 bg-slate-100/90 border border-slate-200/80 rounded-full shadow-2xs transition-all animate-in fade-in duration-200">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-gray-800 font-semibold">{currentReceptionistName}</span>
-          </span>
+      <div className="flex items-center">
+        {/* Typewriter Welcome Animation aligned to the left corner */}
+        {(adminToken || doctorToken || receptionistToken || accountantToken) && (
+          <div className="inline-flex items-center">
+            <div className="typewriter-container">
+              <span
+                className="typewriter-text text-gray-800 text-[20px] font-medium"
+                style={{ fontFamily: "'Google Sans', 'Product Sans', 'Plus Jakarta Sans', 'Open Sans', sans-serif" }}
+              >
+                Welcome,{" "}
+                <span className="italic font-semibold">
+                  {activeUserName}
+                </span>
+              </span>
+            </div>
+          </div>
         )}
       </div>
 

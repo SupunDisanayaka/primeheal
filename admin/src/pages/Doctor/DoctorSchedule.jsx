@@ -154,7 +154,7 @@ const DoctorSchedule = () => {
   };
 
   return (
-    <div className="m-5 sm:m-8 w-full max-w-6xl flex flex-col gap-6">
+    <div className="m-5 sm:m-8 w-full max-w-[100%] flex flex-col gap-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -274,13 +274,6 @@ const DoctorSchedule = () => {
                   className="text-xs font-bold text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/50 py-1.5 px-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   Clear All
-                </button>
-                <button
-                  onClick={handleSaveUpdate}
-                  disabled={isSaving}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-1.5 px-4 rounded-lg shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {isSaving ? "Saving..." : "Save Update"}
                 </button>
               </div>
             </div>

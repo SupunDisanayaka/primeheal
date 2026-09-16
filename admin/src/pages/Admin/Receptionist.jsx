@@ -105,7 +105,7 @@ const Receptionist = () => {
   );
 
   return (
-    <div className="m-5 sm:m-8 w-full max-w-6xl">
+    <div className="m-5 sm:m-8 w-full max-w-[100%]">
       {/* Header and Tabs */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>

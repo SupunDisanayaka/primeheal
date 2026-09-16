@@ -93,7 +93,7 @@ const DoctorsList = () => {
   };
 
   return (
-    <div className="m-5 sm:m-8 w-full max-w-6xl">
+    <div className="m-5 sm:m-8 w-full max-w-[100%]">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-900">All Doctors</h2>
         <button
@@ -181,7 +181,7 @@ const DoctorsList = () => {
 
                 <button
                   onClick={() => handleOpenEdit(item)}
-                  className="text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                  className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-teal-600 hover:bg-teal-700 text-white transition-colors uppercase cursor-pointer"
                 >
                   Edit Info
                 </button>

@@ -96,18 +96,18 @@ const AdminComplaints = () => {
   const getStatusBadge = (status) => {
     switch (status) {
       case "resolved":
-        return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">Resolved</span>;
+        return <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-emerald-600 text-white uppercase">Resolved</span>;
       case "in-progress":
-        return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-blue-50 text-blue-600 border border-blue-100">In Progress</span>;
+        return <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-teal-600 text-white uppercase">In Progress</span>;
       case "closed":
-        return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-600 border border-slate-200">Closed</span>;
+        return <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-slate-500 text-white uppercase">Closed</span>;
       default:
-        return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-amber-50 text-amber-600 border border-amber-100">Open</span>;
+        return <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-amber-500 text-white uppercase">Open</span>;
     }
   };
 
   return (
-    <div className="m-5 sm:m-8 w-full max-w-6xl flex flex-col gap-6">
+    <div className="m-5 sm:m-8 w-full max-w-[100%] flex flex-col gap-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -239,7 +239,7 @@ const AdminComplaints = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
                       <button
                         onClick={() => openResolutionModal(c)}
-                        className="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-lg transition-colors"
+                        className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider select-none bg-teal-600 hover:bg-teal-700 text-white transition-colors uppercase cursor-pointer"
                       >
                         Manage & Resolve
                       </button>
