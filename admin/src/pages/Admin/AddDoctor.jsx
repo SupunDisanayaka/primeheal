@@ -220,7 +220,7 @@ const AddDoctor = () => {
                 value={fees}
                 className="border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl p-3 w-full text-sm text-gray-800 transition-all bg-gray-50/20"
                 type="number"
-                placeholder="e.g. 50"
+                placeholder="e.g. 3500"
                 min="0"
                 required
               />

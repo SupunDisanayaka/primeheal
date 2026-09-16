@@ -11,27 +11,251 @@ const USD_TO_LKR_RATE = 300;
 const toLkr = (value) => Number((Number(value ?? 0) * USD_TO_LKR_RATE).toFixed(2));
 
 const AppContextProvider = ({ children }) => {
-  const currencySymbol = "Rs. ";
+  const currencySymbol = "$";
 
-  const [doctors, setDoctors] = useState([]);
-
-  const fetchDoctors = useCallback(async () => {
-    try {
-      const data = await getDoctors();
-      if (data.success && Array.isArray(data.doctors)) {
-        setDoctors(data.doctors.map((doctor) => ({
-          ...doctor,
-          fees: Number(doctor.fees || 0)
-        })));
+  // Rich list of doctors with professional Unsplash avatars to ensure premium aesthetics
+  const [doctors, setDoctors] = useState([
+    {
+      _id: "doc1",
+      name: "Dr. Richard James",
+      email: "richard@primeheal.com",
+      image: assets.doc1,
+      speciality: "General physician",
+      degree: "MBBS",
+      experience: "4 Years",
+      about: "Dr. Richard James is dedicated to providing comprehensive medical care, with a strong focus on preventive health, early diagnosis, and personalized wellness plans tailored to each individual.",
+      fees: 50,
+      available: true,
+      address: {
+        line1: "17th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
       }
-    } catch (error) {
-      console.error("Failed to fetch doctors:", error);
+    },
+    {
+      _id: "doc2",
+      name: "Dr. Emily Larson",
+      email: "emily@primeheal.com",
+      image: assets.doc2,
+      speciality: "Gynecologist",
+      degree: "MBBS, MD",
+      experience: "3 Years",
+      about: "Dr. Emily Larson focuses on women's healthcare, offering exceptional prenatal care, gynecological evaluations, and supportive consultations across all stages of life.",
+      fees: 60,
+      available: true,
+      address: {
+        line1: "27th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
+    },
+    {
+      _id: "doc3",
+      name: "Dr. Sarah Patel",
+      email: "sarah@primeheal.com",
+      image: assets.doc3,
+      speciality: "Dermatologist",
+      degree: "MBBS",
+      experience: "1 Year",
+      about: "Dr. Sarah Patel provides comprehensive skin diagnostics, dermatological procedures, and aesthetic plans, prioritizing clinical safety and radiant skin health.",
+      fees: 30,
+      available: true,
+      address: {
+        line1: "37th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
+    },
+    {
+      _id: "doc4",
+      name: "Dr. Christopher Lee",
+      email: "christopher@primeheal.com",
+      image: assets.doc4,
+      speciality: "Pediatricians",
+      degree: "MBBS, DCH",
+      experience: "2 Years",
+      about: "Dr. Christopher Lee is highly committed to pediatric care, offering friendly childhood evaluations, immunizations, and developmental tracking in a welcoming environment.",
+      fees: 40,
+      available: true,
+      address: {
+        line1: "47th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
+    },
+    {
+      _id: "doc5",
+      name: "Dr. Jennifer Garcia",
+      email: "jennifer@primeheal.com",
+      image: assets.doc5,
+      speciality: "Neurologist",
+      degree: "MBBS, DM",
+      experience: "4 Years",
+      about: "Dr. Jennifer Garcia specializes in complex neurological diagnostics, stroke preventions, headache managements, and cutting-edge therapeutics.",
+      fees: 50,
+      available: false,
+      address: {
+        line1: "57th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
+    },
+    {
+      _id: "doc6",
+      name: "Dr. Andrew Williams",
+      email: "andrew@primeheal.com",
+      image: assets.doc6,
+      speciality: "Gastroenterologist",
+      degree: "MBBS",
+      experience: "4 Years",
+      about: "Dr. Andrew Williams focuses on digestive disorders, liver health management, endoscopies, and promoting optimal digestive well-being.",
+      fees: 50,
+      available: true,
+      address: {
+        line1: "67th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
+    },
+    {
+      _id: "doc7",
+      name: "Dr. Christopher Davis",
+      email: "christopher.d@primeheal.com",
+      image: assets.doc7,
+      speciality: "General physician",
+      degree: "MBBS",
+      experience: "4 Years",
+      about: "Dr. Christopher Davis has a strong commitment to delivering comprehensive medical care, focusing on preventive medicine, early diagnosis, and effective treatment strategies.",
+      fees: 50,
+      available: true,
+      address: {
+        line1: "17th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
+    },
+    {
+      _id: "doc8",
+      name: "Dr. Timothy White",
+      email: "timothy@primeheal.com",
+      image: assets.doc8,
+      speciality: "Gynecologist",
+      degree: "MBBS",
+      experience: "3 Years",
+      about: "Dr. Timothy White is dedicated to women's healthcare, offering exceptional prenatal care, gynecological evaluations, and supportive consultations across all stages of life.",
+      fees: 60,
+      available: true,
+      address: {
+        line1: "27th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
+    },
+    {
+      _id: "doc9",
+      name: "Dr. Ava Mitchell",
+      email: "ava@primeheal.com",
+      image: assets.doc9,
+      speciality: "Dermatologist",
+      degree: "MBBS",
+      experience: "1 Year",
+      about: "Dr. Ava Mitchell provides comprehensive skin diagnostics, dermatological procedures, and aesthetic plans, prioritizing clinical safety and radiant skin health.",
+      fees: 30,
+      available: true,
+      address: {
+        line1: "37th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
+    },
+    {
+      _id: "doc10",
+      name: "Dr. Jeffrey King",
+      email: "jeffrey@primeheal.com",
+      image: assets.doc10,
+      speciality: "Pediatricians",
+      degree: "MBBS",
+      experience: "2 Years",
+      about: "Dr. Jeffrey King is highly committed to pediatric care, offering friendly childhood evaluations, immunizations, and developmental tracking in a welcoming environment.",
+      fees: 40,
+      available: true,
+      address: {
+        line1: "47th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
+    },
+    {
+      _id: "doc11",
+      name: "Dr. Zoe Kelly",
+      email: "zoe@primeheal.com",
+      image: assets.doc11,
+      speciality: "Neurologist",
+      degree: "MBBS",
+      experience: "4 Years",
+      about: "Dr. Zoe Kelly specializes in complex neurological diagnostics, stroke preventions, headache managements, and cutting-edge therapeutics.",
+      fees: 50,
+      available: true,
+      address: {
+        line1: "57th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
+    },
+    {
+      _id: "doc12",
+      name: "Dr. Patrick Harris",
+      email: "patrick@primeheal.com",
+      image: assets.doc12,
+      speciality: "Gastroenterologist",
+      degree: "MBBS",
+      experience: "4 Years",
+      about: "Dr. Patrick Harris is dedicated to providing comprehensive gastroenterological care and rehabilitation plans, prioritizing clinical safety and healthy recovery.",
+      fees: 50,
+      available: true,
+      address: {
+        line1: "57th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
+    },
+    {
+      _id: "doc13",
+      name: "Dr. Chloe Evans",
+      email: "chloe@primeheal.com",
+      image: assets.doc13,
+      speciality: "General physician",
+      degree: "MBBS",
+      experience: "4 Years",
+      about: "Dr. Chloe Evans has a strong commitment to delivering comprehensive medical care, focusing on preventive medicine, early diagnosis, and effective treatment strategies.",
+      fees: 50,
+      available: true,
+      address: {
+        line1: "17th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
+    },
+    {
+      _id: "doc14",
+      name: "Dr. Ryan Martinez",
+      email: "ryan@primeheal.com",
+      image: assets.doc14,
+      speciality: "Gynecologist",
+      degree: "MBBS",
+      experience: "3 Years",
+      about: "Dr. Ryan Martinez focuses on women's healthcare, offering exceptional prenatal care, gynecological evaluations, and supportive consultations.",
+      fees: 60,
+      available: true,
+      address: {
+        line1: "27th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
+    },
+    {
+      _id: "doc15",
+      name: "Dr. Amelia Hill",
+      email: "amelia@primeheal.com",
+      image: assets.doc15,
+      speciality: "Dermatologist",
+      degree: "MBBS",
+      experience: "1 Year",
+      about: "Dr. Amelia Hill provides comprehensive skin diagnostics, dermatological procedures, and aesthetic plans, prioritizing clinical safety and skin health.",
+      fees: 30,
+      available: true,
+      address: {
+        line1: "37th Cross, Richmond",
+        line2: "Circle, Ring Road, London"
+      }
     }
-  }, []);
-
-  useEffect(() => {
-    fetchDoctors();
-  }, [fetchDoctors]);
+  ]);
 
   const getFormattedDate = (offsetDays = 0) => {
     const months = [
@@ -59,7 +283,7 @@ const AppContextProvider = ({ children }) => {
         const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
         const payload = JSON.parse(window.atob(base64));
         if (payload?.name) return payload.name;
-      } catch (e) {}
+      } catch (e) { }
     }
     return "";
   };
@@ -84,13 +308,13 @@ const AppContextProvider = ({ children }) => {
       _id: "apt1",
       patientName: "Edward Vincent",
       patientEmail: "richardjameswap@gmail.com",
-      patientPhone: "+1 123 456 7890",
+      patientPhone: "+94 77 123 4567",
       patientGender: "Male",
       patientDob: "2000-01-20",
       docId: "doc1",
       slotDate: getFormattedDate(0),
       slotTime: "08:30 PM",
-      amount: toLkr(50),
+      amount: 50,
       status: "Pending",
       createdAt: new Date("2026-06-11T10:30:00")
     },
@@ -98,13 +322,13 @@ const AppContextProvider = ({ children }) => {
       _id: "apt2",
       patientName: "Edward Vincent",
       patientEmail: "richardjameswap@gmail.com",
-      patientPhone: "+1 123 456 7890",
+      patientPhone: "+94 71 544 2254",
       patientGender: "Male",
       patientDob: "2000-01-20",
       docId: "doc2",
       slotDate: getFormattedDate(0),
       slotTime: "10:30 AM",
-      amount: toLkr(60),
+      amount: 60,
       status: "Completed",
       createdAt: new Date("2026-06-11T11:45:00")
     },
@@ -112,13 +336,13 @@ const AppContextProvider = ({ children }) => {
       _id: "apt3",
       patientName: "Edward Vincent",
       patientEmail: "richardjameswap@gmail.com",
-      patientPhone: "+1 123 456 7890",
+      patientPhone: "+94 71 544 2254",
       patientGender: "Male",
       patientDob: "2000-01-20",
       docId: "doc3",
       slotDate: getFormattedDate(-1),
       slotTime: "02:00 PM",
-      amount: toLkr(30),
+      amount: 30,
       status: "Cancelled",
       createdAt: new Date("2026-06-11T09:15:00")
     },
@@ -126,13 +350,13 @@ const AppContextProvider = ({ children }) => {
       _id: "apt4",
       patientName: "Sophia Martinez",
       patientEmail: "sophia@example.com",
-      patientPhone: "+1 987 654 3210",
+      patientPhone: "+94 77 987 6543",
       patientGender: "Female",
       patientDob: "1995-05-12",
       docId: "doc1",
       slotDate: getFormattedDate(0),
       slotTime: "11:00 AM",
-      amount: toLkr(50),
+      amount: 50,
       status: "Completed",
       createdAt: new Date("2026-06-11T14:20:00")
     },
@@ -140,13 +364,13 @@ const AppContextProvider = ({ children }) => {
       _id: "apt5",
       patientName: "Liam Johnson",
       patientEmail: "liam@example.com",
-      patientPhone: "+1 555 019 2834",
+      patientPhone: "+94 76 555 0192",
       patientGender: "Male",
       patientDob: "1988-11-30",
       docId: "doc4",
       slotDate: getFormattedDate(1),
       slotTime: "04:30 PM",
-      amount: toLkr(40),
+      amount: 40,
       status: "Pending",
       createdAt: new Date("2026-06-11T16:10:00")
     },
@@ -154,13 +378,13 @@ const AppContextProvider = ({ children }) => {
       _id: "apt6",
       patientName: "Olivia Brown",
       patientEmail: "olivia@example.com",
-      patientPhone: "+1 555 014 9988",
+      patientPhone: "+94 70 555 0149",
       patientGender: "Female",
       patientDob: "1992-08-15",
       docId: "doc6",
       slotDate: getFormattedDate(0),
       slotTime: "11:30 AM",
-      amount: toLkr(50),
+      amount: 50,
       status: "Pending",
       createdAt: new Date("2026-06-11T10:00:00")
     }
@@ -269,61 +493,69 @@ const AppContextProvider = ({ children }) => {
     }
   ]);
 
-  const [receptionists, setReceptionists] = useState([]);
-  const [receptionistsLoading, setReceptionistsLoading] = useState(false);
-  const [receptionistsError, setReceptionistsError] = useState(null);
-
-  const fetchReceptionists = useCallback(async () => {
-    if (!adminToken) return;
-    setReceptionistsLoading(true);
-    setReceptionistsError(null);
-    try {
-      const data = await getReceptionistsAPI();
-      if (data.success) {
-        setReceptionists(data.receptionists || []);
-      } else {
-        setReceptionistsError(data.message || 'Failed to load receptionists');
-      }
-    } catch (error) {
-      console.error('[AppContext] fetchReceptionists error:', error);
-      setReceptionistsError(error.response?.data?.message || error.message || 'Failed to load receptionists');
-    } finally {
-      setReceptionistsLoading(false);
+  const [receptionists, setReceptionists] = useState([
+    {
+      _id: "rec1",
+      name: "Alice Johnson",
+      email: "alice@primeheal.com",
+      phone: "+1 555-0101",
+      image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400",
+      shift: "Morning (08:00 AM - 04:00 PM)",
+      deskBlock: "A-Block, Reception Desk 1",
+      available: true,
+      createdAt: new Date("2024-01-15T08:00:00")
+    },
+    {
+      _id: "rec2",
+      name: "David Smith",
+      email: "david@primeheal.com",
+      phone: "+1 555-0102",
+      image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=400",
+      shift: "Evening (04:00 PM - 12:00 AM)",
+      deskBlock: "B-Block, Reception Desk 2",
+      available: true,
+      createdAt: new Date("2024-02-20T16:00:00")
     }
-  }, [adminToken]);
+  ]);
 
-  // Fetch receptionists whenever the admin token changes
-  useEffect(() => {
-    fetchReceptionists();
-  }, [fetchReceptionists]);
-
-  const [accountants, setAccountants] = useState([]);
-  const [accountantsLoading, setAccountantsLoading] = useState(false);
-  const [accountantsError, setAccountantsError] = useState(null);
-
-  const fetchAccountants = useCallback(async () => {
-    if (!adminToken) return;
-    setAccountantsLoading(true);
-    setAccountantsError(null);
-    try {
-      const data = await getAccountantsAPI();
-      if (data.success) {
-        setAccountants(data.accountants || []);
-      } else {
-        setAccountantsError(data.message || 'Failed to load accountants');
-      }
-    } catch (error) {
-      console.error('[AppContext] fetchAccountants error:', error);
-      setAccountantsError(error.response?.data?.message || error.message || 'Failed to load accountants');
-    } finally {
-      setAccountantsLoading(false);
+  const [accountants, setAccountants] = useState([
+    {
+      _id: "acc1",
+      name: "Sarah Jenkins",
+      email: "sarah.j@primeheal.com",
+      phone: "+1 555-0201",
+      image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400",
+      department: "Billing & Insurance",
+      shift: "Full-Time (09:00 AM - 05:00 PM)",
+      available: true,
+      createdAt: new Date("2024-03-10T09:00:00")
+    },
+    {
+      _id: "acc2",
+      name: "Robert Miller",
+      email: "robert@primeheal.com",
+      phone: "+1 555-0202",
+      image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400",
+      department: "Payroll & Accounts",
+      shift: "Full-Time (09:00 AM - 05:00 PM)",
+      available: false,
+      createdAt: new Date("2024-04-05T09:00:00")
     }
-  }, [adminToken]);
+  ]);
 
-  // Fetch accountants whenever the admin token changes
-  useEffect(() => {
-    fetchAccountants();
-  }, [fetchAccountants]);
+  const [receptionistToken, setReceptionistToken] = useState(
+    localStorage.getItem("receptionistToken") || ""
+  );
+  const [currentReceptionistId, setCurrentReceptionistId] = useState(
+    localStorage.getItem("currentReceptionistId") || ""
+  );
+
+  const [accountantToken, setAccountantToken] = useState(
+    localStorage.getItem("accountantToken") || ""
+  );
+  const [currentAccountantId, setCurrentAccountantId] = useState(
+    localStorage.getItem("currentAccountantId") || ""
+  );
 
   const loginReceptionist = async (email, password) => {
     try {

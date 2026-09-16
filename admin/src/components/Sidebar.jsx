@@ -191,7 +191,7 @@ const Sidebar = () => {
                 isActive ? activeStyleClass : inactiveStyleClass
               }
             >
-              <img className="w-5 h-5 object-contain" src={assets.appointments_icon} alt="Appointments Icon" />
+              <img className="w-5 h-5 object-contain" src={assets.appointment_icon} alt="Appointments Icon" />
               <span className="hidden md:inline">Appointments</span>
               {appointments.filter(a => 
                 !currentDoctorId ||
@@ -299,25 +299,6 @@ const Sidebar = () => {
             </NavLink>
           </ul>
         )}
-      </div>
-
-      {/* Network Nodes Watermark at the bottom - Fixed background */}
-      <div className="absolute bottom-0 left-0 w-full overflow-hidden pointer-events-none z-0 select-none hidden md:block">
-        <svg className="w-full h-auto text-white opacity-[0.08]" viewBox="0 0 200 200" fill="currentColor">
-          {/* Main big node at the bottom left */}
-          <circle cx="50" cy="180" r="30" stroke="currentColor" strokeWidth="6" fill="none" />
-          {/* Connector lines branching out */}
-          <line x1="50" y1="150" x2="50" y2="80" stroke="currentColor" strokeWidth="4" />
-          <line x1="71" y1="159" x2="140" y2="90" stroke="currentColor" strokeWidth="4" />
-          <line x1="80" y1="180" x2="170" y2="180" stroke="currentColor" strokeWidth="4" />
-          {/* Branch nodes */}
-          <circle cx="50" cy="70" r="14" stroke="currentColor" strokeWidth="4" fill="none" />
-          <circle cx="150" cy="80" r="18" stroke="currentColor" strokeWidth="4" fill="none" />
-          <circle cx="180" cy="180" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-          {/* Secondary smaller branches */}
-          <line x1="150" y1="62" x2="150" y2="30" stroke="currentColor" strokeWidth="3" />
-          <circle cx="150" cy="22" r="8" stroke="currentColor" strokeWidth="3" fill="none" />
-        </svg>
       </div>
     </div>
   );
