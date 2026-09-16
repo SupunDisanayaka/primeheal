@@ -194,13 +194,13 @@ const AddDoctor = () => {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Appointment Fee ($)</label>
+              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Appointment Fee (LKR)</label>
               <input
                 onChange={(e) => setFees(e.target.value)}
                 value={fees}
                 className="border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl p-3 w-full text-sm text-gray-800 transition-all bg-gray-50/20"
                 type="number"
-                placeholder="e.g. 50"
+                placeholder="e.g. 3500"
                 min="0"
                 required
               />

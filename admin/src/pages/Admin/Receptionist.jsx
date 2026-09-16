@@ -292,7 +292,7 @@ const Receptionist = () => {
                 <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone Number</label>
                 <input
                   type="text"
-                  placeholder="e.g. +1 555-0101"
+                  placeholder="e.g. +94 77 555 0101"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl p-3 w-full text-sm text-gray-800 transition-all bg-gray-50/20"

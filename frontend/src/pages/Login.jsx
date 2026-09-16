@@ -8,6 +8,7 @@ const Login = () => {
   const navigate = useNavigate()
 
   const [state, setState] = useState('Login') // 'Login' or 'Sign Up'
+  const [signUpStep, setSignUpStep] = useState(1) // 1 (Personal Info) or 2 (Additional Info)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -37,6 +38,10 @@ const Login = () => {
 
   const onSubmitHandler = async (event) => {
     event.preventDefault()
+    if (state === 'Sign Up' && signUpStep === 1) {
+      setSignUpStep(2)
+      return
+    }
     // Simulated authentication
     setToken(true)
     navigate('/')
@@ -132,8 +137,8 @@ const Login = () => {
             {/* Inputs Container */}
             <div className="mt-8 flex flex-col gap-4">
 
-              {/* Full Name (Sign Up only) */}
-              {state === 'Sign Up' && (
+              {/* Full Name (Sign Up Step 1 only) */}
+              {state === 'Sign Up' && signUpStep === 1 && (
                 <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200">
                   <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                     Full Name
@@ -149,58 +154,62 @@ const Login = () => {
                 </div>
               )}
 
-              {/* Mobile / Email */}
-              <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200">
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                  Mobile number / email ID
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Enter mobile number or email"
-                  className="w-full border-none bg-transparent p-0 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-0 mt-0.5"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-
-              {/* Password */}
-              <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200 flex items-center justify-between">
-                <div className="flex-1">
+              {/* Mobile / Email (Login or Sign Up Step 1) */}
+              {(state === 'Login' || (state === 'Sign Up' && signUpStep === 1)) && (
+                <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200">
                   <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                    Password
+                    Mobile number / email ID
                   </label>
                   <input
-                    type={showPassword ? "text" : "password"}
+                    type="text"
                     required
-                    placeholder="••••••••"
+                    placeholder="Enter mobile number or email"
                     className="w-full border-none bg-transparent p-0 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-0 mt-0.5"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
+              )}
 
-                {/* Toggle Password Visibility */}
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2"
-                >
-                  {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-                    </svg>
-                  )}
-                </button>
-              </div>
+              {/* Password (Login or Sign Up Step 1) */}
+              {(state === 'Login' || (state === 'Sign Up' && signUpStep === 1)) && (
+                <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200 flex items-center justify-between">
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                      Password
+                    </label>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      placeholder="••••••••"
+                      className="w-full border-none bg-transparent p-0 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-0 mt-0.5"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
 
-              {/* Date of Birth (Sign Up only, Optional) */}
-              {state === 'Sign Up' && (
+                  {/* Toggle Password Visibility */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2"
+                  >
+                    {showPassword ? (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* Date of Birth (Sign Up Step 1 only) */}
+              {state === 'Sign Up' && signUpStep === 1 && (
                 <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200">
                   <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                     Date of Birth
@@ -214,8 +223,8 @@ const Login = () => {
                 </div>
               )}
 
-              {/* Address (Sign Up only, Optional) */}
-              {state === 'Sign Up' && (
+              {/* Address (Sign Up Step 2 only) */}
+              {state === 'Sign Up' && signUpStep === 2 && (
                 <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200">
                   <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                     Address
@@ -230,8 +239,8 @@ const Login = () => {
                 </div>
               )}
 
-              {/* Emergency Contact (Sign Up only, Optional) */}
-              {state === 'Sign Up' && (
+              {/* Emergency Contact (Sign Up Step 2 only) */}
+              {state === 'Sign Up' && signUpStep === 2 && (
                 <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200">
                   <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                     Emergency Contact
@@ -246,8 +255,8 @@ const Login = () => {
                 </div>
               )}
 
-              {/* Allergies (Sign Up only, Optional) */}
-              {state === 'Sign Up' && (
+              {/* Allergies (Sign Up Step 2 only) */}
+              {state === 'Sign Up' && signUpStep === 2 && (
                 <div className="relative border border-gray-200/80 rounded-xl px-4 py-2 focus-within:border-[#00B4B4] focus-within:ring-2 focus-within:ring-[#00B4B4]/10 transition-all duration-200">
                   <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                     Allergies
@@ -277,8 +286,19 @@ const Login = () => {
               type="submit"
               className="w-full bg-[#00B4B4] hover:bg-[#009E9E] active:scale-[0.98] text-white font-semibold py-3.5 rounded-xl mt-8 transition-all duration-150 shadow-md shadow-[#00B4B4]/10"
             >
-              {state === 'Login' ? 'Sign In now' : 'Sign Up now'}
+              {state === 'Login' ? 'Sign In now' : (signUpStep === 1 ? 'Next' : 'Sign Up now')}
             </button>
+
+            {/* Back to Step 1 Button (Sign Up Step 2 only) */}
+            {state === 'Sign Up' && signUpStep === 2 && (
+              <button
+                type="button"
+                onClick={() => setSignUpStep(1)}
+                className="text-xs text-[#00B4B4] hover:underline mt-2 block w-full text-center font-medium"
+              >
+                ← Back to personal details
+              </button>
+            )}
 
             {/* Social Authentication Button */}
             <button
@@ -294,7 +314,10 @@ const Login = () => {
             <p className="text-center text-sm text-gray-500 mt-8">
               {state === 'Login' ? "Don't have an account?" : "Already have an account?"}
               <span
-                onClick={() => setState(state === 'Login' ? 'Sign Up' : 'Login')}
+                onClick={() => {
+                  setState(state === 'Login' ? 'Sign Up' : 'Login')
+                  setSignUpStep(1)
+                }}
                 className="text-[#00B4B4] font-bold cursor-pointer hover:underline ml-1"
               >
                 {state === 'Login' ? 'Sign up' : 'Sign in'}

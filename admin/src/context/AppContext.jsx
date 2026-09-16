@@ -4,7 +4,7 @@ import { assets } from "../assets/assets";
 export const AppContext = createContext();
 
 const AppContextProvider = ({ children }) => {
-  const currencySymbol = "$";
+  const currencySymbol = "LKR ";
 
   // Rich list of doctors with professional Unsplash avatars to ensure premium aesthetics
   const [doctors, setDoctors] = useState([
@@ -17,7 +17,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "4 Years",
       about: "Dr. Richard James is dedicated to providing comprehensive medical care, with a strong focus on preventive health, early diagnosis, and personalized wellness plans tailored to each individual.",
-      fees: 50,
+      fees: 3500,
       available: true,
       address: {
         line1: "17th Cross, Richmond",
@@ -33,7 +33,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS, MD",
       experience: "3 Years",
       about: "Dr. Emily Larson focuses on women's healthcare, offering exceptional prenatal care, gynecological evaluations, and supportive consultations across all stages of life.",
-      fees: 60,
+      fees: 4500,
       available: true,
       address: {
         line1: "27th Cross, Richmond",
@@ -49,7 +49,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "1 Year",
       about: "Dr. Sarah Patel provides comprehensive skin diagnostics, dermatological procedures, and aesthetic plans, prioritizing clinical safety and radiant skin health.",
-      fees: 30,
+      fees: 3000,
       available: true,
       address: {
         line1: "37th Cross, Richmond",
@@ -65,7 +65,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS, DCH",
       experience: "2 Years",
       about: "Dr. Christopher Lee is highly committed to pediatric care, offering friendly childhood evaluations, immunizations, and developmental tracking in a welcoming environment.",
-      fees: 40,
+      fees: 4000,
       available: true,
       address: {
         line1: "47th Cross, Richmond",
@@ -81,7 +81,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS, DM",
       experience: "4 Years",
       about: "Dr. Jennifer Garcia specializes in complex neurological diagnostics, stroke preventions, headache managements, and cutting-edge therapeutics.",
-      fees: 50,
+      fees: 3500,
       available: false,
       address: {
         line1: "57th Cross, Richmond",
@@ -97,7 +97,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "4 Years",
       about: "Dr. Andrew Williams focuses on digestive disorders, liver health management, endoscopies, and promoting optimal digestive well-being.",
-      fees: 50,
+      fees: 3800,
       available: true,
       address: {
         line1: "67th Cross, Richmond",
@@ -113,7 +113,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "4 Years",
       about: "Dr. Christopher Davis has a strong commitment to delivering comprehensive medical care, focusing on preventive medicine, early diagnosis, and effective treatment strategies.",
-      fees: 50,
+      fees: 4200,
       available: true,
       address: {
         line1: "17th Cross, Richmond",
@@ -129,7 +129,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "3 Years",
       about: "Dr. Timothy White is dedicated to women's healthcare, offering exceptional prenatal care, gynecological evaluations, and supportive consultations across all stages of life.",
-      fees: 60,
+      fees: 4800,
       available: true,
       address: {
         line1: "27th Cross, Richmond",
@@ -145,7 +145,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "1 Year",
       about: "Dr. Ava Mitchell provides comprehensive skin diagnostics, dermatological procedures, and aesthetic plans, prioritizing clinical safety and radiant skin health.",
-      fees: 30,
+      fees: 3200,
       available: true,
       address: {
         line1: "37th Cross, Richmond",
@@ -161,7 +161,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "2 Years",
       about: "Dr. Jeffrey King is highly committed to pediatric care, offering friendly childhood evaluations, immunizations, and developmental tracking in a welcoming environment.",
-      fees: 40,
+      fees: 3900,
       available: true,
       address: {
         line1: "47th Cross, Richmond",
@@ -177,7 +177,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "4 Years",
       about: "Dr. Zoe Kelly specializes in complex neurological diagnostics, stroke preventions, headache managements, and cutting-edge therapeutics.",
-      fees: 50,
+      fees: 4500,
       available: true,
       address: {
         line1: "57th Cross, Richmond",
@@ -193,7 +193,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "4 Years",
       about: "Dr. Patrick Harris is dedicated to providing comprehensive gastroenterological care and rehabilitation plans, prioritizing clinical safety and healthy recovery.",
-      fees: 50,
+      fees: 4600,
       available: true,
       address: {
         line1: "57th Cross, Richmond",
@@ -209,7 +209,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "4 Years",
       about: "Dr. Chloe Evans has a strong commitment to delivering comprehensive medical care, focusing on preventive medicine, early diagnosis, and effective treatment strategies.",
-      fees: 50,
+      fees: 3600,
       available: true,
       address: {
         line1: "17th Cross, Richmond",
@@ -225,7 +225,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "3 Years",
       about: "Dr. Ryan Martinez focuses on women's healthcare, offering exceptional prenatal care, gynecological evaluations, and supportive consultations.",
-      fees: 60,
+      fees: 4700,
       available: true,
       address: {
         line1: "27th Cross, Richmond",
@@ -241,7 +241,7 @@ const AppContextProvider = ({ children }) => {
       degree: "MBBS",
       experience: "1 Year",
       about: "Dr. Amelia Hill provides comprehensive skin diagnostics, dermatological procedures, and aesthetic plans, prioritizing clinical safety and skin health.",
-      fees: 30,
+      fees: 3300,
       available: true,
       address: {
         line1: "37th Cross, Richmond",
@@ -269,13 +269,13 @@ const AppContextProvider = ({ children }) => {
       _id: "apt1",
       patientName: "Edward Vincent",
       patientEmail: "richardjameswap@gmail.com",
-      patientPhone: "+1 123 456 7890",
+      patientPhone: "+94 77 123 4567",
       patientGender: "Male",
       patientDob: "2000-01-20",
       docId: "doc1",
       slotDate: getFormattedDate(0),
       slotTime: "08:30 PM",
-      amount: 50,
+      amount: 3500,
       status: "Pending",
       createdAt: new Date("2026-06-11T10:30:00")
     },
@@ -283,13 +283,13 @@ const AppContextProvider = ({ children }) => {
       _id: "apt2",
       patientName: "Edward Vincent",
       patientEmail: "richardjameswap@gmail.com",
-      patientPhone: "+1 123 456 7890",
+      patientPhone: "+94 71 544 2254",
       patientGender: "Male",
       patientDob: "2000-01-20",
       docId: "doc2",
       slotDate: getFormattedDate(0),
       slotTime: "10:30 AM",
-      amount: 60,
+      amount: 4500,
       status: "Completed",
       createdAt: new Date("2026-06-11T11:45:00")
     },
@@ -297,13 +297,13 @@ const AppContextProvider = ({ children }) => {
       _id: "apt3",
       patientName: "Edward Vincent",
       patientEmail: "richardjameswap@gmail.com",
-      patientPhone: "+1 123 456 7890",
+      patientPhone: "+94 71 544 2254",
       patientGender: "Male",
       patientDob: "2000-01-20",
       docId: "doc3",
       slotDate: getFormattedDate(-1),
       slotTime: "02:00 PM",
-      amount: 30,
+      amount: 3000,
       status: "Cancelled",
       createdAt: new Date("2026-06-11T09:15:00")
     },
@@ -311,13 +311,13 @@ const AppContextProvider = ({ children }) => {
       _id: "apt4",
       patientName: "Sophia Martinez",
       patientEmail: "sophia@example.com",
-      patientPhone: "+1 987 654 3210",
+      patientPhone: "+94 77 987 6543",
       patientGender: "Female",
       patientDob: "1995-05-12",
       docId: "doc1",
       slotDate: getFormattedDate(0),
       slotTime: "11:00 AM",
-      amount: 50,
+      amount: 3500,
       status: "Completed",
       createdAt: new Date("2026-06-11T14:20:00")
     },
@@ -325,13 +325,13 @@ const AppContextProvider = ({ children }) => {
       _id: "apt5",
       patientName: "Liam Johnson",
       patientEmail: "liam@example.com",
-      patientPhone: "+1 555 019 2834",
+      patientPhone: "+94 76 555 0192",
       patientGender: "Male",
       patientDob: "1988-11-30",
       docId: "doc4",
       slotDate: getFormattedDate(1),
       slotTime: "04:30 PM",
-      amount: 40,
+      amount: 4000,
       status: "Pending",
       createdAt: new Date("2026-06-11T16:10:00")
     },
@@ -339,13 +339,13 @@ const AppContextProvider = ({ children }) => {
       _id: "apt6",
       patientName: "Olivia Brown",
       patientEmail: "olivia@example.com",
-      patientPhone: "+1 555 014 9988",
+      patientPhone: "+94 70 555 0149",
       patientGender: "Female",
       patientDob: "1992-08-15",
       docId: "doc6",
       slotDate: getFormattedDate(0),
       slotTime: "11:30 AM",
-      amount: 50,
+      amount: 3800,
       status: "Pending",
       createdAt: new Date("2026-06-11T10:00:00")
     }
@@ -371,7 +371,7 @@ const AppContextProvider = ({ children }) => {
       _id: "rec1",
       name: "Alice Johnson",
       email: "alice@primeheal.com",
-      phone: "+1 555-0101",
+      phone: "+94 77 555 0101",
       image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400",
       shift: "Morning (08:00 AM - 04:00 PM)",
       deskBlock: "A-Block, Reception Desk 1",
@@ -382,7 +382,7 @@ const AppContextProvider = ({ children }) => {
       _id: "rec2",
       name: "David Smith",
       email: "david@primeheal.com",
-      phone: "+1 555-0102",
+      phone: "+94 71 555 0102",
       image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=400",
       shift: "Evening (04:00 PM - 12:00 AM)",
       deskBlock: "B-Block, Reception Desk 2",
@@ -396,7 +396,7 @@ const AppContextProvider = ({ children }) => {
       _id: "acc1",
       name: "Sarah Jenkins",
       email: "sarah.j@primeheal.com",
-      phone: "+1 555-0201",
+      phone: "+94 77 555 0201",
       image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400",
       department: "Billing & Insurance",
       shift: "Full-Time (09:00 AM - 05:00 PM)",
@@ -407,7 +407,7 @@ const AppContextProvider = ({ children }) => {
       _id: "acc2",
       name: "Robert Miller",
       email: "robert@primeheal.com",
-      phone: "+1 555-0202",
+      phone: "+94 71 555 0202",
       image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400",
       department: "Payroll & Accounts",
       shift: "Full-Time (09:00 AM - 05:00 PM)",

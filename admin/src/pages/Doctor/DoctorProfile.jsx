@@ -128,12 +128,12 @@ const DoctorProfile = () => {
                 </p>
                 {isEdit ? (
                   <div className="relative">
-                    <span className="absolute left-3.5 top-3 text-gray-400 font-semibold">$</span>
+                    <span className="absolute left-3.5 top-3 text-gray-400 font-semibold">{currencySymbol}</span>
                     <input
                       type="number"
                       value={fees}
                       onChange={(e) => setFees(e.target.value)}
-                      className="pl-7 pr-3 py-2.5 border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl w-full text-sm text-gray-800 transition-all bg-gray-50/20"
+                      className="pl-14 pr-3 py-2.5 border border-zinc-200 focus:border-primary focus:ring-2 focus:ring-indigo-100 outline-none rounded-xl w-full text-sm text-gray-800 transition-all bg-gray-50/20"
                       min="0"
                       required
                     />

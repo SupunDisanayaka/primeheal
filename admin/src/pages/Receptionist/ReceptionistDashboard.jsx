@@ -53,7 +53,7 @@ const ReceptionistDashboard = () => {
       docId: selectedDocId,
       slotDate,
       slotTime,
-      amount: doc ? doc.fees : 50,
+      amount: doc ? doc.fees : 3500,
       status: "Pending",
       createdAt: new Date(),
     };
@@ -290,7 +290,7 @@ const ReceptionistDashboard = () => {
                   <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone</label>
                   <input
                     type="text"
-                    placeholder="+1 555-0199"
+                    placeholder="+94 77 555 0199"
                     value={patientPhone}
                     onChange={(e) => setPatientPhone(e.target.value)}
                     className="border border-zinc-200 focus:border-primary outline-none rounded-xl p-3 text-sm"
