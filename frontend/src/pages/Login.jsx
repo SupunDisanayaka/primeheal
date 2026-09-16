@@ -90,7 +90,7 @@ const Login = () => {
   }
 
   return (
-    <div className="w-full min-h-screen bg-white flex flex-col md:flex-row overflow-hidden transition-all duration-300">
+    <div className="w-full h-screen max-h-screen bg-white flex flex-col md:flex-row overflow-hidden transition-all duration-300">
 
       {/* Left side: Slideshow and Branding Overlay */}
       <div className="relative hidden md:block md:w-[58%] h-screen min-h-screen overflow-hidden bg-slate-900">
@@ -121,7 +121,7 @@ const Login = () => {
       </div>
 
       {/* Right side: Authentication Form */}
-      <div className="w-full md:w-[42%] min-h-screen flex flex-col justify-center bg-white p-8 md:p-12 lg:p-16 overflow-y-auto">
+      <div className="w-full md:w-[42%] h-screen max-h-screen flex flex-col justify-center bg-white p-8 md:p-12 lg:p-16 overflow-hidden">
         <form onSubmit={onSubmitHandler} className="w-full max-w-[400px] mx-auto flex flex-col justify-center py-6">
           <div>
             {/* Title & Subtitle */}
