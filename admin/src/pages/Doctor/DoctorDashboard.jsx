@@ -65,11 +65,11 @@ const DoctorDashboard = () => {
 
       {/* Metrics Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        
+
         {/* Today's Appointments Card */}
         <div className="flex items-center gap-4 bg-white p-6 rounded-2xl border border-zinc-100 shadow-xs hover:shadow-md hover:translate-y-[-2px] transition-all duration-300">
           <div className="p-3 bg-indigo-50 rounded-xl">
-            <img className="w-10 h-10 object-contain" src={assets.appointments_icon} alt="Today's Appointments" />
+            <img className="w-7 h-7 object-contain" src={assets.appointment_icon} alt="Today's Appointments" />
           </div>
           <div>
             <p className="text-2xl font-bold text-gray-900">{todayAptsCount}</p>
@@ -146,15 +146,14 @@ const DoctorDashboard = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold select-none ${
-                              apt.status === "Completed"
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold select-none ${apt.status === "Completed"
                                 ? "bg-emerald-50 text-emerald-600"
                                 : apt.status === "Cancelled"
-                                ? "bg-rose-50 text-rose-600"
-                                : apt.status === "Checked In"
-                                ? "bg-teal-50 text-teal-600"
-                                : "bg-blue-50 text-blue-600"
-                            }`}
+                                  ? "bg-rose-50 text-rose-600"
+                                  : apt.status === "Checked In"
+                                    ? "bg-teal-50 text-teal-600"
+                                    : "bg-blue-50 text-blue-600"
+                              }`}
                           >
                             {apt.status}
                           </span>

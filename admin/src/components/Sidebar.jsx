@@ -144,7 +144,7 @@ const Sidebar = () => {
                 isActive ? activeStyleClass : inactiveStyleClass
               }
             >
-              <img className="w-5 h-5 object-contain" src={assets.appointments_icon} alt="Appointments Icon" />
+              <img className="w-5 h-5 object-contain" src={assets.appointment_icon} alt="Appointments Icon" />
               <span className="hidden md:inline">Appointments</span>
               {appointments.filter(a => a.docId === currentDoctorId).length > 0 && (
                 <span className="hidden md:inline-block ml-auto bg-[#f2994a] text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-xs min-w-[22px] text-center">
