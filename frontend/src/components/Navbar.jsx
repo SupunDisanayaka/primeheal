@@ -91,7 +91,7 @@ const Navbar = () => {
                 <div>
                   <h3 className="font-bold text-lg tracking-wide text-white">{userData.name}</h3>
                   <p className="text-[10px] text-slate-300 font-light mt-1 max-w-[200px] leading-relaxed">
-                    "Designer who creates delightful experiences"
+                    Welcome back, {userData.name}!
                   </p>
                 </div>
 
