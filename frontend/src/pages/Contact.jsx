@@ -49,7 +49,7 @@ const Contact = () => {
                   <div>
                     <h3 className="font-semibold text-gray-800 text-sm">Our OFFICE</h3>
                     <p className="text-gray-500 text-xs mt-1 leading-relaxed">
-                      54709 Willms Station <br /> Suite 350, Washington, USA
+                      Gangodawila <br /> Nugegoda, Sri Lanka
                     </p>
                   </div>
                 </div>
