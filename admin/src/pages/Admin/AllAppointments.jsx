@@ -54,9 +54,16 @@ const AllAppointments = () => {
                 </thead>
                 <tbody className="divide-y divide-zinc-100 bg-white">
                   {appointments.map((apt, index) => {
-                    const doc = doctors.find((d) => d._id === apt.docId) || {};
+                    const doc = doctors.find((d) =>
+                      String(d._id) === String(apt.docId) ||
+                      String(d.doctorID) === String(apt.doctorID) ||
+                      String(d.doctorUserId) === String(apt.docId) ||
+                      String(d.doctorId) === String(apt.doctorId)
+                    ) || {};
+                    const doctorDisplayName = apt.doctorName || doc.name || "Doctor";
+                    const doctorDisplaySpec = apt.speciality || doc.speciality || "General Practitioner";
                     return (
-                      <tr key={apt._id} className="hover:bg-slate-50/20 transition-colors">
+                      <tr key={apt._id || apt.appointmentId} className="hover:bg-slate-50/20 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-semibold">
                           {index + 1}
                         </td>
@@ -75,11 +82,11 @@ const AllAppointments = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-extrabold shrink-0">
-                              {doc?.name ? doc.name.replace('Dr. ', '').charAt(0).toUpperCase() : 'D'}
+                              {doctorDisplayName.replace(/^Dr\.?\s*/i, '').charAt(0).toUpperCase() || 'D'}
                             </div>
                             <div>
-                              <p className="text-sm font-semibold text-gray-900">{doc.name}</p>
-                              <p className="text-xs text-gray-400 mt-0.5">{doc.speciality}</p>
+                              <p className="text-sm font-semibold text-gray-900">{doctorDisplayName}</p>
+                              <p className="text-xs text-gray-400 mt-0.5">{doctorDisplaySpec}</p>
                             </div>
                           </div>
                         </td>

@@ -2,7 +2,6 @@ import React, { useContext, useState, useEffect } from "react";
 import { AppContext } from "../../context/AppContext";
 import { assets } from "../../assets/assets";
 import {
-  collectCounterPaymentAPI,
   issueRefundAPI,
   getFinancialSummaryAPI,
   getAllInvoicesAPI,
@@ -10,10 +9,10 @@ import {
 } from "../../services/api";
 
 const AccountantDashboard = () => {
-  const { appointments, setAppointments, doctors, currencySymbol, fetchAllAppointments } = useContext(AppContext);
+  const { appointments, setAppointments, doctors, currencySymbol, fetchAllAppointments, currentAccountantName } = useContext(AppContext);
   const [activeTab, setActiveTab] = useState("ledger"); // 'ledger' | 'invoices'
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All"); // 'All', 'Paid', 'Cancelled'
+  const [statusFilter, setStatusFilter] = useState("All"); // 'All', 'Paid', 'Pending', 'Cancelled'
   const [dateFilter, setDateFilter] = useState("AllTime"); // 'AllTime', 'Today', 'Last7', 'ThisMonth'
   const [financialData, setFinancialData] = useState(null);
   const [invoices, setInvoices] = useState([]);
@@ -37,7 +36,7 @@ const AccountantDashboard = () => {
   const loadFinancialSummary = async () => {
     try {
       const data = await getFinancialSummaryAPI();
-      if (data.success) {
+      if (data && data.success) {
         setFinancialData(data);
       }
     } catch (err) {
@@ -49,7 +48,7 @@ const AccountantDashboard = () => {
     try {
       setLoadingInvoices(true);
       const res = await getAllInvoicesAPI();
-      if (res.success) {
+      if (res && res.success) {
         setInvoices(res.invoices || []);
       }
     } catch (err) {
@@ -62,9 +61,18 @@ const AccountantDashboard = () => {
   useEffect(() => {
     loadFinancialSummary();
     loadInvoices();
-  }, []);
+    if (fetchAllAppointments) {
+      fetchAllAppointments();
+    }
 
+    // Auto-sync polling every 5 seconds for real-time table & metrics
+    const timer = setInterval(() => {
+      loadFinancialSummary();
+      loadInvoices();
+    }, 5000);
 
+    return () => clearInterval(timer);
+  }, [fetchAllAppointments]);
 
   const handleRefund = async (aptId) => {
     if (!window.confirm("Refund this transaction? This will mark the appointment as Cancelled.")) return;
@@ -90,13 +98,20 @@ const AccountantDashboard = () => {
   };
 
   const openRecreateModal = (apt) => {
-    setSelectedApt(apt);
-    const amount = Number(apt.amount || apt.fees || apt.fee || apt.totalAmount || 0);
+    const doc = doctors.find((d) =>
+      String(d._id) === String(apt.docId) ||
+      String(d.doctorID) === String(apt.doctorID) ||
+      String(d.doctorUserId) === String(apt.docId) ||
+      String(d.doctorId) === String(apt.doctorId)
+    ) || {};
+    const doctorName = apt.doctorName || doc.name || "Consultant";
+    setSelectedApt({ ...apt, docName: doctorName });
+    const amount = Number(apt.amount || apt.fees || apt.fee || apt.totalAmount || apt.subtotal || 0);
     setRecreateForm({
       subtotal: amount.toString(),
-      tax: "0",
-      discount: "0",
-      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+      tax: apt.tax !== undefined ? String(apt.tax) : "0",
+      discount: apt.discount !== undefined ? String(apt.discount) : "0",
+      dueDate: apt.dueDate ? String(apt.dueDate).substring(0, 10) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
     });
     setRecreateModalOpen(true);
   };
@@ -117,6 +132,7 @@ const AccountantDashboard = () => {
       if (res.success) {
         alert(res.message || "Invoice recreated successfully!");
         setRecreateModalOpen(false);
+        if (fetchAllAppointments) fetchAllAppointments();
         loadInvoices();
         loadFinancialSummary();
       } else {
@@ -134,16 +150,30 @@ const AccountantDashboard = () => {
   const completedApts = appointments.filter((a) => a.status === "Completed" || a.status === "Paid");
   const unpaidApts = appointments.filter((a) => a.status === "Pending" || a.status === "Checked In");
 
-  const totalRevenue = financialData ? financialData.totalRevenue : completedApts.reduce((sum, item) => sum + (Number(item.amount || item.fees || 0)), 0);
-  const pendingRevenue = financialData ? financialData.pendingRevenue : unpaidApts.reduce((sum, item) => sum + (Number(item.amount || item.fees || 0)), 0);
-  const totalInvoices = financialData ? financialData.totalInvoices : (invoices.length > 0 ? invoices.length : appointments.length);
-  const unpaidCount = financialData ? financialData.unpaidCount : unpaidApts.length;
+  const totalRevenue = financialData && financialData.totalRevenue !== undefined
+    ? financialData.totalRevenue
+    : completedApts.reduce((sum, item) => sum + (Number(item.amount || item.fees || 0)), 0);
+
+  const pendingRevenue = financialData && financialData.pendingRevenue !== undefined
+    ? financialData.pendingRevenue
+    : unpaidApts.reduce((sum, item) => sum + (Number(item.amount || item.fees || 0)), 0);
+
+  const totalInvoices = financialData && financialData.totalInvoices !== undefined
+    ? financialData.totalInvoices
+    : (invoices.length > 0 ? invoices.length : appointments.length);
+
+  const unpaidCount = financialData && financialData.unpaidCount !== undefined
+    ? financialData.unpaidCount
+    : unpaidApts.length;
 
   // Breakdown of earnings per doctor
-  const doctorRevenueBreakdown = (financialData && financialData.doctorRevenueBreakdown)
+  const doctorRevenueBreakdown = (financialData && financialData.doctorRevenueBreakdown && financialData.doctorRevenueBreakdown.length > 0)
     ? financialData.doctorRevenueBreakdown
     : doctors.map((doc) => {
-        const docApts = appointments.filter((a) => (a.docId === doc._id || a.doctorID === doc.doctorID) && (a.status === "Completed" || a.status === "Paid"));
+        const docApts = appointments.filter((a) =>
+          (String(a.docId) === String(doc._id) || String(a.doctorID) === String(doc.doctorID) || String(a.doctorUserId) === String(doc.userID)) &&
+          (a.status === "Completed" || a.status === "Paid")
+        );
         const earned = docApts.reduce((sum, a) => sum + Number(a.amount || a.fees || 0), 0);
         return {
           name: doc.name,
@@ -152,37 +182,46 @@ const AccountantDashboard = () => {
         };
       });
 
-  // Filtered Appointments
+  // Filtered Appointments for Table
   const filteredAppointments = appointments.filter((apt) => {
-    // Only show finalized payments (Paid/Completed) or Cancelled (for refunds)
-    if (apt.status === "Pending" || apt.status === "Checked In") return false;
-
-    const doc = doctors.find((d) => d._id === apt.docId || d.doctorID === apt.doctorID) || {};
+    const doc = doctors.find((d) =>
+      String(d._id) === String(apt.docId) ||
+      String(d.doctorID) === String(apt.doctorID) ||
+      String(d.doctorUserId) === String(apt.docId) ||
+      String(d.doctorId) === String(apt.doctorId)
+    ) || {};
+    const doctorNameStr = apt.doctorName || doc.name || "";
     const patientNameStr = apt.patientName || "";
     const patientPhoneStr = apt.patientPhone || "";
+    const aptIdStr = String(apt._id || apt.appointmentId || apt.appointmentID || "");
+
+    const term = searchTerm.toLowerCase();
     const matchesSearch =
-      patientNameStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patientPhoneStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (doc.name && doc.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      patientNameStr.toLowerCase().includes(term) ||
+      patientPhoneStr.toLowerCase().includes(term) ||
+      doctorNameStr.toLowerCase().includes(term) ||
+      aptIdStr.includes(term);
 
     let matchesStatus = true;
     if (statusFilter === "Paid") {
       matchesStatus = apt.status === "Completed" || apt.status === "Paid";
+    } else if (statusFilter === "Pending") {
+      matchesStatus = apt.status === "Pending" || apt.status === "Checked In";
     } else if (statusFilter === "Cancelled") {
       matchesStatus = apt.status === "Cancelled";
     }
 
     let matchesDate = true;
     if (dateFilter !== "AllTime") {
-      const aptDate = apt.slotDate || apt.appointmentDate; // e.g. YYYY-MM-DD
+      const aptDate = apt.slotDate || apt.appointmentDate;
       if (aptDate) {
         const d = new Date(aptDate);
         const today = new Date();
-        today.setHours(0,0,0,0);
-        d.setHours(0,0,0,0);
+        today.setHours(0, 0, 0, 0);
+        d.setHours(0, 0, 0, 0);
         const diffTime = Math.abs(today - d);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
+
         if (dateFilter === "Today") {
           matchesDate = diffDays === 0;
         } else if (dateFilter === "Last7") {
@@ -196,18 +235,23 @@ const AccountantDashboard = () => {
     return matchesSearch && matchesStatus && matchesDate;
   });
 
-  // Filtered Invoices
+  // Filtered Invoices for Registry Tab
   const filteredInvoices = invoices.filter((inv) => {
     const pName = inv.patientName || "";
     const pCode = inv.patientCode || "";
     const invNum = inv.invoiceNumber || "";
+    const docName = inv.doctorName || "";
+    const term = searchTerm.toLowerCase();
+
     const matches =
-      pName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invNum.toLowerCase().includes(searchTerm.toLowerCase());
+      pName.toLowerCase().includes(term) ||
+      pCode.toLowerCase().includes(term) ||
+      invNum.toLowerCase().includes(term) ||
+      docName.toLowerCase().includes(term);
 
     let matchesStatus = true;
     if (statusFilter === "Paid") matchesStatus = inv.status === "paid";
+    else if (statusFilter === "Pending") matchesStatus = inv.status === "issued" || inv.status === "pending";
     else if (statusFilter === "Cancelled") matchesStatus = inv.status === "cancelled";
 
     let matchesDate = true;
@@ -216,11 +260,11 @@ const AccountantDashboard = () => {
       if (invDate) {
         const d = new Date(invDate);
         const today = new Date();
-        today.setHours(0,0,0,0);
-        d.setHours(0,0,0,0);
+        today.setHours(0, 0, 0, 0);
+        d.setHours(0, 0, 0, 0);
         const diffTime = Math.abs(today - d);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
+
         if (dateFilter === "Today") {
           matchesDate = diffDays === 0;
         } else if (dateFilter === "Last7") {
@@ -321,7 +365,6 @@ const AccountantDashboard = () => {
 
       {/* Main Ledger & Invoices grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
         {/* Left 2 columns: Tab Content */}
         <div className="lg:col-span-2 bg-white border border-zinc-100 rounded-2xl shadow-xs">
           {/* Header & Controls */}
@@ -339,10 +382,10 @@ const AccountantDashboard = () => {
             <div className="flex gap-2 w-full sm:w-auto">
               <input
                 type="text"
-                placeholder={activeTab === "ledger" ? "Search patient/doctor..." : "Search patient/invoice#..."}
+                placeholder={activeTab === "ledger" ? "Search patient/doctor/ID..." : "Search patient/invoice#..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="border border-zinc-200 outline-none rounded-lg px-3 py-1.5 text-xs w-full sm:w-44 focus:border-primary"
+                className="border border-zinc-200 outline-none rounded-lg px-3 py-1.5 text-xs w-full sm:w-48 focus:border-primary"
               />
               <select
                 value={statusFilter}
@@ -351,6 +394,7 @@ const AccountantDashboard = () => {
               >
                 <option value="All">All Statuses</option>
                 <option value="Paid">Paid</option>
+                <option value="Pending">Unpaid / Pending</option>
                 <option value="Cancelled">Cancelled</option>
               </select>
               <select
@@ -385,7 +429,7 @@ const AccountantDashboard = () => {
                   {filteredAppointments.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="px-6 py-10 text-center text-sm text-gray-500">
-                        No finalized appointments found.
+                        No appointments found matching your filters.
                       </td>
                     </tr>
                   ) : (
@@ -393,8 +437,14 @@ const AccountantDashboard = () => {
                       const aptId = apt._id || apt.appointmentId || apt.appointmentID;
                       const isPaid = apt.status === "Completed" || apt.status === "Paid";
                       const isCancelled = apt.status === "Cancelled";
-                      const doc = doctors.find((d) => d._id === apt.docId || d.doctorID === apt.doctorID) || {};
-                      const doctorName = doc.name || apt.doctorName || "Doctor";
+                      const isUnpaid = apt.status === "Pending" || apt.status === "Checked In";
+                      const doc = doctors.find((d) =>
+                        String(d._id) === String(apt.docId) ||
+                        String(d.doctorID) === String(apt.doctorID) ||
+                        String(d.doctorUserId) === String(apt.docId) ||
+                        String(d.doctorId) === String(apt.doctorId)
+                      ) || {};
+                      const doctorName = apt.doctorName || doc.name || "Doctor";
 
                       return (
                         <tr key={aptId} className="hover:bg-slate-50/20 transition-colors">
@@ -404,6 +454,7 @@ const AccountantDashboard = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <p className="text-sm font-medium text-gray-800">{doctorName}</p>
+                            <p className="text-xs text-gray-400">{doc.speciality || apt.speciality || "General"}</p>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                             <p className="font-medium text-gray-800">{apt.slotDate || apt.appointmentDate}</p>
@@ -464,6 +515,7 @@ const AccountantDashboard = () => {
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Invoice #</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Doctor & Visit</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Issue / Due Date</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Amount</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
@@ -473,13 +525,13 @@ const AccountantDashboard = () => {
                 <tbody className="divide-y divide-zinc-100 bg-white">
                   {loadingInvoices ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-10 text-center text-sm text-gray-500">
+                      <td colSpan="7" className="px-6 py-10 text-center text-sm text-gray-500">
                         Loading invoice ledger...
                       </td>
                     </tr>
                   ) : filteredInvoices.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-10 text-center text-sm text-gray-500">
+                      <td colSpan="7" className="px-6 py-10 text-center text-sm text-gray-500">
                         No formal invoices registered yet.
                       </td>
                     </tr>
@@ -494,6 +546,10 @@ const AccountantDashboard = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <p className="text-sm font-semibold text-gray-900">{inv.patientName}</p>
                           <p className="text-xs text-gray-400">{inv.patientCode || inv.patientEmail}</p>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-600">
+                          <p className="font-medium text-gray-800">{inv.doctorName || "Doctor"}</p>
+                          <p className="text-gray-400">{inv.appointmentDate ? String(inv.appointmentDate).substring(0, 10) : ''} {inv.appointmentTime || ''}</p>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-600">
                           <p className="font-medium text-gray-800">Issued: {inv.issueDate ? String(inv.issueDate).substring(0, 10) : 'N/A'}</p>
@@ -574,7 +630,6 @@ const AccountantDashboard = () => {
             })}
           </div>
         </div>
-
       </div>
 
       {/* RECREATE INVOICE MODAL */}

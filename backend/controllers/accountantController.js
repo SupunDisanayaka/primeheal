@@ -259,15 +259,15 @@ const getAllInvoices = async (req, res) => {
         a.appointmentDate,
         a.appointmentTime,
         a.doctorName,
-        u.name AS patientName,
-        u.email AS patientEmail,
-        p.patientCode,
+        COALESCE(u.name, a.patientName, 'Patient') AS patientName,
+        COALESCE(u.email, a.patientEmail, '') AS patientEmail,
+        COALESCE(p.patientCode, a.patientNic, '') AS patientCode,
         pay.paymentMethod,
         pay.paymentStatus
       FROM invoice i
       INNER JOIN appointments a ON i.appointmentID = a.appointmentID
-      INNER JOIN patient p ON i.patientID = p.patientID
-      INNER JOIN users u ON p.userID = u.userID
+      LEFT JOIN patient p ON i.patientID = p.patientID
+      LEFT JOIN users u ON p.userID = u.userID
       LEFT JOIN payments pay ON pay.appointmentID = a.appointmentID
       ORDER BY i.issueDate DESC, i.invoiceID DESC
     `;

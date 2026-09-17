@@ -417,7 +417,7 @@ const AppContextProvider = ({ children }) => {
   const [adminDataError, setAdminDataError] = useState(null);
 
   const refreshAdminData = useCallback(async () => {
-    if (!adminToken && !doctorToken && !receptionistToken) {
+    if (!adminToken && !doctorToken && !receptionistToken && !accountantToken) {
       setAppointments(getFallbackAppointments());
       setAdminDashboardStats(null);
       setAdminRecentAppointments([]);
@@ -448,7 +448,7 @@ const AppContextProvider = ({ children }) => {
         setAdminDashboardStats(dashboardResponse.stats || null);
         setAdminRecentAppointments(recentResponse.appointments || []);
         setAdminRecentTransactions(dashboardResponse.recentTransactions || []);
-      } else if (receptionistToken) {
+      } else if (receptionistToken || accountantToken) {
         const appointmentsResponse = await getAdminAppointments();
         setAppointments(appointmentsResponse.appointments || []);
       } else if (doctorToken) {
@@ -461,7 +461,7 @@ const AppContextProvider = ({ children }) => {
     } finally {
       setAdminDataLoading(false);
     }
-  }, [adminToken, doctorToken, receptionistToken]);
+  }, [adminToken, doctorToken, receptionistToken, accountantToken]);
 
   const syncAppointmentStatus = useCallback(async (appointmentId, status) => {
     const response = await updateAdminAppointmentStatus(appointmentId, status);
@@ -473,7 +473,7 @@ const AppContextProvider = ({ children }) => {
     refreshAdminData();
     fetchDoctors();
 
-    if (!adminToken && !doctorToken && !receptionistToken) {
+    if (!adminToken && !doctorToken && !receptionistToken && !accountantToken) {
       return undefined;
     }
 
@@ -495,7 +495,7 @@ const AppContextProvider = ({ children }) => {
       window.removeEventListener('focus', refreshAdminData);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [adminToken, doctorToken, refreshAdminData]);
+  }, [adminToken, doctorToken, receptionistToken, accountantToken, refreshAdminData]);
 
   const [doctorSchedules, setDoctorSchedules] = useState([
     {
