@@ -93,5 +93,12 @@ npm run dev
 npm install
 npm run dev
 
-👨‍💻 Contributors & ResponsibilitiesManuja Chelaka Nishshanka — Backend Developer & Database ArchitectDesigned and maintained the relational MySQL schema (database/schema).   Engineered core REST API modules for authentication, electronic patient records, doctor scheduling, and feedback workflows.Supun Disanayaka — Frontend & Admin UI DeveloperBuilt the responsive patient navigation bar, search workflows (frontend), and multi-role administrative dashboard (admin).   📄 License & Academic DisclaimerThis project was developed as an academic demonstration system for coursework at the University of Sri Jayewardenepura. It is intended for educational and portfolio evaluation purposes rather than live clinical deployment.
+👨‍💻 Contributors & Responsibilities
+
+Manuja Chelaka Nishshanka — Backend Developer & Database ArchitectDesigned and maintained the relational MySQL schema (database/schema).   
+Engineered core REST API modules for authentication, electronic patient records, doctor scheduling, and feedback workflows.
+
+Supun Disanayaka — Frontend & Admin UI DeveloperBuilt the responsive patient navigation bar, search workflows (frontend), and multi-role administrative dashboard (admin).   
+
+📄 License & Academic DisclaimerThis project was developed as an academic demonstration system for coursework at the University of Sri Jayewardenepura. It is intended for educational and portfolio evaluation purposes rather than live clinical deployment.
 
