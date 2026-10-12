@@ -57,5 +57,41 @@ primeheal/
 │   └── schema/             # SQL DDL scripts, migrations & ER schema definitions
 ├── package-lock.json
 └── README.md
+🛠️ Tech StackLayerTechnologies UsedBackend & APINode.js, Express.js, RESTful APIs, JWT / Session AuthenticationFrontend PortalsReact.js, HTML5, CSS3 / Tailwind CSS, JavaScript (ES6+)DatabaseMySQL (Relational Schema Design, Foreign Key Constraints, Indexing)Dev Tools & TestingGit, GitHub, Postman (API Testing & Documentation), VS Code
 
+🗄️ Database Schema & Backend Modules
+The relational database Located in database/schema is structured around four core operational modules:
+
+Authentication & Identity (users, roles): Handles credential hashing, multi-role authorization, and session state.
+
+Patient Records (patients): Captures granular patient identifiers including Title, National Identity Card (NIC), Country of origin, and medical contact metadata.
+
+Clinical Scheduling (doctors, schedules, appointments): Manages doctor availability windows, prevents double-booking collisions, and tracks appointment lifecycle states (Pending, Confirmed, Completed, Cancelled).
+
+Quality Assurance (feedback): Links patient reviews directly to verified consultation records.
+
+🚀 Getting StartedFollow these steps to set up and run the project locally for development and testing.PrerequisitesNode.js (v18.0.0 or higher)npm (v9.0.0 or higher)MySQL Server (v8.0 or higher)1. Clone the RepositoryBashgit clone [https://github.com/](https://github.com/)<your-org-or-username>/primeheal.git
+cd primeheal
+2. Database SetupOpen your MySQL client (MySQL Workbench, phpMyAdmin, or CLI).Create a new database:SQLCREATE DATABASE primeheal_db;
+Import the SQL schema files located in the database/schema/ directory:Bashmysql -u root -p primeheal_db < database/schema/init.sql
+3. Backend Configuration (If on Backend Branch/Folder)Bashcd backend
+npm install
+
+Create a .env file in the backend directory:Code snippetPORT=5000
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=primeheal_db
+JWT_SECRET=your_secret_key
+Start the API server:Bashnpm run dev
+
+4. Run the Frontend Patient PortalBashcd frontend
+npm install
+npm run dev
+
+5. Run the Admin PortalBashcd admin
+npm install
+npm run dev
+
+👨‍💻 Contributors & ResponsibilitiesManuja Chelaka Nishshanka — Backend Developer & Database ArchitectDesigned and maintained the relational MySQL schema (database/schema).   Engineered core REST API modules for authentication, electronic patient records, doctor scheduling, and feedback workflows.Supun Disanayaka — Frontend & Admin UI DeveloperBuilt the responsive patient navigation bar, search workflows (frontend), and multi-role administrative dashboard (admin).   📄 License & Academic DisclaimerThis project was developed as an academic demonstration system for coursework at the University of Sri Jayewardenepura. It is intended for educational and portfolio evaluation purposes rather than live clinical deployment.
 
